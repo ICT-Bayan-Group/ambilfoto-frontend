@@ -153,7 +153,7 @@ const About = () => {
         </div>
       </section>
 
-      {/* Stats Section dengan Counter Animation */}
+      {/* Stats Section dengan Counter Animation 
       <section className="py-16 bg-muted/30">
         <div className="container">
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
@@ -184,7 +184,7 @@ const About = () => {
             })}
           </div>
         </div>
-      </section>
+      </section>*/}
 
       {/* Story Section */}
       <section className="py-20">
@@ -272,7 +272,7 @@ const About = () => {
         </div>
       </section>
 
-      {/* Timeline Section */}
+      {/* Timeline Section 
       <section className="py-20">
         <div className="container">
           <div
@@ -311,7 +311,7 @@ const About = () => {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Achievements Section */}
       <section className="py-20 bg-muted/30">

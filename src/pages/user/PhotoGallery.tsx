@@ -67,19 +67,19 @@ const PhotoGallery = () => {
             
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold mb-2">Your Photos ({photos.length})</h1>
-                <p className="text-muted-foreground">All photos found from face recognition</p>
+                <h1 className="text-3xl font-bold mb-2">Foto Anda ({photos.length})</h1>
+                <p className="text-muted-foreground">Semua foto ditemukan dari pengenalan wajah</p>
               </div>
               
               <div className="flex gap-2">
                 <Link to="/user/scan-face">
                   <Button variant="outline">
-                    Scan Again
+                    Scan Ulang
                   </Button>
                 </Link>
                 <Button onClick={handleDownloadAll}>
                   <Download className="mr-2 h-4 w-4" />
-                  Download All (ZIP)
+                  Download Semua (ZIP)
                 </Button>
               </div>
             </div>
