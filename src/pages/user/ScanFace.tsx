@@ -59,9 +59,9 @@ const ScanFace = () => {
           
           <Card className="shadow-strong border-border/50">
             <CardHeader>
-              <CardTitle className="text-2xl">Scan Your Face</CardTitle>
+              <CardTitle className="text-2xl">Scan Wajah Anda</CardTitle>
               <CardDescription>
-                Position your face clearly in the camera to find all your photos automatically
+              Posisikan wajah Anda dengan jelas di kamera untuk menemukan semua foto Anda secara otomatis
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -69,9 +69,9 @@ const ScanFace = () => {
                 <div className="aspect-square w-full rounded-lg bg-muted flex flex-col items-center justify-center gap-4">
                   <Loader2 className="h-12 w-12 text-primary animate-spin" />
                   <div className="text-center space-y-2">
-                    <p className="font-medium">Processing your photo...</p>
+                    <p className="font-medium">Memproses foto Anda...</p>
                     <p className="text-sm text-muted-foreground">
-                      This may take a few moments
+                      Ini mungkin memerlukan beberapa saat
                     </p>
                   </div>
                   <div className="w-64 h-1 bg-primary/20 rounded-full overflow-hidden">
@@ -83,12 +83,12 @@ const ScanFace = () => {
               )}
               
               <div className="mt-6 p-4 rounded-lg bg-muted/50 space-y-2">
-                <h3 className="font-medium text-sm">Tips for best results:</h3>
+                <h3 className="font-medium text-sm">Tips untuk hasil terbaik:</h3>
                 <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                  <li>Ensure good lighting on your face</li>
-                  <li>Look directly at the camera</li>
-                  <li>Remove sunglasses or face coverings</li>
-                  <li>Keep your face centered in the circle</li>
+                  <li>Pastikan pencahayaan yang baik pada wajah Anda</li>
+                  <li>Lihat langsung ke kamera</li>
+                  <li>Hapus kacamata hitam atau penutup wajah</li>
+                  <li>Pastikan wajah Anda berada di tengah lingkaran</li>
                 </ul>
               </div>
             </CardContent>

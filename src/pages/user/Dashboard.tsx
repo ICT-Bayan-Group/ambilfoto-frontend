@@ -24,8 +24,8 @@ const UserDashboard = () => {
         <div className="container max-w-6xl">
           {/* Welcome Section */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">Welcome back! 👋</h1>
-            <p className="text-muted-foreground">Find your photos or view your collection</p>
+            <h1 className="text-3xl font-bold mb-2">Selamat Datang! 👋</h1>
+            <p className="text-muted-foreground">Temukan foto Anda atau lihat koleksi Anda</p>
           </div>
 
           {/* Quick Stats */}
@@ -38,7 +38,7 @@ const UserDashboard = () => {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{totalPhotos}</p>
-                    <p className="text-sm text-muted-foreground">Your Photos</p>
+                    <p className="text-sm text-muted-foreground">Foto Anda</p>
                   </div>
                 </div>
               </CardContent>
@@ -81,15 +81,15 @@ const UserDashboard = () => {
                   <Scan className="h-8 w-8 text-primary" />
                 </div>
                 <div className="flex-1 text-center md:text-left">
-                  <h2 className="text-xl font-semibold mb-2">Find Your Photos</h2>
+                  <h2 className="text-xl font-semibold mb-2">Temukan Foto Anda</h2>
                   <p className="text-muted-foreground">
-                    Scan your face to automatically discover all photos of you from events
+                    Scan wajah Anda untuk secara otomatis menemukan semua foto Anda dari acara
                   </p>
                 </div>
                 <Link to="/user/scan-face">
                   <Button size="lg" className="shadow-soft">
                     <Camera className="mr-2 h-5 w-5" />
-                    Start Face Scan
+                    Mulai Scan Wajah
                   </Button>
                 </Link>
               </div>

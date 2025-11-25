@@ -9,19 +9,19 @@ export const Footer = () => {
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <Camera className="h-6 w-6 text-primary" />
-              <span className="text-lg font-bold">AmbildFoto.id</span>
+              <span className="text-lg font-bold">AmbilFoto.id</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Find your event photos automatically with AI-powered face recognition.
+              Temukan foto acara Anda secara otomatis dengan Face Recognition.
             </p>
           </div>
           
           <div>
             <h3 className="mb-4 text-sm font-semibold">Product</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
+               <li><Link to="/about" className="hover:text-foreground transition-smooth">About</Link></li>
               <li><Link to="/features" className="hover:text-foreground transition-smooth">Features</Link></li>
               <li><Link to="/pricing" className="hover:text-foreground transition-smooth">Pricing</Link></li>
-              <li><Link to="/about" className="hover:text-foreground transition-smooth">About</Link></li>
             </ul>
           </div>
           

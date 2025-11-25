@@ -8,18 +8,18 @@ export const Header = () => {
       <div className="container flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center gap-2 transition-smooth hover:opacity-80">
           <Camera className="h-6 w-6 text-primary" />
-          <span className="text-xl font-bold">AmbildFoto.id</span>
+          <span className="text-xl font-bold">AmbilFoto.id</span>
         </Link>
         
         <nav className="hidden md:flex items-center gap-6">
+          <Link to="/about" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
+            About
+          </Link>
           <Link to="/features" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
             Features
           </Link>
           <Link to="/pricing" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
             Pricing
-          </Link>
-          <Link to="/about" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
-            About
           </Link>
         </nav>
         
