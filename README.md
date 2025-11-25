@@ -1,73 +1,72 @@
-# Welcome to your Lovable project
+# AmbilFoto.id - AI-Powered Event Photo Finder
 
-## Project info
+Platform pencarian foto acara berbasis AI yang memudahkan pengguna menemukan foto mereka secara otomatis menggunakan teknologi face recognition.
 
-**URL**: https://lovable.dev/projects/93d7dce4-8f43-4956-9f0c-322bfb28e8ee
+## 🚀 Tentang Project
 
-## How can I edit this code?
+AmbilFoto.id adalah solusi inovatif untuk mengatasi kesulitan dalam mencari foto pribadi dari berbagai acara. Dengan teknologi AI dan face recognition canggih, pengguna hanya perlu upload wajah mereka sekali, dan sistem akan otomatis menemukan semua foto mereka dari berbagai event.
 
-There are several ways of editing your application.
+### Fitur Utama
 
-**Use Lovable**
+- 🤖 **AI Face Recognition**: Teknologi deep learning untuk pengenalan wajah dengan akurasi 95%+
+- ⚡ **Real-time Processing**: Pemrosesan foto instant dalam hitungan detik
+- 🔒 **Privacy First**: Data wajah terenkripsi dengan standar keamanan tinggi
+- 📱 **Responsive Design**: Akses dari desktop, tablet, atau smartphone
+- 🎯 **User-Friendly**: Interface intuitif dan mudah digunakan
+- 📥 **High Quality Download**: Download foto dalam kualitas tinggi
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/93d7dce4-8f43-4956-9f0c-322bfb28e8ee) and start prompting.
+## 🛠️ Teknologi yang Digunakan
 
-Changes made via Lovable will be committed automatically to this repo.
+Project ini dibangun menggunakan teknologi modern:
 
-**Use your preferred IDE**
+- **Vite** - Build tool yang cepat dan modern
+- **TypeScript** - Type-safe JavaScript untuk development yang lebih robust
+- **React** - Library UI untuk membangun interface yang interaktif
+- **shadcn/ui** - Komponen UI yang beautiful dan accessible
+- **Tailwind CSS** - Utility-first CSS framework untuk styling yang efisien
+- **Lucide React** - Icon library yang modern dan konsisten
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 📋 Prerequisites
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+Sebelum memulai, pastikan Anda telah menginstall:
 
-Follow these steps:
+- Node.js (versi 16 atau lebih tinggi)
+- npm atau yarn
+- Git
+
+Install Node.js & npm dengan [nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+
+## 🚀 Cara Menjalankan Project
+
+### 1. Clone Repository
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+git clone https://github.com/your-username/ambilfoto.git
+cd ambilfoto
 ```
 
-**Edit a file directly in GitHub**
+### 2. Install Dependencies
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```sh
+npm install
+# atau
+yarn install
+```
 
-**Use GitHub Codespaces**
+### 3. Jalankan Development Server
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```sh
+npm run dev
+# atau
+yarn dev
+```
 
-## What technologies are used for this project?
+Server akan berjalan di `http://localhost:5173` (atau port lain yang tersedia)
 
-This project is built with:
+### 4. Build untuk Production
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/93d7dce4-8f43-4956-9f0c-322bfb28e8ee) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+```sh
+npm run build
+# atau
+yarn build
+```
