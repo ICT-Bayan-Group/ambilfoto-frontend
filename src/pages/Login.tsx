@@ -1,37 +1,38 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Camera, Eye, EyeOff, Scan } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/user/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      await login(email, password);
+      navigate('/user/dashboard');
+    } catch (error) {
+      // Error handled by AuthContext
+    } finally {
       setLoading(false);
-      toast({
-        title: "Login successful!",
-        description: "Redirecting to dashboard...",
-      });
-      
-      // Redirect to dashboard
-      setTimeout(() => {
-        navigate("/user/dashboard");
-      }, 500);
-    }, 1000);
+    }
   };
 
   return (
@@ -39,7 +40,7 @@ const Login = () => {
       <div className="w-full max-w-md">
         <Link to="/" className="flex items-center justify-center gap-2 mb-8">
           <Camera className="h-8 w-8 text-primary" />
-          <span className="text-2xl font-bold">AmbilFoto.id</span>
+          <span className="text-2xl font-bold">AmbildFoto.id</span>
         </Link>
         
         <Card className="shadow-strong border-border/50">

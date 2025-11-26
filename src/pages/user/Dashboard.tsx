@@ -1,13 +1,20 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Header } from "@/components/layout/Header";
+import HeaderDash from "@/components/layout/HeaderDash";
 import { Footer } from "@/components/layout/Footer";
-import { Camera, Scan, Image as ImageIcon, Calendar } from "lucide-react";
+import { Camera, Scan, Image as ImageIcon, Calendar, LogOut, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const UserDashboard = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [totalPhotos] = useState(24);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  
   const recentEvents = [
     { name: 'Soccer Clinic 2025', photos: 12, date: 'Nov 25' },
     { name: 'Company Gathering', photos: 8, date: 'Nov 20' },
@@ -16,16 +23,82 @@ const UserDashboard = () => {
 
   const recentPhotos = [1, 2, 3, 4];
 
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    
+    try {
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        // If no token, just clear and redirect
+        localStorage.clear();
+        navigate('/');
+        return;
+      }
+
+      // Call logout API
+      const response = await fetch('http://localhost:5000/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Clear all user data from localStorage
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('userRole');
+        
+        // Show success message
+        toast({
+          title: "Logged out successfully",
+          description: "See you again soon!",
+        });
+
+        // Redirect to login page
+        setTimeout(() => {
+          navigate('/', { replace: true });
+        }, 500);
+      } else {
+        throw new Error(data.error || 'Logout failed');
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      
+      // Even if API fails, clear local storage and redirect
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('userRole');
+      
+      toast({
+        variant: "destructive",
+        title: "Logout completed",
+        description: "Session has been cleared",
+      });
+      
+      navigate('/', { replace: true });
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      <HeaderDash />
       
       <main className="flex-1 py-8">
         <div className="container max-w-6xl">
-          {/* Welcome Section */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">Selamat Datang! 👋</h1>
-            <p className="text-muted-foreground">Temukan foto Anda atau lihat koleksi Anda</p>
+          {/* Welcome Section with Logout */}
+          <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Selamat Datang ! {user?.full_name || "user@example.com"} 👋</h1>
+              <p className="text-muted-foreground">Find your photos or view your collection</p>
+            </div>
           </div>
 
           {/* Quick Stats */}
@@ -38,7 +111,7 @@ const UserDashboard = () => {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{totalPhotos}</p>
-                    <p className="text-sm text-muted-foreground">Foto Anda</p>
+                    <p className="text-sm text-muted-foreground">Your Photos</p>
                   </div>
                 </div>
               </CardContent>
@@ -81,15 +154,15 @@ const UserDashboard = () => {
                   <Scan className="h-8 w-8 text-primary" />
                 </div>
                 <div className="flex-1 text-center md:text-left">
-                  <h2 className="text-xl font-semibold mb-2">Temukan Foto Anda</h2>
+                  <h2 className="text-xl font-semibold mb-2">Find Your Photos</h2>
                   <p className="text-muted-foreground">
-                    Scan wajah Anda untuk secara otomatis menemukan semua foto Anda dari acara
+                    Scan your face to automatically discover all photos of you from events
                   </p>
                 </div>
                 <Link to="/user/scan-face">
                   <Button size="lg" className="shadow-soft">
                     <Camera className="mr-2 h-5 w-5" />
-                    Mulai Scan Wajah
+                    Start Face Scan
                   </Button>
                 </Link>
               </div>

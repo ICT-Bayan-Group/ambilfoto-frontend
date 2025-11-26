@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Header } from "@/components/layout/Header";
+import { Skeleton } from "@/components/ui/skeleton";
+import HeaderDash from "@/components/layout/HeaderDash";
 import { Footer } from "@/components/layout/Footer";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,46 +13,228 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Download, Search, Filter, Grid3x3, List, Image as ImageIcon, Calendar, MapPin } from "lucide-react";
+import { ArrowLeft, Download, Search, Filter, Grid3x3, List, Camera } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { aiService, Photo } from "@/services/api/ai.service";
+import { PhotoCard } from "@/components/PhotoCard";
+import { PhotoListItem } from "@/components/PhotoListItem";
 
 const PhotoGallery = () => {
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string>("");
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedEvent, setSelectedEvent] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('newest');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  // Mock data
-  const photos = Array.from({ length: 24 }, (_, i) => ({
-    id: i + 1,
-    event: i < 8 ? 'Soccer Clinic 2025' : i < 16 ? 'Company Gathering' : 'Birthday Party',
-    date: `Nov ${25 - Math.floor(i / 3)}`,
-    location: i < 8 ? 'Balikpapan' : i < 16 ? 'Jakarta' : 'Surabaya',
-    matchScore: 90 + Math.floor(Math.random() * 10),
-  }));
+  useEffect(() => {
+    loadPhotos();
+  }, []);
 
-  const events = [
-    { value: 'all', label: 'All Events' },
-    { value: 'soccer', label: 'Soccer Clinic 2025' },
-    { value: 'gathering', label: 'Company Gathering' },
-    { value: 'birthday', label: 'Birthday Party' },
-  ];
+  const loadPhotos = () => {
+    try {
+      setIsLoading(true);
+      const storedPhotos = localStorage.getItem('matched_photos');
+      
+      if (storedPhotos) {
+        const parsedPhotos = JSON.parse(storedPhotos);
+        setPhotos(parsedPhotos);
+        setError("");
+      } else {
+        setPhotos([]);
+        setError("No photos found. Try scanning your face first.");
+      }
+    } catch (err) {
+      console.error('Error loading photos:', err);
+      setError("Failed to load photos");
+      setPhotos([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Extract unique events from photos
+  const events = useMemo(() => {
+    const uniqueEvents = new Set<string>();
+    photos.forEach(photo => {
+      if (photo.metadata?.event_name) {
+        uniqueEvents.add(photo.metadata.event_name);
+      }
+    });
+    
+    return [
+      { value: 'all', label: 'All Events' },
+      ...Array.from(uniqueEvents).map(event => ({
+        value: event.toLowerCase().replace(/\s+/g, '-'),
+        label: event
+      }))
+    ];
+  }, [photos]);
+
+  // Filter and sort photos
+  const filteredPhotos = useMemo(() => {
+    let result = [...photos];
+
+    // Filter by event
+    if (selectedEvent !== 'all') {
+      result = result.filter(photo => 
+        photo.metadata?.event_name?.toLowerCase().replace(/\s+/g, '-') === selectedEvent
+      );
+    }
+
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(photo => 
+        photo.metadata?.event_name?.toLowerCase().includes(query) ||
+        photo.metadata?.location?.toLowerCase().includes(query) ||
+        photo.filename?.toLowerCase().includes(query)
+      );
+    }
+
+    // Sort photos
+    switch (sortBy) {
+      case 'newest':
+        result.sort((a, b) => 
+          new Date(b.metadata?.date || 0).getTime() - new Date(a.metadata?.date || 0).getTime()
+        );
+        break;
+      case 'oldest':
+        result.sort((a, b) => 
+          new Date(a.metadata?.date || 0).getTime() - new Date(b.metadata?.date || 0).getTime()
+        );
+        break;
+      case 'match':
+        result.sort((a, b) => 
+          (a.distance || 999) - (b.distance || 999)
+        );
+        break;
+      case 'event':
+        result.sort((a, b) => 
+          (a.metadata?.event_name || '').localeCompare(b.metadata?.event_name || '')
+        );
+        break;
+    }
+
+    return result;
+  }, [photos, selectedEvent, searchQuery, sortBy]);
+
+  const handleDownloadPhoto = async (photoId: string) => {
+    try {
+      setDownloadingIds(prev => new Set(prev).add(photoId));
+      
+      const downloadUrl = aiService.getDownloadUrl(photoId);
+      window.open(downloadUrl, '_blank');
+      
+      toast({
+        title: "Download started",
+        description: "Your photo is being downloaded from Dropbox",
+      });
+    } catch (err) {
+      toast({
+        title: "Download failed",
+        description: "Failed to download photo. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(photoId);
+        return newSet;
+      });
+    }
+  };
 
   const handleDownloadAll = () => {
     toast({
       title: "Preparing download",
-      description: "Creating ZIP file with all photos...",
+      description: `Downloading ${filteredPhotos.length} photos...`,
+    });
+    
+    // Download each photo sequentially
+    filteredPhotos.forEach((photo, index) => {
+      setTimeout(() => {
+        const downloadUrl = aiService.getDownloadUrl(photo.photo_id);
+        window.open(downloadUrl, '_blank');
+      }, index * 500); // Stagger downloads by 500ms
     });
   };
 
-  const handlePhotoClick = (id: number) => {
-    // Navigate to photo detail or open modal
-    console.log('View photo:', id);
+  const getMatchPercentage = (distance?: number) => {
+    if (!distance) return 0;
+    // Convert distance to percentage (lower distance = higher match)
+    // Assuming distance ranges from 0 to 1
+    return Math.max(0, Math.min(100, Math.round((1 - distance) * 100)));
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <HeaderDash />
+        <main className="flex-1 py-8">
+          <div className="container max-w-7xl">
+            <Skeleton className="h-8 w-64 mb-4" />
+            <Skeleton className="h-12 w-full mb-6" />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Card key={i} className="overflow-hidden">
+                  <Skeleton className="aspect-square w-full" />
+                  <div className="p-3">
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Empty state
+  if (!isLoading && photos.length === 0) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <HeaderDash />
+        <main className="flex-1 py-8">
+          <div className="container max-w-7xl">
+            <Link 
+              to="/user/dashboard" 
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-smooth"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Dashboard
+            </Link>
+            
+            <Card className="border-border/50 shadow-soft">
+              <div className="p-12 text-center">
+                <Camera className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h2 className="text-2xl font-bold mb-2">No Photos Found</h2>
+                <p className="text-muted-foreground mb-6">
+                  {error || "We couldn't find any photos matching your face. Try scanning your face to discover your photos."}
+                </p>
+                <Button onClick={() => navigate('/user/scan-face')}>
+                  <Camera className="mr-2 h-4 w-4" />
+                  Scan Your Face
+                </Button>
+              </div>
+            </Card>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      <HeaderDash />
       
       <main className="flex-1 py-8">
         <div className="container max-w-7xl">
@@ -67,20 +250,28 @@ const PhotoGallery = () => {
             
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold mb-2">Foto Anda ({photos.length})</h1>
-                <p className="text-muted-foreground">Semua foto ditemukan dari pengenalan wajah</p>
+                <h1 className="text-3xl font-bold mb-2">Your Photos ({filteredPhotos.length})</h1>
+                <p className="text-muted-foreground">
+                  {filteredPhotos.length === photos.length 
+                    ? "All photos found from face recognition"
+                    : `Showing ${filteredPhotos.length} of ${photos.length} photos`
+                  }
+                </p>
               </div>
               
               <div className="flex gap-2">
                 <Link to="/user/scan-face">
                   <Button variant="outline">
-                    Scan Ulang
+                    <Camera className="mr-2 h-4 w-4" />
+                    Scan Again
                   </Button>
                 </Link>
-                <Button onClick={handleDownloadAll}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Semua (ZIP)
-                </Button>
+                {filteredPhotos.length > 0 && (
+                  <Button onClick={handleDownloadAll}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Download All ({filteredPhotos.length})
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -95,6 +286,8 @@ const PhotoGallery = () => {
                   <Input 
                     placeholder="Search by event, date, or location..." 
                     className="pl-9"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
                 
@@ -149,106 +342,47 @@ const PhotoGallery = () => {
             </div>
           </Card>
 
-          {/* Photo Grid */}
-          {viewMode === 'grid' ? (
+          {/* Photo Grid/List */}
+          {filteredPhotos.length === 0 ? (
+            <Card className="border-border/50 shadow-soft p-12 text-center">
+              <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No photos match your filters</h3>
+              <p className="text-muted-foreground mb-4">
+                Try adjusting your search or filter criteria
+              </p>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSelectedEvent('all');
+                  setSearchQuery('');
+                }}
+              >
+                Clear Filters
+              </Button>
+            </Card>
+          ) : viewMode === 'grid' ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {photos.map((photo) => (
-                <Card 
-                  key={photo.id}
-                  className="overflow-hidden border-border/50 shadow-soft hover:shadow-strong transition-smooth group cursor-pointer"
-                  onClick={() => handlePhotoClick(photo.id)}
-                >
-                  <div className="aspect-square bg-gradient-to-br from-primary/10 via-secondary/10 to-accent/10 relative">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <ImageIcon className="h-16 w-16 text-muted-foreground/50 group-hover:scale-110 transition-smooth" />
-                    </div>
-                    
-                    {/* Match score badge */}
-                    <div className="absolute top-2 right-2 bg-secondary text-secondary-foreground text-xs font-medium px-2 py-1 rounded-full">
-                      {photo.matchScore}%
-                    </div>
-                    
-                    {/* Info overlay */}
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-smooth">
-                      <p className="text-white text-sm font-medium mb-1 line-clamp-1">{photo.event}</p>
-                      <div className="flex items-center gap-2 text-xs text-white/80">
-                        <Calendar className="h-3 w-3" />
-                        <span>{photo.date}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Action buttons */}
-                  <div className="p-3 flex gap-2">
-                    <Button size="sm" variant="outline" className="flex-1 h-8 text-xs">
-                      View
-                    </Button>
-                    <Button size="sm" className="flex-1 h-8 text-xs">
-                      <Download className="mr-1 h-3 w-3" />
-                      Download
-                    </Button>
-                  </div>
-                </Card>
+              {filteredPhotos.map((photo) => (
+                <PhotoCard
+                  key={photo.photo_id}
+                  photo={photo}
+                  onDownload={handleDownloadPhoto}
+                  isDownloading={downloadingIds.has(photo.photo_id)}
+                />
               ))}
             </div>
           ) : (
             <div className="space-y-3">
-              {photos.map((photo) => (
-                <Card 
-                  key={photo.id}
-                  className="border-border/50 shadow-soft hover:shadow-strong transition-smooth cursor-pointer"
-                  onClick={() => handlePhotoClick(photo.id)}
-                >
-                  <div className="p-4 flex items-center gap-4">
-                    <div className="h-20 w-20 rounded-lg bg-gradient-to-br from-primary/10 via-secondary/10 to-accent/10 flex items-center justify-center shrink-0">
-                      <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold mb-1">{photo.event}</h3>
-                      <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4" />
-                          <span>{photo.date}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-4 w-4" />
-                          <span>{photo.location}</span>
-                        </div>
-                        <div className="bg-secondary/10 text-secondary text-xs font-medium px-2 py-1 rounded">
-                          Match: {photo.matchScore}%
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex gap-2 shrink-0">
-                      <Button size="sm" variant="outline">View</Button>
-                      <Button size="sm">
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
+              {filteredPhotos.map((photo) => (
+                <PhotoListItem
+                  key={photo.photo_id}
+                  photo={photo}
+                  onDownload={handleDownloadPhoto}
+                  isDownloading={downloadingIds.has(photo.photo_id)}
+                />
               ))}
             </div>
           )}
-
-          {/* Pagination */}
-          <div className="mt-8 flex justify-center">
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" className="bg-primary text-primary-foreground">
-                1
-              </Button>
-              <Button variant="outline" size="sm">2</Button>
-              <Button variant="outline" size="sm">3</Button>
-              <Button variant="outline" size="sm">
-                Next
-              </Button>
-            </div>
-          </div>
         </div>
       </main>
       

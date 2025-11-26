@@ -6,9 +6,10 @@ interface FaceCameraProps {
   onCapture: (imageData: string) => void;
   mode?: 'scan' | 'register';
   className?: string;
+  isProcessing?: boolean;
 }
 
-export const FaceCamera = ({ onCapture, mode = 'scan', className = '' }: FaceCameraProps) => {
+export const FaceCamera = ({ onCapture, mode = 'scan', className = '', isProcessing = false }: FaceCameraProps) => {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [faceDetected, setFaceDetected] = useState(false);
   const [error, setError] = useState<string>("");
@@ -72,8 +73,10 @@ export const FaceCamera = ({ onCapture, mode = 'scan', className = '' }: FaceCam
     const context = canvas.getContext('2d');
     if (context) {
       context.drawImage(video, 0, 0);
-      const imageData = canvas.toDataURL('image/jpeg', 0.9);
-      onCapture(imageData);
+      const dataURL = canvas.toDataURL('image/jpeg', 0.9);
+      
+      // Send full data URL with prefix (server expects this format)
+      onCapture(dataURL);
     }
     
     setTimeout(() => setIsCapturing(false), 500);
@@ -83,10 +86,24 @@ export const FaceCamera = ({ onCapture, mode = 'scan', className = '' }: FaceCam
     const file = event.target.files?.[0];
     if (!file) return;
     
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      console.error('Please select an image file');
+      return;
+    }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      console.error('Image size must be less than 5MB');
+      return;
+    }
+    
     const reader = new FileReader();
     reader.onload = (e) => {
-      const imageData = e.target?.result as string;
-      onCapture(imageData);
+      const dataURL = e.target?.result as string;
+      
+      // Send full data URL with prefix (server expects this format)
+      onCapture(dataURL);
     };
     reader.readAsDataURL(file);
   };
@@ -164,10 +181,10 @@ export const FaceCamera = ({ onCapture, mode = 'scan', className = '' }: FaceCam
         <Button 
           onClick={captureImage} 
           className="flex-1"
-          disabled={!faceDetected || isCapturing}
+          disabled={!faceDetected || isCapturing || isProcessing}
         >
           <Camera className="mr-2 h-4 w-4" />
-          {mode === 'scan' ? 'Scan & Find Photos' : 'Capture Face'}
+          {isProcessing ? 'Processing...' : isCapturing ? 'Capturing...' : mode === 'scan' ? 'Scan & Find Photos' : 'Capture Face'}
         </Button>
         
         <input
@@ -180,6 +197,7 @@ export const FaceCamera = ({ onCapture, mode = 'scan', className = '' }: FaceCam
         <Button 
           onClick={() => fileInputRef.current?.click()}
           variant="outline"
+          disabled={isProcessing}
         >
           <Upload className="h-4 w-4" />
         </Button>
