@@ -2,10 +2,12 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FaceCamera } from "@/components/camera/FaceCamera";
-import { Header } from "@/components/layout/Header";
+import HeaderDash from "@/components/layout/HeaderDash";
 import { Footer } from "@/components/layout/Footer";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { aiService } from "@/services/api/ai.service";
+
 
 const ScanFace = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -16,22 +18,43 @@ const ScanFace = () => {
     setIsProcessing(true);
     
     try {
-      // Simulate API calls
-      // 1. Extract face embedding
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Extract face embedding
+      const faceResult = await aiService.registerFace(imageData);
       
-      // 2. Match with photos
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      if (!faceResult.success || !faceResult.embedding) {
+        toast({
+          title: "No face detected",
+          description: "Please try again with a clear face photo",
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+        return;
+      }
       
-      toast({
-        title: "Photos found!",
-        description: "We found 24 photos of you across multiple events",
-      });
+      // Find matching photos
+      const photosResult = await aiService.findMyPhotos(faceResult.embedding);
       
-      // Redirect to results
-      setTimeout(() => {
-        navigate('/user/photos');
-      }, 1000);
+      if (photosResult.success) {
+        const photoCount = photosResult.photos.length;
+        
+        if (photoCount > 0) {
+          toast({
+            title: "Photos found!",
+            description: `We found ${photoCount} photo${photoCount > 1 ? 's' : ''} of you`,
+          });
+          
+          // Store results and redirect
+          localStorage.setItem('matched_photos', JSON.stringify(photosResult.photos));
+          navigate('/user/photos');
+        } else {
+          toast({
+            title: "No photos found",
+            description: "We couldn't find any photos matching your face",
+            variant: "destructive",
+          });
+          setIsProcessing(false);
+        }
+      }
       
     } catch (error) {
       toast({
@@ -45,7 +68,7 @@ const ScanFace = () => {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      <HeaderDash />
       
       <main className="flex-1 py-8">
         <div className="container max-w-2xl">
@@ -59,9 +82,9 @@ const ScanFace = () => {
           
           <Card className="shadow-strong border-border/50">
             <CardHeader>
-              <CardTitle className="text-2xl">Scan Wajah Anda</CardTitle>
+              <CardTitle className="text-2xl">Scan Your Face</CardTitle>
               <CardDescription>
-              Posisikan wajah Anda dengan jelas di kamera untuk menemukan semua foto Anda secara otomatis
+                Position your face clearly in the camera to find all your photos automatically
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -69,9 +92,9 @@ const ScanFace = () => {
                 <div className="aspect-square w-full rounded-lg bg-muted flex flex-col items-center justify-center gap-4">
                   <Loader2 className="h-12 w-12 text-primary animate-spin" />
                   <div className="text-center space-y-2">
-                    <p className="font-medium">Memproses foto Anda...</p>
+                    <p className="font-medium">Processing your photo...</p>
                     <p className="text-sm text-muted-foreground">
-                      Ini mungkin memerlukan beberapa saat
+                      Analyzing face and searching photos
                     </p>
                   </div>
                   <div className="w-64 h-1 bg-primary/20 rounded-full overflow-hidden">
@@ -79,16 +102,16 @@ const ScanFace = () => {
                   </div>
                 </div>
               ) : (
-                <FaceCamera onCapture={handleCapture} mode="scan" />
+                <FaceCamera onCapture={handleCapture} mode="scan" isProcessing={isProcessing} />
               )}
               
               <div className="mt-6 p-4 rounded-lg bg-muted/50 space-y-2">
-                <h3 className="font-medium text-sm">Tips untuk hasil terbaik:</h3>
+                <h3 className="font-medium text-sm">Tips for best results:</h3>
                 <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                  <li>Pastikan pencahayaan yang baik pada wajah Anda</li>
-                  <li>Lihat langsung ke kamera</li>
-                  <li>Hapus kacamata hitam atau penutup wajah</li>
-                  <li>Pastikan wajah Anda berada di tengah lingkaran</li>
+                  <li>Ensure good lighting on your face</li>
+                  <li>Look directly at the camera</li>
+                  <li>Remove sunglasses or face coverings</li>
+                  <li>Keep your face centered in the circle</li>
                 </ul>
               </div>
             </CardContent>
