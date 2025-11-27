@@ -80,22 +80,25 @@ const Register = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-background p-4">
       <div className="w-full max-w-md">
-        <Link to="/" className="flex items-center justify-center gap-2 mb-8">
-          <Camera className="h-8 w-8 text-primary" />
-          <span className="text-2xl font-bold">AmbildFoto.id</span>
-        </Link>
+            <Link to="/" className="flex items-center justify-center w-full transition-all duration-200 hover:opacity-80">
+              <img 
+                src="https://res.cloudinary.com/dgcedsrzf/image/upload/c_pad,w_440,h_330,ar_4:3/v1764206071/logo-ambilfoto_ijxmmm.png" 
+                alt="AmbilFoto.id Logo" 
+                className="h-32 mx-auto w-auto "
+              />
+            </Link>
         
         <Card className="shadow-strong border-border/50">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl">Create an account</CardTitle>
+            <CardTitle className="text-2xl">Buat akun</CardTitle>
             <CardDescription>
-              Enter your details to get started
+             Daftarkan akun baru kamu
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleRegister} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="name">Nama Lengkap</Label>
                 <Input
                   id="name"
                   type="text"
@@ -120,7 +123,7 @@ const Register = () => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number (Optional)</Label>
+                <Label htmlFor="phone">Telepon (Optional)</Label>
                 <Input
                   id="phone"
                   type="tel"
@@ -153,12 +156,12 @@ const Register = () => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Label htmlFor="confirmPassword">Konfirmasi Password</Label>
                 <div className="relative">
                   <Input
                     id="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
-                    placeholder="Re-enter password"
+                    placeholder="Masukkan ulang password"
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     required
@@ -174,25 +177,25 @@ const Register = () => {
               </div>
               
               <div className="text-xs text-muted-foreground">
-                By creating an account, you agree to our{" "}
+                Dengan membuat baru, kamu setuju dengan{" "}
                 <Link to="/terms" className="text-primary hover:underline">
-                  Terms of Service
+                  Ketentuan Layanan
                 </Link>{" "}
-                and{" "}
+                dan{" "}
                 <Link to="/privacy" className="text-primary hover:underline">
-                  Privacy Policy
+                  Kebijakan Privasi
                 </Link>
               </div>
               
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Creating account..." : "Create Account"}
+                {loading ? "Membuat akun..." : "Buat Akun"}
               </Button>
             </form>
             
             <p className="mt-6 text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
+              Sudah punya akun?{" "}
               <Link to="/login" className="text-primary hover:underline font-medium">
-                Sign in
+                Masuk
               </Link>
             </p>
           </CardContent>

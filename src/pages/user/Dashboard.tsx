@@ -92,12 +92,12 @@ const UserDashboard = () => {
           {/* Welcome Section */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">
-              Welcome back, {user?.full_name || 'User'}! 👋
+              Selamat Datang, {user?.full_name || 'User'}👋
             </h1>
             <p className="text-muted-foreground">
               {photos.length > 0 
-                ? `You have ${photos.length} photos in your collection`
-                : 'Start by scanning your face to find your photos'
+                ? `Kamu memiliki ${photos.length} foto dalam koleksi kamu`
+                : 'Mulailah scan wajah kamu untuk menemukan foto kamu'
               }
             </p>
           </div>
@@ -130,7 +130,7 @@ const UserDashboard = () => {
                       </div>
                       <div>
                         <p className="text-2xl font-bold">{photos.length}</p>
-                        <p className="text-sm text-muted-foreground">Your Photos</p>
+                        <p className="text-sm text-muted-foreground">Foto Kamu</p>
                       </div>
                     </div>
                   </CardContent>
@@ -144,7 +144,7 @@ const UserDashboard = () => {
                       </div>
                       <div>
                         <p className="text-2xl font-bold">{eventStats.length}</p>
-                        <p className="text-sm text-muted-foreground">Events</p>
+                        <p className="text-sm text-muted-foreground">Event</p>
                       </div>
                     </div>
                   </CardContent>
@@ -158,7 +158,7 @@ const UserDashboard = () => {
                       </div>
                       <div>
                         <p className="text-2xl font-bold">{averageMatchRate}%</p>
-                        <p className="text-sm text-muted-foreground">Match Rate</p>
+                        <p className="text-sm text-muted-foreground">Tingkat Kecocokan</p>
                       </div>
                     </div>
                   </CardContent>
@@ -175,15 +175,15 @@ const UserDashboard = () => {
                   <Scan className="h-8 w-8 text-primary" />
                 </div>
                 <div className="flex-1 text-center md:text-left">
-                  <h2 className="text-xl font-semibold mb-2">Find Your Photos</h2>
+                  <h2 className="text-xl font-semibold mb-2">Cari Foto Kamu</h2>
                   <p className="text-muted-foreground">
-                    Scan your face to automatically discover all photos of you from events
+                    Scan wajah kamu untuk secara otomatis menemukan semua foto kamu dari event
                   </p>
                 </div>
                 <Link to="/user/scan-face">
                   <Button size="lg" className="shadow-soft">
                     <Camera className="mr-2 h-5 w-5" />
-                    Start Face Scan
+                    Scan Wajah
                   </Button>
                 </Link>
               </div>
@@ -193,10 +193,10 @@ const UserDashboard = () => {
           {/* Recent Photos */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-semibold">Your Photos ({photos.length})</h2>
+              <h2 className="text-2xl font-semibold">Foto Kamu ({photos.length})</h2>
               {photos.length > 0 && (
                 <Link to="/user/photos">
-                  <Button variant="ghost">View All</Button>
+                  <Button variant="ghost">Lihat Semua</Button>
                 </Link>
               )}
             </div>
@@ -252,7 +252,7 @@ const UserDashboard = () => {
 
           {/* Recent Events */}
           <div>
-            <h2 className="text-2xl font-semibold mb-4">Recent Events</h2>
+            <h2 className="text-2xl font-semibold mb-4">Event Saat Ini</h2>
             {isLoading ? (
               <div className="grid gap-4 md:grid-cols-3">
                 {[1, 2, 3].map((i) => (
@@ -282,7 +282,7 @@ const UserDashboard = () => {
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold mb-1 truncate">{event.name}</h3>
-                            <p className="text-sm text-muted-foreground">{event.photos} photos</p>
+                            <p className="text-sm text-muted-foreground">{event.photos} Foto</p>
                             <p className="text-xs text-muted-foreground mt-1">{event.date}</p>
                           </div>
                         </div>

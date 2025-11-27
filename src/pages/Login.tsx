@@ -48,9 +48,9 @@ const Login = () => {
         
         <Card className="shadow-strong border-border/50">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl">Welcome back!</CardTitle>
+            <CardTitle className="text-2xl">Selamat Datang!</CardTitle>
             <CardDescription>
-              Sign in to your account to continue
+              Masuk ke akun kamu 
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -91,15 +91,15 @@ const Login = () => {
               <div className="flex items-center justify-between text-sm">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" className="rounded border-border" />
-                  <span className="text-muted-foreground">Remember me</span>
+                  <span className="text-muted-foreground">Ingat saya</span>
                 </label>
                 <Link to="/forgot-password" className="text-primary hover:underline">
-                  Forgot password?
+                  Lupa kata sandi?
                 </Link>
               </div>
               
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Signing in..." : "Sign in with Email"}
+                {loading ? "Masuk..." : "Masuk"}
               </Button>
             </form>
             
@@ -108,21 +108,21 @@ const Login = () => {
                 <span className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or</span>
+                <span className="bg-card px-2 text-muted-foreground">Atau</span>
               </div>
             </div>
             
             <Link to="/login/face">
               <Button variant="outline" className="w-full">
                 <Scan className="mr-2 h-4 w-4" />
-                Login with Face Recognition
+                Masuk dengan Face Scan
               </Button>
             </Link>
             
             <p className="text-center text-sm text-muted-foreground">
-              Don't have an account?{" "}
+              Belum punya akun?{" "}
               <Link to="/register" className="text-primary hover:underline font-medium">
-                Sign up
+                Daftar
               </Link>
             </p>
           </CardContent>

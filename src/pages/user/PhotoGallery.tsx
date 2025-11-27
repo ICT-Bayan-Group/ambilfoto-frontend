@@ -243,19 +243,19 @@ const PhotoGallery = () => {
               className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-smooth"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back to Dashboard
+              Home
             </Link>
             
             <Card className="border-border/50 shadow-soft">
               <div className="p-12 text-center">
                 <Camera className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-2">No Photos Found</h2>
+                <h2 className="text-2xl font-bold mb-2">Tidak Ada Foto Ditemukan</h2>
                 <p className="text-muted-foreground mb-6">
-                  {error || "We couldn't find any photos matching your face. Try scanning your face to discover your photos."}
+                  {error || "Kami tidak dapat menemukan foto yang cocok dengan wajah kamu. Coba scan wajah kamu untuk menemukan foto kamu."}
                 </p>
                 <Button onClick={() => navigate('/user/scan-face')}>
                   <Camera className="mr-2 h-4 w-4" />
-                  Scan Your Face
+                  Scan Wajah
                 </Button>
               </div>
             </Card>
@@ -279,16 +279,16 @@ const PhotoGallery = () => {
               className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4 transition-smooth"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back to Dashboard
+              Home
             </Link>
             
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold mb-2">Your Photos ({filteredPhotos.length})</h1>
+                <h1 className="text-3xl font-bold mb-2">Foto Kamu ({filteredPhotos.length})</h1>
                 <p className="text-muted-foreground">
                   {filteredPhotos.length === photos.length 
-                    ? "All photos found from face recognition"
-                    : `Showing ${filteredPhotos.length} of ${photos.length} photos`
+                    ? "Semua foto ditemukan dari pengenalan wajah"
+                    : `Menampilkan ${filteredPhotos.length} dari ${photos.length} foto`
                   }
                 </p>
               </div>
@@ -297,7 +297,7 @@ const PhotoGallery = () => {
                 <Link to="/user/scan-face">
                   <Button variant="outline">
                     <Camera className="mr-2 h-4 w-4" />
-                    Scan Again
+                    Scan
                   </Button>
                 </Link>
                 {filteredPhotos.length > 0 && (
