@@ -10,9 +10,10 @@ interface PhotoListItemProps {
   photo: Photo;
   onDownload: (photoId: string) => void;
   isDownloading: boolean;
+  onClick: () => void;
 }
 
-export const PhotoListItem = ({ photo, onDownload, isDownloading }: PhotoListItemProps) => {
+export const PhotoListItem = ({ photo, onDownload, isDownloading, onClick }: PhotoListItemProps) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -27,7 +28,7 @@ export const PhotoListItem = ({ photo, onDownload, isDownloading }: PhotoListIte
   return (
     <Card className="border-border/50 shadow-soft hover:shadow-strong transition-smooth">
       <div className="p-4 flex items-center gap-4">
-        <div className="h-20 w-20 rounded-lg bg-muted flex items-center justify-center shrink-0 relative overflow-hidden">
+        <div className="h-20 w-20 rounded-lg bg-muted flex items-center justify-center shrink-0 relative overflow-hidden cursor-pointer" onClick={onClick}>
           {!imageLoaded && !imageError && (
             <Skeleton className="absolute inset-0" />
           )}
