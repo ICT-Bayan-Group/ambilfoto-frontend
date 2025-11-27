@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import HeaderDash from "@/components/layout/HeaderDash";
+import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,6 +18,8 @@ import { useToast } from "@/hooks/use-toast";
 import { aiService, Photo } from "@/services/api/ai.service";
 import { PhotoCard } from "@/components/PhotoCard";
 import { PhotoListItem } from "@/components/PhotoListItem";
+import { PhotoDetailModal } from "@/components/PhotoDetailModal";
+import HeaderDash from "@/components/layout/HeaderDash";
 
 const PhotoGallery = () => {
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -28,6 +30,8 @@ const PhotoGallery = () => {
   const [sortBy, setSortBy] = useState<string>('newest');
   const [searchQuery, setSearchQuery] = useState("");
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
+  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -171,6 +175,36 @@ const PhotoGallery = () => {
     return Math.max(0, Math.min(100, Math.round((1 - distance) * 100)));
   };
 
+  const handlePhotoClick = (photo: Photo) => {
+    setSelectedPhoto(photo);
+    setIsModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedPhoto(null);
+  };
+
+  const handleNext = () => {
+    if (!selectedPhoto) return;
+    const currentIndex = filteredPhotos.findIndex(p => p.photo_id === selectedPhoto.photo_id);
+    if (currentIndex < filteredPhotos.length - 1) {
+      setSelectedPhoto(filteredPhotos[currentIndex + 1]);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (!selectedPhoto) return;
+    const currentIndex = filteredPhotos.findIndex(p => p.photo_id === selectedPhoto.photo_id);
+    if (currentIndex > 0) {
+      setSelectedPhoto(filteredPhotos[currentIndex - 1]);
+    }
+  };
+
+  const selectedPhotoIndex = selectedPhoto 
+    ? filteredPhotos.findIndex(p => p.photo_id === selectedPhoto.photo_id)
+    : -1;
+
   // Loading state
   if (isLoading) {
     return (
@@ -201,7 +235,7 @@ const PhotoGallery = () => {
   if (!isLoading && photos.length === 0) {
     return (
       <div className="flex min-h-screen flex-col">
-        <HeaderDash />
+       <HeaderDash />
         <main className="flex-1 py-8">
           <div className="container max-w-7xl">
             <Link 
@@ -368,6 +402,7 @@ const PhotoGallery = () => {
                   photo={photo}
                   onDownload={handleDownloadPhoto}
                   isDownloading={downloadingIds.has(photo.photo_id)}
+                  onClick={() => handlePhotoClick(photo)}
                 />
               ))}
             </div>
@@ -379,6 +414,7 @@ const PhotoGallery = () => {
                   photo={photo}
                   onDownload={handleDownloadPhoto}
                   isDownloading={downloadingIds.has(photo.photo_id)}
+                  onClick={() => handlePhotoClick(photo)}
                 />
               ))}
             </div>
@@ -387,6 +423,19 @@ const PhotoGallery = () => {
       </main>
       
       <Footer />
+
+      {/* Photo Detail Modal */}
+      <PhotoDetailModal
+        photo={selectedPhoto}
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        onDownload={handleDownloadPhoto}
+        onNext={handleNext}
+        onPrevious={handlePrevious}
+        isDownloading={selectedPhoto ? downloadingIds.has(selectedPhoto.photo_id) : false}
+        hasNext={selectedPhotoIndex < filteredPhotos.length - 1}
+        hasPrevious={selectedPhotoIndex > 0}
+      />
     </div>
   );
 };

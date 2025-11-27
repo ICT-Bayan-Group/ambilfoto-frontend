@@ -38,10 +38,13 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-background p-4">
       <div className="w-full max-w-md">
-        <Link to="/" className="flex items-center justify-center gap-2 mb-8">
-          <Camera className="h-8 w-8 text-primary" />
-          <span className="text-2xl font-bold">AmbildFoto.id</span>
-        </Link>
+       <Link to="/" className="flex items-center justify-center w-full transition-all duration-200 hover:opacity-80">
+              <img 
+                src="https://res.cloudinary.com/dgcedsrzf/image/upload/c_pad,w_440,h_330,ar_4:3/v1764206071/logo-ambilfoto_ijxmmm.png" 
+                alt="AmbilFoto.id Logo" 
+                className="h-24 mx-auto w-auto "
+              />
+            </Link>
         
         <Card className="shadow-strong border-border/50">
           <CardHeader className="space-y-1">

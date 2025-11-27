@@ -10,9 +10,10 @@ interface PhotoCardProps {
   photo: Photo;
   onDownload: (photoId: string) => void;
   isDownloading: boolean;
+  onClick: () => void;
 }
 
-export const PhotoCard = ({ photo, onDownload, isDownloading }: PhotoCardProps) => {
+export const PhotoCard = ({ photo, onDownload, isDownloading, onClick }: PhotoCardProps) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -26,7 +27,7 @@ export const PhotoCard = ({ photo, onDownload, isDownloading }: PhotoCardProps) 
 
   return (
     <Card className="overflow-hidden border-border/50 shadow-soft hover:shadow-strong transition-smooth group">
-      <div className="aspect-square bg-muted relative">
+      <div className="aspect-square bg-muted relative cursor-pointer" onClick={onClick}>
         {!imageLoaded && !imageError && (
           <Skeleton className="absolute inset-0" />
         )}

@@ -8,12 +8,14 @@ export const Footer = () => {
         <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <Camera className="h-6 w-6 text-primary" />
-              <span className="text-lg font-bold">AmbilFoto.id</span>
+          <Link to="/" className="flex items-center gap-2 transition-all duration-200 hover:opacity-80">
+              <img 
+                src="https://res.cloudinary.com/dgcedsrzf/image/upload/c_pad,w_440,h_330,ar_4:3/v1764206071/logo-ambilfoto_ijxmmm.png" 
+                alt="AmbilFoto.id Logo" 
+                className="h-24 w-auto"
+              />
+            </Link>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Temukan foto acara Anda secara otomatis dengan Face Recognition.
-            </p>
           </div>
           
           <div>
