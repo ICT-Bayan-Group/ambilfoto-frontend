@@ -98,6 +98,34 @@ export const authService = {
     return response.data;
   },
 
+  async updateProfile(data: { full_name?: string; phone?: string; profile_photo?: string }): Promise<{ success: boolean; message?: string; data?: UserProfile; error?: string }> {
+    const response = await authApi.put('/auth/profile', data);
+    return response.data;
+  },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    const response = await authApi.put('/auth/profile/password', {
+      current_password: currentPassword,
+      new_password: newPassword
+    });
+    return response.data;
+  },
+
+  async updateFaceBiometric(faceImage: string, password: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    const response = await authApi.put('/auth/profile/face', {
+      face_image: faceImage,
+      password
+    });
+    return response.data;
+  },
+
+  async deleteAccount(password: string, confirmation: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    const response = await authApi.delete('/auth/profile', {
+      data: { password, confirmation }
+    });
+    return response.data;
+  },
+
   logout() {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user_data');
