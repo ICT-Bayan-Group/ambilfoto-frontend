@@ -295,11 +295,11 @@ const Profile = () => {
           
           {/* Settings Tabs */}
           <Tabs defaultValue="profile" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="password">Password</TabsTrigger>
               <TabsTrigger value="face">Face ID</TabsTrigger>
-              <TabsTrigger value="danger">Account</TabsTrigger>
+             {/*  <TabsTrigger value="danger">Account</TabsTrigger>*/}
             </TabsList>
             
             {/* Profile Tab */}

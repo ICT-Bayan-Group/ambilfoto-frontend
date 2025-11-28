@@ -19,7 +19,8 @@ import NotFound from "./pages/NotFound";
 import About from "./pages/About";
 import PrivacyPolicy from "./pages/Privacy";
 import TermsOfService from "./pages/Terms";
-
+import Features from "./pages/Feature";
+import Pricing from "./pages/Pricing";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -33,6 +34,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/about" element={<About />} />
+            <Route path="/features" element={<Features />} />
+            <Route path="/pricing" element={<Pricing />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/register" element={<Register />} />

@@ -19,7 +19,7 @@ import { aiService, Photo } from "@/services/api/ai.service";
 import { PhotoCard } from "@/components/PhotoCard";
 import { PhotoListItem } from "@/components/PhotoListItem";
 import { PhotoDetailModal } from "@/components/PhotoDetailModal";
-import HeaderDash from "@/components/layout/HeaderDash";
+import { PhotoLightbox } from "@/components/PhotoLightbox";
 
 const PhotoGallery = () => {
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -32,6 +32,7 @@ const PhotoGallery = () => {
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -127,21 +128,40 @@ const PhotoGallery = () => {
     return result;
   }, [photos, selectedEvent, searchQuery, sortBy]);
 
+  // Download photo directly without redirect
   const handleDownloadPhoto = async (photoId: string) => {
     try {
       setDownloadingIds(prev => new Set(prev).add(photoId));
       
       const downloadUrl = aiService.getDownloadUrl(photoId);
-      window.open(downloadUrl, '_blank');
+      const photo = photos.find(p => p.photo_id === photoId);
+      const filename = photo?.filename || `photo-${photoId}.jpg`;
+      
+      // Fetch the file as blob
+      const response = await fetch(downloadUrl);
+      if (!response.ok) throw new Error('Download failed');
+      
+      const blob = await response.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
       
       toast({
-        title: "Download started",
-        description: "Your photo is being downloaded from Dropbox",
+        title: "Download berhasil! 🎉",
+        description: `${filename} telah diunduh`,
       });
     } catch (err) {
+      console.error('Download error:', err);
       toast({
-        title: "Download failed",
-        description: "Failed to download photo. Please try again.",
+        title: "Download gagal",
+        description: "Gagal mengunduh foto. Silakan coba lagi.",
         variant: "destructive",
       });
     } finally {
@@ -153,26 +173,18 @@ const PhotoGallery = () => {
     }
   };
 
-  const handleDownloadAll = () => {
+  const handleDownloadAll = async () => {
     toast({
-      title: "Preparing download",
-      description: `Downloading ${filteredPhotos.length} photos...`,
+      title: "Mempersiapkan download",
+      description: `Mengunduh ${filteredPhotos.length} foto...`,
     });
     
     // Download each photo sequentially
-    filteredPhotos.forEach((photo, index) => {
-      setTimeout(() => {
-        const downloadUrl = aiService.getDownloadUrl(photo.photo_id);
-        window.open(downloadUrl, '_blank');
-      }, index * 500); // Stagger downloads by 500ms
-    });
-  };
-
-  const getMatchPercentage = (distance?: number) => {
-    if (!distance) return 0;
-    // Convert distance to percentage (lower distance = higher match)
-    // Assuming distance ranges from 0 to 1
-    return Math.max(0, Math.min(100, Math.round((1 - distance) * 100)));
+    for (const photo of filteredPhotos) {
+      await handleDownloadPhoto(photo.photo_id);
+      // Small delay between downloads
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
   };
 
   const handlePhotoClick = (photo: Photo) => {
@@ -183,6 +195,15 @@ const PhotoGallery = () => {
   const handleModalClose = () => {
     setIsModalOpen(false);
     setSelectedPhoto(null);
+  };
+
+  const handleViewFullscreen = () => {
+    setIsModalOpen(false);
+    setIsLightboxOpen(true);
+  };
+
+  const handleLightboxClose = () => {
+    setIsLightboxOpen(false);
   };
 
   const handleNext = () => {
@@ -209,7 +230,7 @@ const PhotoGallery = () => {
   if (isLoading) {
     return (
       <div className="flex min-h-screen flex-col">
-        <HeaderDash />
+        <Header />
         <main className="flex-1 py-8">
           <div className="container max-w-7xl">
             <Skeleton className="h-8 w-64 mb-4" />
@@ -235,7 +256,7 @@ const PhotoGallery = () => {
   if (!isLoading && photos.length === 0) {
     return (
       <div className="flex min-h-screen flex-col">
-       <HeaderDash />
+        <Header />
         <main className="flex-1 py-8">
           <div className="container max-w-7xl">
             <Link 
@@ -243,19 +264,19 @@ const PhotoGallery = () => {
               className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-smooth"
             >
               <ArrowLeft className="h-4 w-4" />
-              Home
+              Back to Dashboard
             </Link>
             
             <Card className="border-border/50 shadow-soft">
               <div className="p-12 text-center">
                 <Camera className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-2">Tidak Ada Foto Ditemukan</h2>
+                <h2 className="text-2xl font-bold mb-2">No Photos Found</h2>
                 <p className="text-muted-foreground mb-6">
-                  {error || "Kami tidak dapat menemukan foto yang cocok dengan wajah kamu. Coba scan wajah kamu untuk menemukan foto kamu."}
+                  {error || "We couldn't find any photos matching your face. Try scanning your face to discover your photos."}
                 </p>
                 <Button onClick={() => navigate('/user/scan-face')}>
                   <Camera className="mr-2 h-4 w-4" />
-                  Scan Wajah
+                  Scan Your Face
                 </Button>
               </div>
             </Card>
@@ -268,7 +289,7 @@ const PhotoGallery = () => {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <HeaderDash />
+      <Header />
       
       <main className="flex-1 py-8">
         <div className="container max-w-7xl">
@@ -279,16 +300,16 @@ const PhotoGallery = () => {
               className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4 transition-smooth"
             >
               <ArrowLeft className="h-4 w-4" />
-              Home
+              Back to Dashboard
             </Link>
             
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold mb-2">Foto Kamu ({filteredPhotos.length})</h1>
+                <h1 className="text-3xl font-bold mb-2">Your Photos ({filteredPhotos.length})</h1>
                 <p className="text-muted-foreground">
                   {filteredPhotos.length === photos.length 
-                    ? "Semua foto ditemukan dari pengenalan wajah"
-                    : `Menampilkan ${filteredPhotos.length} dari ${photos.length} foto`
+                    ? "All photos found from face recognition"
+                    : `Showing ${filteredPhotos.length} of ${photos.length} photos`
                   }
                 </p>
               </div>
@@ -297,7 +318,7 @@ const PhotoGallery = () => {
                 <Link to="/user/scan-face">
                   <Button variant="outline">
                     <Camera className="mr-2 h-4 w-4" />
-                    Scan
+                    Scan Again
                   </Button>
                 </Link>
                 {filteredPhotos.length > 0 && (
@@ -429,6 +450,20 @@ const PhotoGallery = () => {
         photo={selectedPhoto}
         isOpen={isModalOpen}
         onClose={handleModalClose}
+        onDownload={handleDownloadPhoto}
+        onView={handleViewFullscreen}
+        onNext={handleNext}
+        onPrevious={handlePrevious}
+        isDownloading={selectedPhoto ? downloadingIds.has(selectedPhoto.photo_id) : false}
+        hasNext={selectedPhotoIndex < filteredPhotos.length - 1}
+        hasPrevious={selectedPhotoIndex > 0}
+      />
+
+      {/* Fullscreen Lightbox */}
+      <PhotoLightbox
+        photo={selectedPhoto}
+        isOpen={isLightboxOpen}
+        onClose={handleLightboxClose}
         onDownload={handleDownloadPhoto}
         onNext={handleNext}
         onPrevious={handlePrevious}
