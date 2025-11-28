@@ -1,13 +1,22 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Camera, LogOut, User } from "lucide-react";
+import { Camera, LogOut, Settings, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 const HeaderDash = () => {
-  const { user, logout } = useAuth();
+    const { isAuthenticated, user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
+    navigate('/');
   };
 
   return (
@@ -20,18 +29,56 @@ const HeaderDash = () => {
             className="h-20 w-auto"
           />
         </Link>
-        <div className="flex items-center gap-4">
-          {/* User Email Info */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted">
-            <User className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">{user?.full_name || "user@example.com"}</span>
-          </div>
-          
-          {/* Logout Button */}
-          <Button variant="outline" size="sm" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
+         <div className="flex items-center gap-3">
+          {isAuthenticated ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="gap-2">
+                  <User className="h-4 w-4" />
+                  <span className="hidden md:inline">{user?.full_name || 'User'}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/user/dashboard" className="cursor-pointer">
+                    Dashboard
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/user/photos" className="cursor-pointer">
+                    My Photos
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/user/scan-face" className="cursor-pointer">
+                    Scan Face
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/user/profile" className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Profile Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <>
+              <Link to="/login">
+                <Button variant="ghost">Login</Button>
+              </Link>
+              <Link to="/register">
+                <Button>Get Started</Button>
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>

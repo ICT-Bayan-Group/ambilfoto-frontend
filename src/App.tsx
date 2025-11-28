@@ -14,6 +14,7 @@ import FaceLogin from "./pages/FaceLogin";
 import UserDashboard from "./pages/user/Dashboard";
 import ScanFace from "./pages/user/ScanFace";
 import PhotoGallery from "./pages/user/PhotoGallery";
+import UserProfile from "./pages/user/Profile";
 import NotFound from "./pages/NotFound";
 import About from "./pages/About";
 import PrivacyPolicy from "./pages/Privacy";
@@ -58,6 +59,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <PhotoGallery />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/user/profile" 
+              element={
+                <ProtectedRoute>
+                  <UserProfile />
                 </ProtectedRoute>
               } 
             />
