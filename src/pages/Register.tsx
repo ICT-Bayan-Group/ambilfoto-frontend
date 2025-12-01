@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Camera, Eye, EyeOff } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Camera, Eye, EyeOff, User, CameraIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -17,6 +18,7 @@ const Register = () => {
     phone: "",
     password: "",
     confirmPassword: "",
+    role: "user" as "user" | "photographer",
   });
   const [loading, setLoading] = useState(false);
   const { register, isAuthenticated } = useAuth();
@@ -67,7 +69,8 @@ const Register = () => {
           email: formData.email,
           password: formData.password,
           full_name: formData.name,
-          phone: formData.phone
+          phone: formData.phone,
+          role: formData.role
         } 
       });
     } catch (error) {
@@ -80,25 +83,22 @@ const Register = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-background p-4">
       <div className="w-full max-w-md">
-            <Link to="/" className="flex items-center justify-center w-full transition-all duration-200 hover:opacity-80">
-              <img 
-                src="https://res.cloudinary.com/dgcedsrzf/image/upload/c_pad,w_440,h_330,ar_4:3/v1764206071/logo-ambilfoto_ijxmmm.png" 
-                alt="AmbilFoto.id Logo" 
-                className="h-32 mx-auto w-auto "
-              />
-            </Link>
+        <Link to="/" className="flex items-center justify-center gap-2 mb-8">
+          <Camera className="h-8 w-8 text-primary" />
+          <span className="text-2xl font-bold">AmbildFoto.id</span>
+        </Link>
         
         <Card className="shadow-strong border-border/50">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl">Buat akun</CardTitle>
+            <CardTitle className="text-2xl">Create an account</CardTitle>
             <CardDescription>
-             Daftarkan akun baru kamu
+              Enter your details to get started
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleRegister} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Nama Lengkap</Label>
+                <Label htmlFor="name">Full Name</Label>
                 <Input
                   id="name"
                   type="text"
@@ -123,7 +123,7 @@ const Register = () => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="phone">Telepon (Optional)</Label>
+                <Label htmlFor="phone">Phone Number (Optional)</Label>
                 <Input
                   id="phone"
                   type="tel"
@@ -156,12 +156,12 @@ const Register = () => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Konfirmasi Password</Label>
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
                 <div className="relative">
                   <Input
                     id="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
-                    placeholder="Masukkan ulang password"
+                    placeholder="Re-enter password"
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     required
@@ -176,26 +176,69 @@ const Register = () => {
                 </div>
               </div>
               
+              {/* Role Selection */}
+              <div className="space-y-3">
+                <Label>I am a</Label>
+                <RadioGroup
+                  value={formData.role}
+                  onValueChange={(value: "user" | "photographer") => 
+                    setFormData({ ...formData, role: value })
+                  }
+                  className="grid grid-cols-2 gap-3"
+                >
+                  <div>
+                    <RadioGroupItem
+                      value="user"
+                      id="role-user"
+                      className="peer sr-only"
+                    />
+                    <Label
+                      htmlFor="role-user"
+                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                    >
+                      <User className="mb-2 h-6 w-6" />
+                      <span className="text-sm font-medium">Event Guest</span>
+                      <span className="text-xs text-muted-foreground">Find my photos</span>
+                    </Label>
+                  </div>
+                  <div>
+                    <RadioGroupItem
+                      value="photographer"
+                      id="role-photographer"
+                      className="peer sr-only"
+                    />
+                    <Label
+                      htmlFor="role-photographer"
+                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                    >
+                      <CameraIcon className="mb-2 h-6 w-6" />
+                      <span className="text-sm font-medium">Photographer</span>
+                      <span className="text-xs text-muted-foreground">Upload & manage</span>
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+              
               <div className="text-xs text-muted-foreground">
-                Dengan membuat baru, kamu setuju dengan{" "}
+                By creating an account, you agree to our{" "}
                 <Link to="/terms" className="text-primary hover:underline">
-                  Ketentuan Layanan
+                  Terms of Service
                 </Link>{" "}
-                dan{" "}
+                and{" "}
                 <Link to="/privacy" className="text-primary hover:underline">
-                  Kebijakan Privasi
+                  Privacy Policy
                 </Link>
               </div>
               
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Membuat akun..." : "Buat Akun"}
+                {loading ? "Creating account..." : "Create Account"}
               </Button>
             </form>
             
             <p className="mt-6 text-center text-sm text-muted-foreground">
-              Sudah punya akun?{" "}
+              Already have an account?{" "}
               <Link to="/login" className="text-primary hover:underline font-medium">
-                Masuk
+                Sign in
               </Link>
             </p>
           </CardContent>

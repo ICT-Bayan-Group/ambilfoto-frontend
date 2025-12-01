@@ -9,14 +9,18 @@ import { Camera, Scan, Download, Zap, Shield, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
-  const { isAuthenticated } = useAuth();
+ const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/user/dashboard');
+      if (user?.role === 'photographer' || user?.role === 'admin') {
+        navigate('/photographer/dashboard');
+      } else {
+        navigate('/user/dashboard');
+      }
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, user, navigate]);
 
   // Animation variants
   const containerVariants = {

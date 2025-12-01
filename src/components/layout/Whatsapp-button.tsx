@@ -9,7 +9,9 @@ export default function WhatsAppWidget() {
   const location = useLocation();
   
   // Hide WhatsApp button on protected/dashboard routes
-  const hideOnRoutes = ['/user/dashboard', '/user/scan-face', '/user/photos', '/login', '/register', '/register/face', '/login/face', '/user/profile'];
+  const hideOnRoutes = ['/user/dashboard', '/user/scan-face', 
+    '/user/photos', '/login', '/register', '/register/face', '/login/face', '/user/profile'
+  , '/photographer/dashboard', '/photographer/events', '/photographer/events/new', '/photographer/profile'];
   const shouldHide = hideOnRoutes.some(route => location.pathname.startsWith(route));
   
   // Don't render if on hidden routes

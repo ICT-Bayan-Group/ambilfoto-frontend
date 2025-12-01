@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Header } from "@/components/layout/Header";
+import HeaderDash from "@/components/layout/HeaderDash";
 import { Footer } from "@/components/layout/Footer";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Download, Search, Filter, Grid3x3, List, Camera } from "lucide-react";
+import { ArrowLeft, Download, Search, Filter, Grid3x3, List, Camera, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { aiService, Photo } from "@/services/api/ai.service";
 import { PhotoCard } from "@/components/PhotoCard";
@@ -128,20 +128,51 @@ const PhotoGallery = () => {
     return result;
   }, [photos, selectedEvent, searchQuery, sortBy]);
 
-  // Download photo directly without redirect
+  // Download photo with fallback to preview if original fails
   const handleDownloadPhoto = async (photoId: string) => {
     try {
       setDownloadingIds(prev => new Set(prev).add(photoId));
       
-      const downloadUrl = aiService.getDownloadUrl(photoId);
       const photo = photos.find(p => p.photo_id === photoId);
       const filename = photo?.filename || `photo-${photoId}.jpg`;
       
-      // Fetch the file as blob
-      const response = await fetch(downloadUrl);
-      if (!response.ok) throw new Error('Download failed');
+      // Try to download original from Dropbox first
+      let downloadUrl = aiService.getDownloadUrl(photoId);
+      let blob: Blob;
       
-      const blob = await response.blob();
+      try {
+        console.log('📥 Downloading original from:', downloadUrl);
+        const response = await fetch(downloadUrl);
+        
+        if (!response.ok) {
+          throw new Error(`Original download failed: ${response.status}`);
+        }
+        
+        blob = await response.blob();
+        console.log('✅ Original download successful');
+        
+      } catch (originalError) {
+        console.warn('⚠️ Original download failed, trying preview:', originalError);
+        
+        // Fallback to preview/compressed version
+        downloadUrl = aiService.getPreviewUrl(photoId);
+        console.log('📥 Downloading preview from:', downloadUrl);
+        
+        const previewResponse = await fetch(downloadUrl);
+        
+        if (!previewResponse.ok) {
+          throw new Error('Both original and preview download failed');
+        }
+        
+        blob = await previewResponse.blob();
+        console.log('✅ Preview download successful');
+        
+        toast({
+          title: "Downloaded Preview Version",
+          description: "Original file unavailable. Downloaded compressed version instead.",
+          variant: "default",
+        });
+      }
       
       // Create download link
       const url = window.URL.createObjectURL(blob);
@@ -157,11 +188,12 @@ const PhotoGallery = () => {
         title: "Download berhasil! 🎉",
         description: `${filename} telah diunduh`,
       });
+      
     } catch (err) {
-      console.error('Download error:', err);
+      console.error('❌ Download error:', err);
       toast({
         title: "Download gagal",
-        description: "Gagal mengunduh foto. Silakan coba lagi.",
+        description: "Gagal mengunduh foto. File mungkin tidak tersedia di server.",
         variant: "destructive",
       });
     } finally {
@@ -179,12 +211,26 @@ const PhotoGallery = () => {
       description: `Mengunduh ${filteredPhotos.length} foto...`,
     });
     
+    let successCount = 0;
+    let failCount = 0;
+    
     // Download each photo sequentially
     for (const photo of filteredPhotos) {
-      await handleDownloadPhoto(photo.photo_id);
+      try {
+        await handleDownloadPhoto(photo.photo_id);
+        successCount++;
+      } catch (error) {
+        failCount++;
+      }
       // Small delay between downloads
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
+    
+    toast({
+      title: "Download Selesai",
+      description: `Berhasil: ${successCount}, Gagal: ${failCount}`,
+      variant: failCount > 0 ? "destructive" : "default",
+    });
   };
 
   const handlePhotoClick = (photo: Photo) => {
@@ -230,7 +276,7 @@ const PhotoGallery = () => {
   if (isLoading) {
     return (
       <div className="flex min-h-screen flex-col">
-        <Header />
+        <HeaderDash />
         <main className="flex-1 py-8">
           <div className="container max-w-7xl">
             <Skeleton className="h-8 w-64 mb-4" />
@@ -256,7 +302,7 @@ const PhotoGallery = () => {
   if (!isLoading && photos.length === 0) {
     return (
       <div className="flex min-h-screen flex-col">
-        <Header />
+        <HeaderDash />
         <main className="flex-1 py-8">
           <div className="container max-w-7xl">
             <Link 
@@ -289,7 +335,7 @@ const PhotoGallery = () => {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      <HeaderDash />
       
       <main className="flex-1 py-8">
         <div className="container max-w-7xl">
@@ -330,6 +376,21 @@ const PhotoGallery = () => {
               </div>
             </div>
           </div>
+
+          {/* Info Banner */}
+          <Card className="mb-6 border-blue-500/20 bg-blue-500/5">
+            <div className="p-4 flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium text-blue-700 dark:text-blue-400 mb-1">
+                  Download Information
+                </p>
+                <p className="text-blue-600 dark:text-blue-300">
+                  Original photos are stored in Dropbox. If download fails, a compressed preview version will be downloaded automatically.
+                </p>
+              </div>
+            </div>
+          </Card>
 
           {/* Filters & Controls */}
           <Card className="mb-6 border-border/50 shadow-soft">
