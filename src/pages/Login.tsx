@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Camera, Eye, EyeOff, Scan } from "lucide-react";
+import { Eye, EyeOff, Scan } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Login = () => {
@@ -12,24 +12,45 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
+  // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/user/dashboard');
+    if (isAuthenticated && user) {
+      redirectBasedOnRole(user.role);
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, user, navigate]);
+
+  // Helper function to redirect based on role
+  const redirectBasedOnRole = (role: string) => {
+    switch (role) {
+      case 'photographer':
+        navigate('/photographer/dashboard');
+        break;
+      case 'admin':
+        navigate('/admin/dashboard');
+        break;
+      case 'user':
+      default:
+        navigate('/user/dashboard');
+        break;
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
     try {
-      await login(email, password);
-      navigate('/user/dashboard');
+      const result = await login(email, password);
+      
+      // Redirect based on user role
+      if (result && result.user) {
+        redirectBasedOnRole(result.user.role);
+      }
     } catch (error) {
-      // Error handled by AuthContext
+      // Error already handled by AuthContext toast
     } finally {
       setLoading(false);
     }
@@ -38,13 +59,13 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-background p-4">
       <div className="w-full max-w-md">
-       <Link to="/" className="flex items-center justify-center w-full transition-all duration-200 hover:opacity-80">
-              <img 
-                src="https://res.cloudinary.com/dgcedsrzf/image/upload/c_pad,w_440,h_330,ar_4:3/v1764206071/logo-ambilfoto_ijxmmm.png" 
-                alt="AmbilFoto.id Logo" 
-                className="h-24 mx-auto w-auto "
-              />
-            </Link>
+        <Link to="/" className="flex items-center justify-center w-full transition-all duration-200 hover:opacity-80">
+          <img 
+            src="https://res.cloudinary.com/dgcedsrzf/image/upload/c_pad,w_440,h_330,ar_4:3/v1764206071/logo-ambilfoto_ijxmmm.png" 
+            alt="AmbilFoto.id Logo" 
+            className="h-24 mx-auto w-auto"
+          />
+        </Link>
         
         <Card className="shadow-strong border-border/50">
           <CardHeader className="space-y-1">

@@ -73,10 +73,8 @@ export const FaceCamera = ({ onCapture, mode = 'scan', className = '', isProcess
     const context = canvas.getContext('2d');
     if (context) {
       context.drawImage(video, 0, 0);
-      const dataURL = canvas.toDataURL('image/jpeg', 0.9);
-      
-      // Send full data URL with prefix (server expects this format)
-      onCapture(dataURL);
+      const imageData = canvas.toDataURL('image/jpeg', 0.9);
+      onCapture(imageData);
     }
     
     setTimeout(() => setIsCapturing(false), 500);
@@ -86,24 +84,10 @@ export const FaceCamera = ({ onCapture, mode = 'scan', className = '', isProcess
     const file = event.target.files?.[0];
     if (!file) return;
     
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      console.error('Please select an image file');
-      return;
-    }
-    
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      console.error('Image size must be less than 5MB');
-      return;
-    }
-    
     const reader = new FileReader();
     reader.onload = (e) => {
-      const dataURL = e.target?.result as string;
-      
-      // Send full data URL with prefix (server expects this format)
-      onCapture(dataURL);
+      const imageData = e.target?.result as string;
+      onCapture(imageData);
     };
     reader.readAsDataURL(file);
   };
@@ -143,24 +127,50 @@ export const FaceCamera = ({ onCapture, mode = 'scan', className = '', isProcess
           className="absolute inset-0 w-full h-full object-cover"
         />
         
-        {/* Face detection overlay */}
+        {/* Blur overlay with circular cutout */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none">
+          <defs>
+            <mask id="face-mask">
+              <rect width="100%" height="100%" fill="white" />
+              <circle cx="50%" cy="50%" r="128" fill="black" />
+            </mask>
+            <filter id="blur-filter">
+              <feGaussianBlur stdDeviation="8" />
+            </filter>
+          </defs>
+          {/* Blurred background overlay */}
+          <rect 
+            width="100%" 
+            height="100%" 
+            fill="rgba(0, 0, 0, 0.6)" 
+            mask="url(#face-mask)"
+            style={{ backdropFilter: 'blur(8px)' }}
+          />
+        </svg>
+        
+        {/* Face detection circle */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className={`h-64 w-64 border-2 rounded-full transition-all duration-300 ${
+          <div className={`relative h-64 w-64 rounded-full transition-all duration-300 ${
             faceDetected 
-              ? 'border-secondary shadow-[0_0_20px_rgba(16,185,129,0.5)]' 
-              : 'border-primary/30'
+              ? 'ring-4 ring-secondary shadow-[0_0_30px_rgba(16,185,129,0.6)]' 
+              : 'ring-2 ring-primary/50'
           }`}>
+            {/* Animated scanning ring */}
+            <div className={`absolute inset-0 rounded-full border-2 ${
+              faceDetected ? 'border-secondary' : 'border-primary/30'
+            } ${!faceDetected ? 'animate-ping opacity-75' : ''}`} />
+            
             {/* Corner guides */}
-            <div className="absolute -top-4 -left-4 w-8 h-8 border-l-2 border-t-2 border-primary rounded-tl-lg" />
-            <div className="absolute -top-4 -right-4 w-8 h-8 border-r-2 border-t-2 border-primary rounded-tr-lg" />
-            <div className="absolute -bottom-4 -left-4 w-8 h-8 border-l-2 border-b-2 border-primary rounded-bl-lg" />
-            <div className="absolute -bottom-4 -right-4 w-8 h-8 border-r-2 border-b-2 border-primary rounded-br-lg" />
+            <div className="absolute -top-3 -left-3 w-6 h-6 border-l-3 border-t-3 border-primary rounded-tl-xl" />
+            <div className="absolute -top-3 -right-3 w-6 h-6 border-r-3 border-t-3 border-primary rounded-tr-xl" />
+            <div className="absolute -bottom-3 -left-3 w-6 h-6 border-l-3 border-b-3 border-primary rounded-bl-xl" />
+            <div className="absolute -bottom-3 -right-3 w-6 h-6 border-r-3 border-b-3 border-primary rounded-br-xl" />
           </div>
         </div>
         
         {/* Status indicator */}
         <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-background/90 backdrop-blur-sm flex items-center gap-2 shadow-soft">
-          <div className={`h-2 w-2 rounded-full ${
+          <div className={`h-2.5 w-2.5 rounded-full ${
             faceDetected ? 'bg-secondary animate-pulse' : 'bg-destructive'
           }`} />
           <span className="text-xs font-medium">
@@ -197,7 +207,6 @@ export const FaceCamera = ({ onCapture, mode = 'scan', className = '', isProcess
         <Button 
           onClick={() => fileInputRef.current?.click()}
           variant="outline"
-          disabled={isProcessing}
         >
           <Upload className="h-4 w-4" />
         </Button>

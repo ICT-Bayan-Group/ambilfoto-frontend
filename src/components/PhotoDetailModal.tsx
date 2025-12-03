@@ -1,7 +1,7 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, X, ChevronLeft, ChevronRight, Calendar, MapPin, Camera, Sparkles, Eye, Share2 } from "lucide-react";
+import { Download, X, ChevronLeft, ChevronRight, Calendar, MapPin, Camera, Sparkles, Eye } from "lucide-react";
 import { Photo } from "@/services/api/ai.service";
 import { aiService } from "@/services/api/ai.service";
 import { format } from "date-fns";
@@ -47,10 +47,57 @@ export const PhotoDetailModal = ({
     return "bg-orange-500/20 text-orange-400 border-orange-500/30";
   };
 
+  // ✅ FIXED: Helper untuk get metadata dengan fallback
+  const getEventDate = () => {
+    // Cek berbagai kemungkinan field name
+    return photo.metadata?.event_date || 
+           photo.metadata?.date || 
+           null;
+  };
+
+  const getPhotographerName = () => {
+    // Cek berbagai kemungkinan field name
+    return photo.metadata?.photographer_name || 
+           photo.metadata?.photographer || 
+      
+           'Unknown';
+  };
+
+  const getEventName = () => {
+    return photo.metadata?.event_name || 
+         
+           'Untitled Photo';
+  };
+
+  const getLocation = () => {
+    return photo.metadata?.location || 
+   
+           null;
+  };
+
+  const eventDate = getEventDate();
+  const photographerName = getPhotographerName();
+  const eventName = getEventName();
+  const location = getLocation();
+
+  // Format date dengan error handling
+  const formatEventDate = (dateStr: string | null) => {
+    if (!dateStr) return 'No date';
+    
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return 'Invalid date';
+      return format(date, "d MMM yyyy", { locale: id });
+    } catch (error) {
+      console.error('Date format error:', error);
+      return 'Invalid date';
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] p-0 gap-0 bg-card/95 backdrop-blur-xl border-border/50 overflow-hidden rounded-2xl flex flex-col">
-        {/* Header with gradient - Fixed */}
+        {/* Header with gradient */}
         <div className="relative flex-shrink-0">
           {/* Close button */}
           <Button 
@@ -68,6 +115,10 @@ export const PhotoDetailModal = ({
               src={aiService.getPreviewUrl(photo.photo_id)}
               alt={photo.filename}
               className="w-full h-full object-cover"
+              onError={(e) => {
+                console.error('Image load error for photo:', photo.photo_id);
+                e.currentTarget.src = '/placeholder-image.jpg';
+              }}
             />
             
             {/* Gradient overlay */}
@@ -116,12 +167,12 @@ export const PhotoDetailModal = ({
             {/* Event name overlay */}
             <div className="absolute bottom-3 left-3 right-3">
               <h3 className="text-white font-bold text-xl drop-shadow-lg">
-                {photo.metadata?.event_name || 'Untitled Photo'}
+                {eventName}
               </h3>
-              {photo.metadata?.location && (
+              {location && (
                 <div className="flex items-center gap-1.5 text-white/80 text-sm mt-1">
                   <MapPin className="h-3.5 w-3.5" />
-                  <span>{photo.metadata.location}</span>
+                  <span>{location}</span>
                 </div>
               )}
             </div>
@@ -131,35 +182,33 @@ export const PhotoDetailModal = ({
         {/* Scrollable Content */}
         <div className="overflow-y-auto flex-1">
           <div className="p-5 space-y-5">
-            {/* Info Cards */}
+            {/* Info Cards - ✅ FIXED: Always show both cards */}
             <div className="grid grid-cols-2 gap-3">
-              {photo.metadata?.date && (
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border border-border/50">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Calendar className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Tanggal</p>
-                    <p className="text-sm font-medium">
-                      {format(new Date(photo.metadata.date), "d MMM yyyy", { locale: id })}
-                    </p>
-                  </div>
+              {/* Tanggal Card */}
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border border-border/50">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Calendar className="h-5 w-5 text-primary" />
                 </div>
-              )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-muted-foreground">Tanggal</p>
+                  <p className="text-sm font-medium truncate">
+                    {eventDate ? formatEventDate(eventDate) : 'No date'}
+                  </p>
+                </div>
+              </div>
 
-              {photo.metadata?.photographer && (
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border border-border/50">
-                  <div className="h-10 w-10 rounded-full bg-secondary/10 flex items-center justify-center">
-                    <Camera className="h-5 w-5 text-secondary" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Fotografer</p>
-                    <p className="text-sm font-medium truncate">
-                      {photo.metadata.photographer}
-                    </p>
-                  </div>
+              {/* Fotografer Card */}
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border border-border/50">
+                <div className="h-10 w-10 rounded-full bg-secondary/10 flex items-center justify-center flex-shrink-0">
+                  <Camera className="h-5 w-5 text-secondary" />
                 </div>
-              )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-muted-foreground">Fotografer</p>
+                  <p className="text-sm font-medium truncate" title={photographerName}>
+                    {photographerName}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Match Stats */}
@@ -185,6 +234,26 @@ export const PhotoDetailModal = ({
             <div className="text-xs text-muted-foreground bg-muted/30 px-3 py-2 rounded-lg font-mono truncate">
               📁 {photo.filename}
             </div>
+
+            {/* Debug Info - ✅ Untuk Development (hapus di production) */}
+            {process.env.NODE_ENV === 'development' && (
+              <details className="text-xs bg-muted/20 rounded-lg p-3">
+                <summary className="cursor-pointer font-semibold mb-2">Debug Metadata</summary>
+                <pre className="overflow-auto text-[10px] whitespace-pre-wrap">
+                  {JSON.stringify({
+                    photo_id: photo.photo_id,
+                    filename: photo.filename,
+                    metadata: photo.metadata,
+                    extracted: {
+                      event_date: eventDate,
+                      photographer_name: photographerName,
+                      event_name: eventName,
+                      location: location
+                    }
+                  }, null, 2)}
+                </pre>
+              </details>
+            )}
 
             {/* Action Buttons */}
             <div className="flex gap-3">

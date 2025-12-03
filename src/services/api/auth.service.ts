@@ -54,11 +54,12 @@ export interface UserProfile {
   email: string;
   phone?: string;
   full_name: string;
-  role: string;
+  role: 'user' | 'photographer' | 'admin';
   profile_photo?: string;
   is_verified: boolean;
   created_at: string;
   last_login?: string;
+  photographer_id?: string;
 }
 
 export interface AuthResponse {

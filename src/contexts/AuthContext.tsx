@@ -2,14 +2,19 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { authService, UserProfile } from '@/services/api/auth.service';
 import { useToast } from '@/hooks/use-toast';
 
+interface LoginResult {
+  user: UserProfile;
+  token: string;
+}
+
 interface AuthContextType {
   user: UserProfile | null;
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  loginWithFace: (faceImage: string) => Promise<void>;
-  register: (data: any) => Promise<void>;
+  login: (email: string, password: string) => Promise<LoginResult | null>;
+  loginWithFace: (faceImage: string) => Promise<LoginResult | null>;
+  register: (data: any) => Promise<LoginResult | null>;
   logout: () => void;
   updateUser: (user: UserProfile) => void;
 }
@@ -42,13 +47,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         })
         .catch(() => {
           logout();
+        })
+        .finally(() => {
+          setIsLoading(false);
         });
     } else {
       setIsLoading(false);
     }
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<LoginResult | null> => {
     try {
       const response = await authService.login({ email, password });
       
@@ -63,7 +71,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           title: "Welcome back!",
           description: `Logged in as ${response.data.user.full_name}`,
         });
+        
+        // Return user data for role-based redirect
+        return {
+          user: response.data.user,
+          token: response.data.token
+        };
       }
+      
+      return null;
     } catch (error: any) {
       const message = error.response?.data?.error || 'Login failed';
       toast({
@@ -75,7 +91,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const loginWithFace = async (faceImage: string) => {
+  const loginWithFace = async (faceImage: string): Promise<LoginResult | null> => {
     try {
       const response = await authService.loginWithFace({ face_image: faceImage });
       
@@ -90,7 +106,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           title: "Face recognized!",
           description: `Welcome back, ${response.data.user.full_name}`,
         });
+        
+        // Return user data for role-based redirect
+        return {
+          user: response.data.user,
+          token: response.data.token
+        };
       }
+      
+      return null;
     } catch (error: any) {
       const message = error.response?.data?.error || 'Face login failed';
       toast({
@@ -102,7 +126,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const register = async (data: any) => {
+  const register = async (data: any): Promise<LoginResult | null> => {
     try {
       const response = await authService.register(data);
       
@@ -117,7 +141,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           title: "Account created!",
           description: `Welcome to AmbildFoto.id, ${response.data.user.full_name}`,
         });
+        
+        // Return user data for role-based redirect
+        return {
+          user: response.data.user,
+          token: response.data.token
+        };
       }
+      
+      return null;
     } catch (error: any) {
       const message = error.response?.data?.error || 'Registration failed';
       toast({
@@ -133,6 +165,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     authService.logout();
     setUser(null);
     setToken(null);
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user_data');
     
     toast({
       title: "Logged out",
