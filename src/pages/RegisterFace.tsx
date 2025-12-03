@@ -19,6 +19,7 @@ const RegisterFace = () => {
     password: string;
     full_name: string;
     phone?: string;
+    role?: 'user' | 'photographer';
   };
 
   if (!userData) {
@@ -33,10 +34,15 @@ const RegisterFace = () => {
       await register({
         ...userData,
         face_image: imageData,
-        role: 'user'
+        role: userData.role || 'user'
       });
       
-      navigate('/user/dashboard');
+      // Redirect based on role
+      if (userData.role === 'photographer') {
+        navigate('/photographer/dashboard');
+      } else {
+        navigate('/user/dashboard');
+      }
     } catch (error) {
       setIsProcessing(false);
     }

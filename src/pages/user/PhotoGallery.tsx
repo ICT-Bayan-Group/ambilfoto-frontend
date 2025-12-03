@@ -377,7 +377,7 @@ const PhotoGallery = () => {
             </div>
           </div>
 
-          {/* Info Banner */}
+          {/* Info Banner
           <Card className="mb-6 border-blue-500/20 bg-blue-500/5">
             <div className="p-4 flex items-start gap-3">
               <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
@@ -390,7 +390,7 @@ const PhotoGallery = () => {
                 </p>
               </div>
             </div>
-          </Card>
+          </Card> */}
 
           {/* Filters & Controls */}
           <Card className="mb-6 border-border/50 shadow-soft">

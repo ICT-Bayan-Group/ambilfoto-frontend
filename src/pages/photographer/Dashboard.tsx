@@ -63,16 +63,16 @@ const PhotographerDashboard = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold">
-              Welcome back, {user?.full_name?.split(' ')[0]}! 📸
+              Selamat datang, {user?.full_name?.split(' ')[0]}! 📸
             </h1>
             <p className="text-muted-foreground mt-1">
-              Manage your events and photos from your dashboard
+              Kelola acara dan foto Anda dari dasbor Anda
             </p>
           </div>
           <Link to="/photographer/events/new">
             <Button className="gap-2">
               <Plus className="h-4 w-4" />
-              Create Event
+              Buat Event
             </Button>
           </Link>
         </div>
@@ -100,7 +100,7 @@ const PhotographerDashboard = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{stats?.events.total_events || 0}</p>
-                      <p className="text-sm text-muted-foreground">Total Events</p>
+                      <p className="text-sm text-muted-foreground">Total Event</p>
                     </div>
                   </div>
                 </CardContent>
@@ -114,7 +114,7 @@ const PhotographerDashboard = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{stats?.photos.total_photos || 0}</p>
-                      <p className="text-sm text-muted-foreground">Photos Uploaded</p>
+                      <p className="text-sm text-muted-foreground">Foto Diunggah</p>
                     </div>
                   </div>
                 </CardContent>
@@ -128,7 +128,7 @@ const PhotographerDashboard = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{stats?.photos.total_faces_detected || 0}</p>
-                      <p className="text-sm text-muted-foreground">Faces Detected</p>
+                      <p className="text-sm text-muted-foreground">Wajah Terdeteksi</p>
                     </div>
                   </div>
                 </CardContent>
@@ -142,7 +142,7 @@ const PhotographerDashboard = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{stats?.downloads.total_downloads || 0}</p>
-                      <p className="text-sm text-muted-foreground">Downloads</p>
+                      <p className="text-sm text-muted-foreground">Unduhan</p>
                     </div>
                   </div>
                 </CardContent>
@@ -165,19 +165,19 @@ const PhotographerDashboard = () => {
               <Link to="/photographer/events/new" className="block">
                 <Button variant="outline" className="w-full justify-start gap-3">
                   <Plus className="h-4 w-4" />
-                  Create New Event
+                  Buat Event Baru
                 </Button>
               </Link>
               <Link to="/photographer/events" className="block">
                 <Button variant="outline" className="w-full justify-start gap-3">
                   <Calendar className="h-4 w-4" />
-                  View All Events
+                  Lihat Semua Event
                 </Button>
               </Link>
               <Link to="/photographer/profile" className="block">
                 <Button variant="outline" className="w-full justify-start gap-3">
                   <Camera className="h-4 w-4" />
-                  Edit Business Profile
+                  Edit Profil Bisnis
                 </Button>
               </Link>
             </CardContent>
@@ -189,13 +189,13 @@ const PhotographerDashboard = () => {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Clock className="h-5 w-5" />
-                  Recent Events
+                  Event Terbaru
                 </CardTitle>
-                <CardDescription>Your latest event activities</CardDescription>
+                <CardDescription>Aktivitas event terbaru Anda</CardDescription>
               </div>
               <Link to="/photographer/events">
                 <Button variant="ghost" size="sm" className="gap-1">
-                  View All <ArrowRight className="h-4 w-4" />
+                  Lihat Semua <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
             </CardHeader>
@@ -218,7 +218,7 @@ const PhotographerDashboard = () => {
                   <p className="text-muted-foreground">No events yet</p>
                   <Link to="/photographer/events/new">
                     <Button variant="link" className="mt-2">
-                      Create your first event
+                      Buat event pertama Anda
                     </Button>
                   </Link>
                 </div>
@@ -273,7 +273,6 @@ const PhotographerDashboard = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
                 Revenue Overview
               </CardTitle>
             </CardHeader>

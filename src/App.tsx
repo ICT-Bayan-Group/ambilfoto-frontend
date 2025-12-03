@@ -23,7 +23,7 @@ import PrivacyPolicy from "./pages/Privacy";
 import TermsOfService from "./pages/Terms";
 import Features from "./pages/Feature";
 import Pricing from "./pages/Pricing";
-
+import ContactUs from "./pages/Contact";
 // Photographer pages
 import PhotographerDashboard from "./pages/photographer/Dashboard";
 import PhotographerEvents from "./pages/photographer/Events";
@@ -75,7 +75,7 @@ const App = () => (
             <Route path="/register" element={<Register />} />
             <Route path="/register/face" element={<RegisterFace />} />
             <Route path="/login/face" element={<FaceLogin />} />
-            
+            <Route path="/contact" element={<ContactUs />} />
             {/* User Routes */}
             <Route 
               path="/user/dashboard" 

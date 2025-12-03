@@ -5,6 +5,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Download, Calendar, MapPin, Loader2, AlertCircle, Eye, Sparkles } from "lucide-react";
 import { Photo } from "@/services/api/ai.service";
 import { aiService } from "@/services/api/ai.service";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
 
 interface PhotoListItemProps {
   photo: Photo;
@@ -17,6 +19,38 @@ export const PhotoListItem = ({ photo, onDownload, isDownloading, onClick }: Pho
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
+  // ✅ Helper functions untuk extract metadata
+  const getEventDate = () => {
+    // Cek berbagai kemungkinan field name
+    return photo.metadata?.event_date || 
+           photo.metadata?.date || 
+           null;
+  };
+
+  const getEventName = () => {
+    return photo.metadata?.event_name ||  
+           'Unknown Event';
+  };
+
+  const getLocation = () => {
+    return photo.metadata?.location || 
+           null;
+  };
+
+  // ✅ Format date dengan error handling
+  const formatEventDate = (dateStr: string | null) => {
+    if (!dateStr) return null;
+    
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return null;
+      return format(date, "d MMM yyyy", { locale: id });
+    } catch (error) {
+      console.error('Date format error:', error);
+      return null;
+    }
+  };
+
   const getMatchPercentage = (distance?: number) => {
     if (!distance) return 0;
     return Math.max(0, Math.min(100, Math.round((1 - distance) * 100)));
@@ -24,6 +58,10 @@ export const PhotoListItem = ({ photo, onDownload, isDownloading, onClick }: Pho
 
   const matchScore = getMatchPercentage(photo.distance);
   const previewUrl = aiService.getPreviewUrl(photo.photo_id);
+  const eventDate = getEventDate();
+  const formattedDate = formatEventDate(eventDate);
+  const eventName = getEventName();
+  const location = getLocation();
 
   const getMatchColor = (percentage: number) => {
     if (percentage >= 90) return "bg-green-500/10 text-green-500 border-green-500/30";
@@ -34,6 +72,7 @@ export const PhotoListItem = ({ photo, onDownload, isDownloading, onClick }: Pho
   return (
     <Card className="border-border/50 shadow-soft hover:shadow-strong transition-smooth rounded-xl overflow-hidden">
       <div className="p-4 flex items-center gap-4">
+        {/* Thumbnail */}
         <div 
           className="h-20 w-20 rounded-xl bg-muted flex items-center justify-center shrink-0 relative overflow-hidden cursor-pointer group" 
           onClick={onClick}
@@ -53,7 +92,10 @@ export const PhotoListItem = ({ photo, onDownload, isDownloading, onClick }: Pho
                   imageLoaded ? 'opacity-100' : 'opacity-0'
                 }`}
                 onLoad={() => setImageLoaded(true)}
-                onError={() => setImageError(true)}
+                onError={() => {
+                  console.error('Image load error for photo:', photo.photo_id);
+                  setImageError(true);
+                }}
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
                 <Eye className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -62,23 +104,28 @@ export const PhotoListItem = ({ photo, onDownload, isDownloading, onClick }: Pho
           )}
         </div>
         
+        {/* Info */}
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold mb-1.5 truncate text-base">
-            {photo.metadata?.event_name || 'Unknown Event'}
+            {eventName}
           </h3>
+          
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-            {photo.metadata?.date && (
-              <div className="flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5" />
-                <span>{new Date(photo.metadata.date).toLocaleDateString('id-ID')}</span>
-              </div>
-            )}
-            {photo.metadata?.location && (
+            {/* ✅ FIXED: Tanggal - Always show */}
+            <div className="flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5" />
+              <span>{formattedDate || 'No date'}</span>
+            </div>
+            
+            {/* Location - Only if exists */}
+            {location && (
               <div className="flex items-center gap-1.5">
                 <MapPin className="h-3.5 w-3.5" />
-                <span className="truncate max-w-[150px]">{photo.metadata.location}</span>
+                <span className="truncate max-w-[150px]">{location}</span>
               </div>
             )}
+            
+            {/* Match score - Only if exists */}
             {matchScore > 0 && (
               <div className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${getMatchColor(matchScore)}`}>
                 <Sparkles className="h-3 w-3" />
@@ -88,6 +135,7 @@ export const PhotoListItem = ({ photo, onDownload, isDownloading, onClick }: Pho
           </div>
         </div>
         
+        {/* Action Buttons */}
         <div className="flex gap-2 shrink-0">
           <Button 
             size="sm" 

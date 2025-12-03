@@ -22,11 +22,11 @@ const PhotographerHeader = () => {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
+               <div className="container mx-auto flex h-24 items-center justify-between px-4">
         {/* Logo */}
         <Link to="/photographer/dashboard" className="flex items-center gap-2 transition-all duration-200 hover:opacity-80">
           <img 
-            src="https://res.cloudinary.com/dgcedsrzf/image/upload/c_pad,w_440,h_330,ar_4:3/v1764206071/logo-ambilfoto_ijxmmm.png" 
+            src="https://res.cloudinary.com/dgcedsrzf/image/upload/t_landscape/v1764667227/ambilfoto-logo_gv6xea.png" 
             alt="AmbilFoto.id Logo" 
             className="h-20 w-auto"
           />

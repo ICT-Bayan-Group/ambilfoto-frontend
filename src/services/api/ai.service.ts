@@ -13,6 +13,8 @@ export interface PhotoMetadata {
   event_name: string;
   location: string;
   photographer: string;
+  event_date: string;
+  photographer_name: string;
   date: string;
 }
 
