@@ -64,14 +64,12 @@ export const PhotoDetailModal = ({
   };
 
   const getEventName = () => {
-    return photo.metadata?.event_name || 
-         
+    return photo.metadata?.event_name ||     
            'Untitled Photo';
   };
 
   const getLocation = () => {
     return photo.metadata?.location || 
-   
            null;
   };
 
