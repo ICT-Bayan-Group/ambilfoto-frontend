@@ -84,8 +84,11 @@ const Register = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-background p-4">
       <div className="w-full max-w-md">
         <Link to="/" className="flex items-center justify-center gap-2 mb-8">
-          <Camera className="h-8 w-8 text-primary" />
-          <span className="text-2xl font-bold">AmbildFoto.id</span>
+         <img 
+            src="https://res.cloudinary.com/dwyi4d3rq/image/upload/v1765171746/ambilfoto-logo_hvn8s2.png" 
+            alt="AmbilFoto.id Logo" 
+            className="h-24 mx-auto w-auto"
+          />
         </Link>
         
         <Card className="shadow-strong border-border/50">

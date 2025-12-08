@@ -26,7 +26,7 @@ const PhotographerHeader = () => {
         {/* Logo */}
         <Link to="/photographer/dashboard" className="flex items-center gap-2 transition-all duration-200 hover:opacity-80">
           <img 
-            src="https://res.cloudinary.com/dgcedsrzf/image/upload/t_landscape/v1764667227/ambilfoto-logo_gv6xea.png" 
+            src="https://res.cloudinary.com/dwyi4d3rq/image/upload/v1765171746/ambilfoto-logo_hvn8s2.png" 
             alt="AmbilFoto.id Logo" 
             className="h-20 w-auto"
           />
