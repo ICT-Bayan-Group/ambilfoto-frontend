@@ -38,7 +38,7 @@ const NotFound = () => {
           {/* Right Illustration */}
           <div className="relative flex-1">
             <img 
-              src="https://res.cloudinary.com/dgcedsrzf/image/upload/v1764312505/notfound_uoa0sr.png" 
+              src="https://res.cloudinary.com/dwyi4d3rq/image/upload/v1765360820/notfound_tpctrm.png" 
               alt="404 illustration" 
               className="w-full max-w-lg mx-auto"
             />
