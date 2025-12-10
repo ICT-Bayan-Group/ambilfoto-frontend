@@ -26,7 +26,7 @@ export const Header = () => {
         <nav className="hidden md:flex items-center gap-6">
           <Link to="/about" className="nav-link font-semibold">About</Link>
           <Link to="/features" className="nav-link font-semibold">Features</Link>
-          <Link to="/pricing" className="nav-link font-semibold">Pricing</Link>
+          <Link to="api.ambilfoto.id" className="nav-link font-semibold">API Pricing</Link>
           <Link to="/contact" className="nav-link font-semibold">Contact</Link>
         </nav>
 
