@@ -1,13 +1,10 @@
 import { Toaster } from "@/components/ui/toaster";
-import { Sonner } from "@/components/ui/sonner";
+import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import WhatsAppWidget from "@/components/layout/Whatsapp-button";
-
-// Import pages
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -17,19 +14,20 @@ import UserDashboard from "./pages/user/Dashboard";
 import ScanFace from "./pages/user/ScanFace";
 import PhotoGallery from "./pages/user/PhotoGallery";
 import UserProfile from "./pages/user/Profile";
-import NotFound from "./pages/NotFound";
-import About from "./pages/About";
-import PrivacyPolicy from "./pages/Privacy";
-import TermsOfService from "./pages/Terms";
-import Features from "./pages/Feature";
-import Pricing from "./pages/Pricing";
-import ContactUs from "./pages/Contact";
-// Photographer pages
 import PhotographerDashboard from "./pages/photographer/Dashboard";
 import PhotographerEvents from "./pages/photographer/Events";
 import PhotographerEventDetail from "./pages/photographer/EventDetail";
 import PhotographerCreateEvent from "./pages/photographer/CreateEvent";
 import PhotographerProfile from "./pages/photographer/Profile";
+import AdminDashboard from "./pages/admin/Dashboard";
+import AdminUsers from "./pages/admin/Users";
+import AdminEvents from "./pages/admin/Events";
+import AdminDownloads from "./pages/admin/Downloads";
+import AdminRevenue from "./pages/admin/Revenue";
+import AdminLogs from "./pages/admin/Logs";
+import AdminStorage from "./pages/admin/Storage";
+import AdminRoute from "./components/AdminRoute";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -38,11 +36,7 @@ const PhotographerRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isAuthenticated, isLoading } = useAuth();
   
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
   
   if (!isAuthenticated) {
@@ -64,18 +58,12 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            {/* Public Routes */}
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/features" element={<Features />} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/privacy" element={<PrivacyPolicy />} />
-            <Route path="/terms" element={<TermsOfService />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/face" element={<RegisterFace />} />
             <Route path="/login/face" element={<FaceLogin />} />
-            <Route path="/contact" element={<ContactUs />} />
+            
             {/* User Routes */}
             <Route 
               path="/user/dashboard" 
@@ -110,7 +98,7 @@ const App = () => (
               } 
             />
             
-            {/* Photographer Routes - DIPINDAHKAN KE DALAM ROUTES */}
+            {/* Photographer Routes */}
             <Route 
               path="/photographer/dashboard" 
               element={
@@ -152,12 +140,67 @@ const App = () => (
               } 
             />
             
-            {/* 404 Route - Harus di paling bawah */}
+            {/* Admin Routes */}
+            <Route 
+              path="/admin/dashboard" 
+              element={
+                <AdminRoute>
+                  <AdminDashboard />
+                </AdminRoute>
+              } 
+            />
+            <Route 
+              path="/admin/users" 
+              element={
+                <AdminRoute>
+                  <AdminUsers />
+                </AdminRoute>
+              } 
+            />
+            <Route 
+              path="/admin/events" 
+              element={
+                <AdminRoute>
+                  <AdminEvents />
+                </AdminRoute>
+              } 
+            />
+            <Route 
+              path="/admin/downloads" 
+              element={
+                <AdminRoute>
+                  <AdminDownloads />
+                </AdminRoute>
+              } 
+            />
+            <Route 
+              path="/admin/revenue" 
+              element={
+                <AdminRoute>
+                  <AdminRevenue />
+                </AdminRoute>
+              } 
+            />
+            <Route 
+              path="/admin/logs" 
+              element={
+                <AdminRoute>
+                  <AdminLogs />
+                </AdminRoute>
+              } 
+            />
+            <Route 
+              path="/admin/storage" 
+              element={
+                <AdminRoute>
+                  <AdminStorage />
+                </AdminRoute>
+              } 
+            />
+            
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-          
-          {/* WhatsApp Widget - Di luar Routes tapi di dalam AuthProvider */}
-          <WhatsAppWidget />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
