@@ -12,6 +12,12 @@ import RegisterFace from "./pages/RegisterFace";
 import FaceLogin from "./pages/FaceLogin";
 import UserDashboard from "./pages/user/Dashboard";
 import ScanFace from "./pages/user/ScanFace";
+import About from "./pages/About";
+import PrivacyPolicy from "./pages/Privacy";
+import TermsOfService from "./pages/Terms";
+import Features from "./pages/Feature";
+import Pricing from "./pages/Pricing";
+import ContactUs from "./pages/Contact";
 import PhotoGallery from "./pages/user/PhotoGallery";
 import UserProfile from "./pages/user/Profile";
 import PhotographerDashboard from "./pages/photographer/Dashboard";
@@ -60,6 +66,12 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/logout" element={<Navigate to="/login" replace />} />
+             <Route path="/about" element={<About />} />
+            <Route path="/features" element={<Features />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/face" element={<RegisterFace />} />
             <Route path="/login/face" element={<FaceLogin />} />
