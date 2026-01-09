@@ -61,7 +61,7 @@ const PhotographerWalletPage = () => {
         setWithdrawals(response.data.withdrawal_requests || []);
       }
     } catch (error) {
-      toast.error('Gagal memuat data wallet');
+      toast.error('Gagal memuat data FOTOPOIN');
     } finally {
       setIsLoading(false);
     }
@@ -89,7 +89,7 @@ const PhotographerWalletPage = () => {
     const availableBalance = toNumber(wallet?.available_for_withdrawal);
     
     if (!amount || amount < 100000) {
-      toast.error('Minimum withdrawal adalah Rp 100.000');
+      toast.error('Penarikan minimum adalah Rp 100.000');
       return;
     }
 
@@ -103,12 +103,12 @@ const PhotographerWalletPage = () => {
       const response = await paymentService.requestWithdrawal(amount);
       
       if (response.success) {
-        toast.success('Permintaan withdrawal berhasil diajukan!');
+        toast.success('Permintaan penarikan berhasil diajukan!');
         setDialogOpen(false);
         setWithdrawAmount("");
         fetchWalletData();
       } else {
-        toast.error(response.error || 'Gagal mengajukan withdrawal');
+        toast.error(response.error || 'Gagal mengajukan penarikan');
       }
     } catch (error) {
       toast.error('Terjadi kesalahan');
@@ -121,7 +121,7 @@ const PhotographerWalletPage = () => {
     try {
       const response = await paymentService.cancelWithdrawal(requestId);
       if (response.success) {
-        toast.success('Withdrawal dibatalkan');
+        toast.success('Penarikan dibatalkan');
         fetchWalletData();
       } else {
         toast.error(response.error || 'Gagal membatalkan');
@@ -134,13 +134,13 @@ const PhotographerWalletPage = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'paid':
-        return <Badge className="bg-green-500"><CheckCircle2 className="h-3 w-3 mr-1" />Paid</Badge>;
+        return <Badge className="bg-green-500"><CheckCircle2 className="h-3 w-3 mr-1" />Dibayar</Badge>;
       case 'approved':
-        return <Badge className="bg-blue-500"><CheckCircle2 className="h-3 w-3 mr-1" />Approved</Badge>;
+        return <Badge className="bg-blue-500"><CheckCircle2 className="h-3 w-3 mr-1" />Disetujui</Badge>;
       case 'pending':
-        return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+        return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Menunggu</Badge>;
       case 'rejected':
-        return <Badge variant="destructive"><Ban className="h-3 w-3 mr-1" />Rejected</Badge>;
+        return <Badge variant="destructive"><Ban className="h-3 w-3 mr-1" />Ditolak</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -159,10 +159,10 @@ const PhotographerWalletPage = () => {
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <Wallet className="h-8 w-8" />
-              My Earnings
+              FOTOPOIN Saya
             </h1>
             <p className="text-muted-foreground mt-1">
-              Track your earnings and request withdrawals
+              Pantau FOTOPOIN Anda dan ajukan penarikan dana
             </p>
           </div>
           
@@ -170,12 +170,12 @@ const PhotographerWalletPage = () => {
             <DialogTrigger asChild>
               <Button className="gap-2" disabled={!isWithdrawEnabled}>
                 <Send className="h-4 w-4" />
-                Request Withdrawal
+                Ajukan Penarikan
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Request Withdrawal</DialogTitle>
+                <DialogTitle>Ajukan Penarikan</DialogTitle>
                 <DialogDescription>
                   Transfer saldo ke rekening bank Anda. Minimum Rp 100.000.
                 </DialogDescription>
@@ -186,7 +186,7 @@ const PhotographerWalletPage = () => {
                   <p className="text-2xl font-bold">{formatCurrency(availableBalance)}</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="amount">Jumlah Withdrawal</Label>
+                  <Label htmlFor="amount">Jumlah Penarikan</Label>
                   <Input
                     id="amount"
                     type="number"
@@ -203,7 +203,7 @@ const PhotographerWalletPage = () => {
                     <div>
                       <p className="font-medium text-yellow-600">Catatan</p>
                       <p className="text-muted-foreground">
-                        Proses withdrawal akan diverifikasi oleh admin dalam 1-3 hari kerja.
+                        Proses penarikan akan diverifikasi oleh admin dalam 1-3 hari kerja.
                       </p>
                     </div>
                   </div>
@@ -217,12 +217,12 @@ const PhotographerWalletPage = () => {
                   {isWithdrawing ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Processing...
+                      Memproses...
                     </>
                   ) : (
                     <>
                       <Send className="h-4 w-4 mr-2" />
-                      Ajukan Withdrawal
+                      Ajukan Penarikan
                     </>
                   )}
                 </Button>
@@ -254,7 +254,7 @@ const PhotographerWalletPage = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{formatCurrency(wallet?.balance || 0)}</p>
-                      <p className="text-sm text-muted-foreground">Total Balance</p>
+                      <p className="text-sm text-muted-foreground">Total Saldo</p>
                     </div>
                   </div>
                 </CardContent>
@@ -268,7 +268,7 @@ const PhotographerWalletPage = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{formatCurrency(availableBalance)}</p>
-                      <p className="text-sm text-muted-foreground">Available for Withdrawal</p>
+                      <p className="text-sm text-muted-foreground">Dapat Ditarik</p>
                     </div>
                   </div>
                 </CardContent>
@@ -282,7 +282,7 @@ const PhotographerWalletPage = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{formatCurrency(wallet?.total_earned || 0)}</p>
-                      <p className="text-sm text-muted-foreground">Total Earned</p>
+                      <p className="text-sm text-muted-foreground">Total Penghasilan</p>
                     </div>
                   </div>
                 </CardContent>
@@ -296,7 +296,7 @@ const PhotographerWalletPage = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{formatCurrency(wallet?.total_withdrawn || 0)}</p>
-                      <p className="text-sm text-muted-foreground">Total Withdrawn</p>
+                      <p className="text-sm text-muted-foreground">Total Ditarik</p>
                     </div>
                   </div>
                 </CardContent>
@@ -313,9 +313,9 @@ const PhotographerWalletPage = () => {
                 <div className="flex items-center gap-3">
                   <Clock className="h-5 w-5 text-yellow-600" />
                   <div>
-                    <p className="font-medium">Pending Withdrawal</p>
+                    <p className="font-medium">Penarikan Menunggu</p>
                     <p className="text-sm text-muted-foreground">
-                      Withdrawal sedang diproses oleh admin
+                      Penarikan sedang diproses oleh admin
                     </p>
                   </div>
                 </div>
@@ -332,11 +332,11 @@ const PhotographerWalletPage = () => {
           <TabsList className="mb-6">
             <TabsTrigger value="overview" className="gap-2">
               <TrendingUp className="h-4 w-4" />
-              Recent Earnings
+              Penghasilan Terkini
             </TabsTrigger>
             <TabsTrigger value="withdrawals" className="gap-2">
               <History className="h-4 w-4" />
-              Withdrawal History
+              Riwayat Penarikan
             </TabsTrigger>
           </TabsList>
 
@@ -345,9 +345,9 @@ const PhotographerWalletPage = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <ArrowUpRight className="h-5 w-5 text-green-500" />
-                  Recent Earnings
+                  Penghasilan Terkini
                 </CardTitle>
-                <CardDescription>Latest sales from your photos</CardDescription>
+                <CardDescription>Penjualan terbaru dari foto Anda</CardDescription>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
@@ -359,8 +359,8 @@ const PhotographerWalletPage = () => {
                 ) : earnings.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <DollarSign className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                    <p className="text-lg">Belum ada earnings</p>
-                    <p className="text-sm">Earnings dari penjualan foto akan muncul di sini</p>
+                    <p className="text-lg">Belum ada penghasilan</p>
+                    <p className="text-sm">Penghasilan dari penjualan foto akan muncul di sini</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -376,7 +376,7 @@ const PhotographerWalletPage = () => {
                               {earning.event_name} • Dibeli oleh {earning.buyer_name}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {format(new Date(earning.paid_at), 'MMM dd, yyyy HH:mm')}
+                              {format(new Date(earning.paid_at), 'dd MMM yyyy HH:mm')}
                             </p>
                           </div>
                         </div>
@@ -401,9 +401,9 @@ const PhotographerWalletPage = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <History className="h-5 w-5" />
-                  Withdrawal History
+                  Riwayat Penarikan
                 </CardTitle>
-                <CardDescription>Track your withdrawal requests</CardDescription>
+                <CardDescription>Pantau permintaan penarikan Anda</CardDescription>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
@@ -415,8 +415,8 @@ const PhotographerWalletPage = () => {
                 ) : withdrawals.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <Send className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                    <p className="text-lg">Belum ada withdrawal</p>
-                    <p className="text-sm">Riwayat withdrawal akan muncul di sini</p>
+                    <p className="text-lg">Belum ada penarikan</p>
+                    <p className="text-sm">Riwayat penarikan akan muncul di sini</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -434,7 +434,7 @@ const PhotographerWalletPage = () => {
                         
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">
-                            Requested: {format(new Date(wd.requested_at), 'MMM dd, yyyy HH:mm')}
+                            Diajukan: {format(new Date(wd.requested_at), 'dd MMM yyyy HH:mm')}
                           </span>
                           
                           {wd.status === 'pending' && (
@@ -445,14 +445,14 @@ const PhotographerWalletPage = () => {
                               onClick={() => handleCancelWithdraw(wd.id)}
                             >
                               <Ban className="h-4 w-4 mr-1" />
-                              Cancel
+                              Batalkan
                             </Button>
                           )}
                         </div>
 
                         {wd.admin_note && (
                           <div className="mt-3 p-2 bg-muted/50 rounded text-sm">
-                            <p className="font-medium">Admin Note:</p>
+                            <p className="font-medium">Catatan Admin:</p>
                             <p className="text-muted-foreground">{wd.admin_note}</p>
                           </div>
                         )}
@@ -460,7 +460,7 @@ const PhotographerWalletPage = () => {
                         {wd.paid_at && (
                           <p className="mt-2 text-sm text-green-600">
                             <CheckCircle2 className="h-4 w-4 inline mr-1" />
-                            Paid on {format(new Date(wd.paid_at), 'MMM dd, yyyy')}
+                            Dibayar pada {format(new Date(wd.paid_at), 'dd MMM yyyy')}
                           </p>
                         )}
                       </div>
