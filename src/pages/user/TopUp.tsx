@@ -18,6 +18,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
+import HeaderDash from "@/components/layout/HeaderDash";
 
 const TopUpPage = () => {
   const navigate = useNavigate();
@@ -39,7 +40,7 @@ const TopUpPage = () => {
         setPackages(response.data.sort((a, b) => a.sort_order - b.sort_order));
       }
     } catch (error) {
-      toast.error('Gagal memuat paket points');
+      toast.error('Gagal memuat paket FOTOPOIN');
     } finally {
       setIsLoading(false);
     }
@@ -116,7 +117,7 @@ const TopUpPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      <HeaderDash />
       
       <main className="container mx-auto px-4 py-8">
         {/* Page Header */}
@@ -127,10 +128,10 @@ const TopUpPage = () => {
           </Button>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Star className="h-8 w-8 text-primary" />
-            Top Up Points
+            Isi FOTOPOIN
           </h1>
           <p className="text-muted-foreground mt-1">
-            Pilih paket points untuk membeli foto
+            Pilih paket FOTOPOIN untuk membeli foto
           </p>
         </div>
 
@@ -140,9 +141,9 @@ const TopUpPage = () => {
             <div className="flex items-center gap-3">
               <Sparkles className="h-6 w-6 text-primary" />
               <div>
-                <p className="font-medium">Hemat lebih banyak dengan Points!</p>
+                <p className="font-medium">Hemat lebih banyak dengan FOTOPOIN!</p>
                 <p className="text-sm text-muted-foreground">
-                  Gunakan points untuk membeli foto dengan harga lebih hemat. 1 Point = Rp 5.000
+                  Gunakan FOTOPOIN untuk membeli foto dengan harga lebih hemat. 1 FOTOPOIN = Rp 5.000
                 </p>
               </div>
             </div>
@@ -177,7 +178,7 @@ const TopUpPage = () => {
                   <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                     <Badge className="bg-yellow-500 text-black">
                       <Sparkles className="h-3 w-3 mr-1" />
-                      Popular
+                      Populer
                     </Badge>
                   </div>
                 )}
@@ -189,13 +190,13 @@ const TopUpPage = () => {
                   <div className="flex items-baseline gap-1 mb-4">
                     <Star className="h-5 w-5 text-primary" />
                     <span className="text-3xl font-bold">{pkg.points_amount}</span>
-                    <span className="text-muted-foreground">Points</span>
+                    <span className="text-muted-foreground">FOTOPOIN</span>
                   </div>
                   
                   {pkg.bonus_points > 0 && (
                     <div className="flex items-center gap-2 mb-4 text-green-600">
                       <Gift className="h-4 w-4" />
-                      <span className="text-sm font-medium">+{pkg.bonus_points} Bonus Points!</span>
+                      <span className="text-sm font-medium">+{pkg.bonus_points} Bonus FOTOPOIN!</span>
                     </div>
                   )}
                   
@@ -237,13 +238,13 @@ const TopUpPage = () => {
                         <span className="font-medium">{selected.display_name}</span>
                       </div>
                       <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                        <span>Points</span>
-                        <span className="font-medium">{selected.points_amount} Points</span>
+                        <span>FOTOPOIN</span>
+                        <span className="font-medium">{selected.points_amount} FOTOPOIN</span>
                       </div>
                       {selected.bonus_points > 0 && (
                         <div className="flex justify-between items-center p-3 bg-green-500/10 rounded-lg text-green-600">
                           <span>Bonus</span>
-                          <span className="font-medium">+{selected.bonus_points} Points</span>
+                          <span className="font-medium">+{selected.bonus_points} FOTOPOIN</span>
                         </div>
                       )}
                       <div className="flex justify-between items-center p-3 bg-primary/10 rounded-lg text-primary font-bold">
@@ -257,7 +258,7 @@ const TopUpPage = () => {
             ) : (
               <div className="text-center py-4 text-muted-foreground">
                 <Star className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>Pilih paket points di atas</p>
+                <p>Pilih paket FOTOPOIN di atas</p>
               </div>
             )}
 
@@ -270,7 +271,7 @@ const TopUpPage = () => {
               {isProcessing ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Processing...
+                  Memproses...
                 </>
               ) : (
                 <>
