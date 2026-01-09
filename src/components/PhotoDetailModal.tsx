@@ -1,17 +1,19 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, X, ChevronLeft, ChevronRight, Calendar, MapPin, Camera, Sparkles, Eye } from "lucide-react";
+import { Download, X, ChevronLeft, ChevronRight, Calendar, MapPin, Camera, Sparkles, Eye, Lock, ShoppingCart, Coins, CreditCard } from "lucide-react";
 import { Photo } from "@/services/api/ai.service";
+import { UserPhoto } from "@/services/api/user.service";
 import { aiService } from "@/services/api/ai.service";
 import { format } from "date-fns";
-import { id } from "date-fns/locale";
+import { id as idLocale } from "date-fns/locale";
 
 interface PhotoDetailModalProps {
-  photo: Photo | null;
+  photo: Photo | UserPhoto | null;
   isOpen: boolean;
   onClose: () => void;
   onDownload: (photoId: string) => void;
+  onBuy?: (photoId: string) => void;
   onView: () => void;
   onNext?: () => void;
   onPrevious?: () => void;
@@ -25,6 +27,7 @@ export const PhotoDetailModal = ({
   isOpen,
   onClose,
   onDownload,
+  onBuy,
   onView,
   onNext,
   onPrevious,
@@ -34,12 +37,44 @@ export const PhotoDetailModal = ({
 }: PhotoDetailModalProps) => {
   if (!photo) return null;
 
-  const getMatchPercentage = (distance?: number) => {
-    if (!distance) return 0;
-    return Math.max(0, Math.min(100, Math.round((1 - distance) * 100)));
+  const isUserPhoto = (p: Photo | UserPhoto): p is UserPhoto => {
+    return 'event_photo_id' in p;
   };
 
-  const matchPercentage = getMatchPercentage(photo.distance);
+  const getMatchPercentage = () => {
+    if (isUserPhoto(photo)) {
+      return Math.round(photo.similarity * 100);
+    }
+    if (!photo.distance) return 0;
+    return Math.max(0, Math.min(100, Math.round((1 - photo.distance) * 100)));
+  };
+
+  const matchPercentage = getMatchPercentage();
+  
+  const previewUrl = isUserPhoto(photo) 
+    ? photo.preview_url 
+    : aiService.getPreviewUrl(photo.photo_id);
+  
+  const photoId = isUserPhoto(photo) ? photo.event_photo_id : photo.photo_id;
+  
+  const eventName = isUserPhoto(photo) 
+    ? photo.event_name 
+    : photo.metadata?.event_name || 'Untitled Photo';
+  
+  const eventDate = isUserPhoto(photo) 
+    ? photo.event_date 
+    : photo.metadata?.date;
+  
+  const location = isUserPhoto(photo) 
+    ? photo.event_location 
+    : photo.metadata?.location;
+  
+  const photographer = isUserPhoto(photo) 
+    ? photo.photographer_name 
+    : photo.metadata?.photographer;
+
+  const isPurchased = isUserPhoto(photo) ? photo.is_purchased : true;
+  const purchasePrice = isUserPhoto(photo) ? photo.purchase_price : 0;
 
   const getMatchColor = (percentage: number) => {
     if (percentage >= 90) return "bg-green-500/20 text-green-400 border-green-500/30";
@@ -47,56 +82,11 @@ export const PhotoDetailModal = ({
     return "bg-orange-500/20 text-orange-400 border-orange-500/30";
   };
 
-  // ✅ FIXED: Helper untuk get metadata dengan fallback
-  const getEventDate = () => {
-    // Cek berbagai kemungkinan field name
-    return photo.metadata?.event_date || 
-           photo.metadata?.date || 
-           null;
-  };
-
-  const getPhotographerName = () => {
-    // Cek berbagai kemungkinan field name
-    return photo.metadata?.photographer_name || 
-           photo.metadata?.photographer || 
-      
-           'Unknown';
-  };
-
-  const getEventName = () => {
-    return photo.metadata?.event_name ||     
-           'Untitled Photo';
-  };
-
-  const getLocation = () => {
-    return photo.metadata?.location || 
-           null;
-  };
-
-  const eventDate = getEventDate();
-  const photographerName = getPhotographerName();
-  const eventName = getEventName();
-  const location = getLocation();
-
-  // Format date dengan error handling
-  const formatEventDate = (dateStr: string | null) => {
-    if (!dateStr) return 'No date';
-    
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return 'Invalid date';
-      return format(date, "d MMM yyyy", { locale: id });
-    } catch (error) {
-      console.error('Date format error:', error);
-      return 'Invalid date';
-    }
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] p-0 gap-0 bg-card/95 backdrop-blur-xl border-border/50 overflow-hidden rounded-2xl flex flex-col">
+      <DialogContent className="max-w-2xl p-0 gap-0 bg-card/95 backdrop-blur-xl border-border/50 overflow-hidden rounded-2xl">
         {/* Header with gradient */}
-        <div className="relative flex-shrink-0">
+        <div className="relative">
           {/* Close button */}
           <Button 
             variant="ghost" 
@@ -110,13 +100,9 @@ export const PhotoDetailModal = ({
           {/* Image Preview */}
           <div className="relative aspect-[4/3] bg-muted overflow-hidden">
             <img
-              src={aiService.getPreviewUrl(photo.photo_id)}
+              src={previewUrl}
               alt={photo.filename}
               className="w-full h-full object-cover"
-              onError={(e) => {
-                console.error('Image load error for photo:', photo.photo_id);
-                e.currentTarget.src = '/placeholder-image.jpg';
-              }}
             />
             
             {/* Gradient overlay */}
@@ -177,101 +163,119 @@ export const PhotoDetailModal = ({
           </div>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="overflow-y-auto flex-1">
-          <div className="p-5 space-y-5">
-            {/* Info Cards - ✅ FIXED: Always show both cards */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* Tanggal Card */}
+        {/* Content */}
+        <div className="p-5 space-y-5">
+          {/* Info Cards */}
+          <div className="grid grid-cols-2 gap-3">
+            {eventDate && (
               <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border border-border/50">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
                   <Calendar className="h-5 w-5 text-primary" />
                 </div>
-                <div className="min-w-0 flex-1">
+                <div>
                   <p className="text-xs text-muted-foreground">Tanggal</p>
-                  <p className="text-sm font-medium truncate">
-                    {eventDate ? formatEventDate(eventDate) : 'No date'}
+                  <p className="text-sm font-medium">
+                    {format(new Date(eventDate), "d MMM yyyy", { locale: idLocale })}
                   </p>
                 </div>
               </div>
-
-              {/* Fotografer Card */}
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border border-border/50">
-                <div className="h-10 w-10 rounded-full bg-secondary/10 flex items-center justify-center flex-shrink-0">
-                  <Camera className="h-5 w-5 text-secondary" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs text-muted-foreground">Fotografer</p>
-                  <p className="text-sm font-medium truncate" title={photographerName}>
-                    {photographerName}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Match Stats */}
-            <div className="p-4 rounded-xl bg-gradient-to-r from-primary/5 via-primary/10 to-secondary/5 border border-primary/20">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-muted-foreground">Tingkat Kecocokan</span>
-                <span className="text-2xl font-bold text-primary">{matchPercentage}%</span>
-              </div>
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all duration-500"
-                  style={{ width: `${matchPercentage}%` }}
-                />
-              </div>
-              {photo.cosine_similarity && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Similarity Score: {Math.round(photo.cosine_similarity * 100)}%
-                </p>
-              )}
-            </div>
-
-            {/* Filename */}
-            <div className="text-xs text-muted-foreground bg-muted/30 px-3 py-2 rounded-lg font-mono truncate">
-              📁 {photo.filename}
-            </div>
-
-            {/* Debug Info - ✅ Untuk Development (hapus di production) */}
-            {process.env.NODE_ENV === 'development' && (
-              <details className="text-xs bg-muted/20 rounded-lg p-3">
-                <summary className="cursor-pointer font-semibold mb-2">Debug Metadata</summary>
-                <pre className="overflow-auto text-[10px] whitespace-pre-wrap">
-                  {JSON.stringify({
-                    photo_id: photo.photo_id,
-                    filename: photo.filename,
-                    metadata: photo.metadata,
-                    extracted: {
-                      event_date: eventDate,
-                      photographer_name: photographerName,
-                      event_name: eventName,
-                      location: location
-                    }
-                  }, null, 2)}
-                </pre>
-              </details>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex gap-3">
+            {photographer && (
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border border-border/50">
+                <div className="h-10 w-10 rounded-full bg-secondary/10 flex items-center justify-center">
+                  <Camera className="h-5 w-5 text-secondary" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Fotografer</p>
+                  <p className="text-sm font-medium truncate">
+                    {photographer}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Match Stats */}
+          <div className="p-4 rounded-xl bg-gradient-to-r from-primary/5 via-primary/10 to-secondary/5 border border-primary/20">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-muted-foreground">Tingkat Kecocokan</span>
+              <span className="text-2xl font-bold text-primary">{matchPercentage}%</span>
+            </div>
+            <div className="h-2 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all duration-500"
+                style={{ width: `${matchPercentage}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Filename */}
+          <div className="text-xs text-muted-foreground bg-muted/30 px-3 py-2 rounded-lg font-mono truncate">
+            📁 {photo.filename}
+          </div>
+
+          {/* Price Info for unpurchased photos */}
+          {!isPurchased && purchasePrice && purchasePrice > 0 && (
+            <div className="p-4 rounded-xl bg-gradient-to-r from-primary/5 to-secondary/5 border border-primary/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Coins className="h-5 w-5 text-yellow-500" />
+                  <span className="text-sm font-medium">Harga Foto</span>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-primary">
+                    Rp {purchasePrice.toLocaleString('id-ID')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    atau {Math.ceil(purchasePrice / 5000)} Points
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            <Button 
+              variant="outline"
+              onClick={onView}
+              className="flex-1 h-12 rounded-xl font-semibold"
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              Lihat Fullscreen
+            </Button>
+            {!isPurchased && purchasePrice && purchasePrice > 0 ? (
               <Button 
-                variant="outline"
-                onClick={onView}
-                className="flex-1 h-12 rounded-xl font-semibold"
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                Lihat Fullscreen
-              </Button>
-              <Button 
-                onClick={() => onDownload(photo.photo_id)}
+                onClick={() => onBuy?.(photoId)}
                 disabled={isDownloading}
                 className="flex-1 h-12 rounded-xl font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
               >
-                <Download className="mr-2 h-4 w-4" />
-                {isDownloading ? "Downloading..." : "Download HD"}
+                {isDownloading ? (
+                  "Processing..."
+                ) : (
+                  <>
+                    <ShoppingCart className="mr-2 h-4 w-4" />
+                    Beli Sekarang
+                  </>
+                )}
               </Button>
-            </div>
+            ) : (
+              <Button 
+                onClick={() => onDownload(photoId)}
+                disabled={isDownloading}
+                className="flex-1 h-12 rounded-xl font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+              >
+                {isDownloading ? (
+                  "Downloading..."
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    Download HD
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>
