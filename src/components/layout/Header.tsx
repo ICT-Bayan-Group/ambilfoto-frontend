@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Camera, LogOut, User, Settings, Calendar, Image, Upload, Shield, Users, DollarSign, Activity, Database } from "lucide-react";
+import { Camera, LogOut, User, Settings, Calendar, Image, Upload, Shield, Users, DollarSign, Activity, Database, Wallet, CreditCard, Banknote } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   DropdownMenu,
@@ -31,11 +31,8 @@ export const Header = () => {
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         <Link to={isAuthenticated ? getDashboardLink() : "/"} className="flex items-center gap-2 transition-smooth hover:opacity-80">
-           <img 
-            src="https://res.cloudinary.com/dwyi4d3rq/image/upload/v1765171746/ambilfoto-logo_hvn8s2.png" 
-            alt="AmbilFoto.id Logo" 
-            className="h-20 w-auto"
-          />
+          <Camera className="h-6 w-6 text-primary" />
+          <span className="text-xl font-bold">AmbildFoto.id</span>
         </Link>
         
         {isAuthenticated ? (
@@ -64,8 +61,8 @@ export const Header = () => {
               <Link to="/photographer/events" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
                 Events
               </Link>
-              <Link to="/photographer/events/new" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
-                Upload Photos
+              <Link to="/photographer/wallet" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
+                Wallet
               </Link>
             </nav>
           ) : (
@@ -77,8 +74,8 @@ export const Header = () => {
               <Link to="/user/photos" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
                 My Photos
               </Link>
-              <Link to="/user/scan-face" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
-                Scan Face
+              <Link to="/user/wallet" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
+                Wallet
               </Link>
             </nav>
           )
@@ -156,6 +153,18 @@ export const Header = () => {
                         Storage
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/withdrawals" className="cursor-pointer">
+                        <Banknote className="mr-2 h-4 w-4" />
+                        Withdrawals
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/settings" className="cursor-pointer">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Settings
+                      </Link>
+                    </DropdownMenuItem>
                   </>
                 ) : isPhotographer ? (
                   // Photographer Menu Items
@@ -176,6 +185,12 @@ export const Header = () => {
                       <Link to="/photographer/events/new" className="cursor-pointer">
                         <Upload className="mr-2 h-4 w-4" />
                         Create Event
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/photographer/wallet" className="cursor-pointer">
+                        <Wallet className="mr-2 h-4 w-4" />
+                        Wallet
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
@@ -202,6 +217,18 @@ export const Header = () => {
                     <DropdownMenuItem asChild>
                       <Link to="/user/scan-face" className="cursor-pointer">
                         Scan Face
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/user/wallet" className="cursor-pointer">
+                        <Wallet className="mr-2 h-4 w-4" />
+                        Wallet
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/user/topup" className="cursor-pointer">
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        Top Up Points
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />

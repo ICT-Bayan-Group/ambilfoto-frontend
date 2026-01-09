@@ -33,6 +33,14 @@ import AdminRevenue from "./pages/admin/Revenue";
 import AdminLogs from "./pages/admin/Logs";
 import AdminStorage from "./pages/admin/Storage";
 import AdminRoute from "./components/AdminRoute";
+import AdminWithdrawals from "./pages/admin/Withdrawals";
+import AdminSettings from "./pages/admin/Settings";
+import UserWallet from "./pages/user/Walllet";
+import UserTopUp from "./pages/user/TopUp";
+import PhotographerWallet from "./pages/photographer/Wallet";
+import PaymentSuccess from "./pages/payment/PaymentSuccess";
+import PaymentPending from "./pages/payment/PaymentPending";
+import PaymentFailed from "./pages/payment/PaymentFailed";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -109,6 +117,23 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+
+            <Route 
+              path="/user/wallet" 
+              element={
+                <ProtectedRoute>
+                  <UserWallet />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/user/topup" 
+              element={
+                <ProtectedRoute>
+                  <UserTopUp />
+                </ProtectedRoute>
+              } 
+            />
             
             {/* Photographer Routes */}
             <Route 
@@ -148,6 +173,14 @@ const App = () => (
               element={
                 <PhotographerRoute>
                   <PhotographerProfile />
+                </PhotographerRoute>
+              } 
+            />
+             <Route 
+              path="/photographer/wallet" 
+              element={
+                <PhotographerRoute>
+                  <PhotographerWallet />
                 </PhotographerRoute>
               } 
             />
@@ -209,6 +242,26 @@ const App = () => (
                 </AdminRoute>
               } 
             />
+             <Route 
+              path="/admin/withdrawals" 
+              element={
+                <AdminRoute>
+                  <AdminWithdrawals />
+                </AdminRoute>
+              } 
+            />
+            <Route 
+              path="/admin/settings" 
+              element={
+                <AdminRoute>
+                  <AdminSettings />
+                </AdminRoute>
+              } 
+            />
+            {/* Payment Callback Routes */}
+            <Route path="/payment/success" element={<PaymentSuccess />} />
+            <Route path="/payment/pending" element={<PaymentPending />} />
+            <Route path="/payment/failed" element={<PaymentFailed />} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
