@@ -3,26 +3,40 @@ import { Link } from 'react-router-dom';
 import { 
   Users, Camera, Image, Download, DollarSign, Activity, 
   Server, Database, AlertCircle, CheckCircle, RefreshCw,
-  TrendingUp, Calendar, Eye
+  TrendingUp, Calendar, Eye, Wallet, Banknote, Settings, CreditCard, ArrowRight
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { adminService, DashboardStats } from '@/services/api/admin.service';
+import { paymentService, WalletStatistics, WithdrawalAnalytics } from '@/services/api/payment.service';
 import { toast } from 'sonner';
 import { Header } from '@/components/layout/Header';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [walletStats, setWalletStats] = useState<WalletStatistics | null>(null);
+  const [withdrawalStats, setWithdrawalStats] = useState<WithdrawalAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const response = await adminService.getDashboardStats();
-      if (response.success) {
-        setStats(response.data);
+      const [dashboardRes, walletRes, withdrawalRes] = await Promise.all([
+        adminService.getDashboardStats(),
+        paymentService.getWalletStatistics(),
+        paymentService.getWithdrawalAnalytics()
+      ]);
+      
+      if (dashboardRes.success) {
+        setStats(dashboardRes.data);
+      }
+      if (walletRes.success && walletRes.data) {
+        setWalletStats(walletRes.data);
+      }
+      if (withdrawalRes.success && withdrawalRes.data) {
+        setWithdrawalStats(withdrawalRes.data);
       }
     } catch (error) {
       toast.error('Gagal memuat statistik dashboard');
@@ -83,7 +97,7 @@ const AdminDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Server Application</CardTitle>
+              <CardTitle className="text-sm font-medium">Database</CardTitle>
               <Database className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -234,8 +248,89 @@ const AdminDashboard = () => {
           </Card>
         </div>
 
+        {/* Wallet & Withdrawal Stats */}
+        <Card className="mb-8 bg-gradient-to-br from-green-500/10 to-emerald-500/5 border-green-500/20">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-green-600" />
+                Wallet & Withdrawal Statistics
+              </CardTitle>
+              <div className="flex gap-2">
+                <Link to="/admin/withdrawals">
+                  <Button variant="outline" size="sm" className="gap-1">
+                    <Banknote className="h-4 w-4" />
+                    Manage Withdrawals
+                  </Button>
+                </Link>
+                <Link to="/admin/settings">
+                  <Button variant="outline" size="sm" className="gap-1">
+                    <Settings className="h-4 w-4" />
+                    Settings
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div className="p-4 bg-background/80 rounded-lg">
+                <p className="text-sm text-muted-foreground">User Points in System</p>
+                <p className="text-xl font-bold text-primary">
+                  {walletStats?.user_wallets?.total_points_in_system?.toLocaleString('id-ID') || '0'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {walletStats?.user_wallets?.total_wallets || 0} wallets
+                </p>
+              </div>
+              <div className="p-4 bg-background/80 rounded-lg">
+                <p className="text-sm text-muted-foreground">Photographer Balance</p>
+                <p className="text-xl font-bold text-green-600">
+                  {formatCurrency(walletStats?.photographer_wallets?.total_balance || 0)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {walletStats?.photographer_wallets?.total_wallets || 0} photographers
+                </p>
+              </div>
+              <div className="p-4 bg-background/80 rounded-lg">
+                <p className="text-sm text-muted-foreground">Pending Withdrawals</p>
+                <p className="text-xl font-bold text-yellow-600">
+                  {formatCurrency(withdrawalStats?.summary?.pending_amount || 0)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {withdrawalStats?.summary?.pending_count || 0} requests
+                </p>
+              </div>
+              <div className="p-4 bg-background/80 rounded-lg">
+                <p className="text-sm text-muted-foreground">Total Withdrawn</p>
+                <p className="text-xl font-bold">
+                  {formatCurrency(walletStats?.photographer_wallets?.all_time_withdrawn || 0)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {withdrawalStats?.summary?.paid_count || 0} paid
+                </p>
+              </div>
+            </div>
+            {(withdrawalStats?.summary?.pending_count || 0) > 0 && (
+              <div className="p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-yellow-600" />
+                  <span className="text-sm font-medium">
+                    {withdrawalStats?.summary?.pending_count} withdrawal requests pending approval
+                  </span>
+                </div>
+                <Link to="/admin/withdrawals">
+                  <Button size="sm" variant="outline" className="gap-1">
+                    Review Now <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Quick Links */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
           <Link to="/admin/users">
             <Card className="hover:bg-accent cursor-pointer transition-colors">
               <CardContent className="flex flex-col items-center justify-center py-6">
@@ -265,6 +360,22 @@ const AdminDashboard = () => {
               <CardContent className="flex flex-col items-center justify-center py-6">
                 <DollarSign className="h-8 w-8 mb-2 text-primary" />
                 <span className="text-sm font-medium">Revenue</span>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/admin/withdrawals">
+            <Card className="hover:bg-accent cursor-pointer transition-colors">
+              <CardContent className="flex flex-col items-center justify-center py-6">
+                <Banknote className="h-8 w-8 mb-2 text-green-600" />
+                <span className="text-sm font-medium">Withdrawals</span>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/admin/settings">
+            <Card className="hover:bg-accent cursor-pointer transition-colors">
+              <CardContent className="flex flex-col items-center justify-center py-6">
+                <Settings className="h-8 w-8 mb-2 text-primary" />
+                <span className="text-sm font-medium">Settings</span>
               </CardContent>
             </Card>
           </Link>
