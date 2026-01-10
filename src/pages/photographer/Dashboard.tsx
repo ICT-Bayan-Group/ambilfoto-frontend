@@ -4,10 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import PhotographerHeader from "@/components/layout/HeaderPhoto";
+import HeaderPhoto from "@/components/layout/HeaderPhoto";
 import { Footer } from "@/components/layout/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { photographerService, PhotographerStats, Event } from "@/services/api/photographer.service";
+import { paymentService, PhotographerWallet } from "@/services/api/payment.service";
 import { 
   Camera, 
   Calendar, 
@@ -18,7 +19,9 @@ import {
   Plus,
   ArrowRight,
   TrendingUp,
-  Clock
+  Clock,
+  Wallet,
+  Banknote
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -26,14 +29,16 @@ const PhotographerDashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState<PhotographerStats | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
+  const [wallet, setWallet] = useState<PhotographerWallet | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [statsRes, eventsRes] = await Promise.all([
+        const [statsRes, eventsRes, walletRes] = await Promise.all([
           photographerService.getStatistics(),
-          photographerService.getMyEvents()
+          photographerService.getMyEvents(),
+          paymentService.getPhotographerWallet()
         ]);
 
         if (statsRes.success && statsRes.data) {
@@ -41,6 +46,9 @@ const PhotographerDashboard = () => {
         }
         if (eventsRes.success && eventsRes.data) {
           setEvents(eventsRes.data);
+        }
+        if (walletRes.success && walletRes.data) {
+          setWallet(walletRes.data.wallet);
         }
       } catch (error) {
         console.error('Failed to fetch data:', error);
@@ -54,25 +62,33 @@ const PhotographerDashboard = () => {
 
   const recentEvents = events.slice(0, 5);
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      <PhotographerHeader />
+      <HeaderPhoto />
       
       <main className="container mx-auto px-4 py-8">
         {/* Welcome Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold">
-              Selamat datang, {user?.full_name?.split(' ')[0]}! 📸
+              Welcome back, {user?.full_name?.split(' ')[0]}! 📸
             </h1>
             <p className="text-muted-foreground mt-1">
-              Kelola acara dan foto Anda dari dasbor Anda
+              Manage your events and photos from your dashboard
             </p>
           </div>
           <Link to="/photographer/events/new">
             <Button className="gap-2">
               <Plus className="h-4 w-4" />
-              Buat Event
+              Create Event
             </Button>
           </Link>
         </div>
@@ -100,7 +116,7 @@ const PhotographerDashboard = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{stats?.events.total_events || 0}</p>
-                      <p className="text-sm text-muted-foreground">Total Event</p>
+                      <p className="text-sm text-muted-foreground">Total Events</p>
                     </div>
                   </div>
                 </CardContent>
@@ -114,7 +130,7 @@ const PhotographerDashboard = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{stats?.photos.total_photos || 0}</p>
-                      <p className="text-sm text-muted-foreground">Foto Diunggah</p>
+                      <p className="text-sm text-muted-foreground">Photos Uploaded</p>
                     </div>
                   </div>
                 </CardContent>
@@ -128,7 +144,7 @@ const PhotographerDashboard = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{stats?.photos.total_faces_detected || 0}</p>
-                      <p className="text-sm text-muted-foreground">Wajah Terdeteksi</p>
+                      <p className="text-sm text-muted-foreground">Faces Detected</p>
                     </div>
                   </div>
                 </CardContent>
@@ -142,7 +158,7 @@ const PhotographerDashboard = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{stats?.downloads.total_downloads || 0}</p>
-                      <p className="text-sm text-muted-foreground">Unduhan</p>
+                      <p className="text-sm text-muted-foreground">Downloads</p>
                     </div>
                   </div>
                 </CardContent>
@@ -150,6 +166,59 @@ const PhotographerDashboard = () => {
             </>
           )}
         </div>
+
+        {/* Wallet Section */}
+        <Card className="mb-8 bg-gradient-to-br from-green-500/10 to-emerald-500/5 border-green-500/20">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-green-600" />
+                Photographer Wallet
+              </CardTitle>
+              <Link to="/photographer/wallet">
+                <Button variant="ghost" size="sm" className="gap-1">
+                  View Details <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 bg-background/80 rounded-lg">
+                <p className="text-sm text-muted-foreground">Total Balance</p>
+                <p className="text-xl font-bold text-green-600">
+                  {formatCurrency(Number(wallet?.balance) || 0)}
+                </p>
+              </div>
+              <div className="p-4 bg-background/80 rounded-lg">
+                <p className="text-sm text-muted-foreground">Available</p>
+                <p className="text-xl font-bold">
+                  {formatCurrency(Number(wallet?.available_for_withdrawal) || 0)}
+                </p>
+              </div>
+              <div className="p-4 bg-background/80 rounded-lg">
+                <p className="text-sm text-muted-foreground">Total Earned</p>
+                <p className="text-xl font-bold text-primary">
+                  {formatCurrency(Number(wallet?.total_earned) || 0)}
+                </p>
+              </div>
+              <div className="p-4 bg-background/80 rounded-lg">
+                <p className="text-sm text-muted-foreground">Pending</p>
+                <p className="text-xl font-bold text-yellow-600">
+                  {formatCurrency(Number(wallet?.pending_withdrawal) || 0)}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Link to="/photographer/wallet">
+                <Button className="gap-2 bg-green-600 hover:bg-green-700">
+                  <Banknote className="h-4 w-4" />
+                  Request Withdrawal
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Quick Actions & Recent Events */}
         <div className="grid md:grid-cols-3 gap-6">
@@ -165,19 +234,19 @@ const PhotographerDashboard = () => {
               <Link to="/photographer/events/new" className="block">
                 <Button variant="outline" className="w-full justify-start gap-3">
                   <Plus className="h-4 w-4" />
-                  Buat Event Baru
+                  Create New Event
                 </Button>
               </Link>
               <Link to="/photographer/events" className="block">
                 <Button variant="outline" className="w-full justify-start gap-3">
                   <Calendar className="h-4 w-4" />
-                  Lihat Semua Event
+                  View All Events
                 </Button>
               </Link>
               <Link to="/photographer/profile" className="block">
                 <Button variant="outline" className="w-full justify-start gap-3">
                   <Camera className="h-4 w-4" />
-                  Edit Profil Bisnis
+                  Edit Business Profile
                 </Button>
               </Link>
             </CardContent>
@@ -189,13 +258,13 @@ const PhotographerDashboard = () => {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Clock className="h-5 w-5" />
-                  Event Terbaru
+                  Recent Events
                 </CardTitle>
-                <CardDescription>Aktivitas event terbaru Anda</CardDescription>
+                <CardDescription>Your latest event activities</CardDescription>
               </div>
               <Link to="/photographer/events">
                 <Button variant="ghost" size="sm" className="gap-1">
-                  Lihat Semua <ArrowRight className="h-4 w-4" />
+                  View All <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
             </CardHeader>
@@ -218,7 +287,7 @@ const PhotographerDashboard = () => {
                   <p className="text-muted-foreground">No events yet</p>
                   <Link to="/photographer/events/new">
                     <Button variant="link" className="mt-2">
-                      Buat event pertama Anda
+                      Create your first event
                     </Button>
                   </Link>
                 </div>
@@ -273,6 +342,7 @@ const PhotographerDashboard = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
                 Revenue Overview
               </CardTitle>
             </CardHeader>
