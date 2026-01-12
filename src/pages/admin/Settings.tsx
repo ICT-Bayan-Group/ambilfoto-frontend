@@ -40,17 +40,17 @@ const AdminSettings = () => {
       const mockSettings: PlatformSettings = {
         platform_fee_percentage: {
           value: "15",
-          description: "Platform fee percentage (default: 15%)",
+          description: "Persentase biaya platform (default: 15%)",
           updated_at: new Date().toISOString()
         },
         point_to_idr_rate: {
           value: "5000",
-          description: "1 Point = 5000 IDR",
+          description: "1 Poin = 5000 IDR",
           updated_at: new Date().toISOString()
         },
         min_withdrawal_amount: {
           value: "100000",
-          description: "Minimum withdrawal amount (IDR)",
+          description: "Jumlah minimum penarikan (IDR)",
           updated_at: new Date().toISOString()
         }
       };
@@ -60,8 +60,8 @@ const AdminSettings = () => {
       setPointRate(mockSettings.point_to_idr_rate.value);
       setMinWithdrawal(mockSettings.min_withdrawal_amount.value);
     } catch (error) {
-      console.error("Failed to fetch settings:", error);
-      toast.error("Failed to load settings");
+      console.error("Gagal mengambil pengaturan:", error);
+      toast.error("Gagal memuat pengaturan");
     } finally {
       setIsLoading(false);
     }
@@ -73,11 +73,11 @@ const AdminSettings = () => {
       // Mock API call - replace with actual API
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      toast.success(`${key.replace(/_/g, ' ')} updated successfully`);
+      toast.success(`${key.replace(/_/g, ' ')} berhasil diperbarui`);
       fetchSettings();
     } catch (error) {
-      console.error("Failed to update setting:", error);
-      toast.error("Failed to update setting");
+      console.error("Gagal memperbarui pengaturan:", error);
+      toast.error("Gagal memperbarui pengaturan");
     } finally {
       setIsSaving(null);
     }
@@ -104,10 +104,10 @@ const AdminSettings = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-bold flex items-center gap-3">
             <Settings className="h-8 w-8 text-primary" />
-            Platform Settings
+            Pengaturan Platform
           </h1>
           <p className="text-muted-foreground mt-2">
-            Configure platform fees, rates, and other settings
+            Konfigurasi biaya platform, tarif, dan pengaturan lainnya
           </p>
         </div>
 
@@ -117,15 +117,15 @@ const AdminSettings = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Percent className="h-5 w-5 text-primary" />
-                Platform Fee
+                Biaya Platform
               </CardTitle>
               <CardDescription>
-                Percentage fee charged on each photo sale
+                Persentase biaya yang dikenakan pada setiap penjualan foto
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="platform-fee">Fee Percentage (%)</Label>
+                <Label htmlFor="platform-fee">Persentase Biaya (%)</Label>
                 <div className="flex gap-2">
                   <Input
                     id="platform-fee"
@@ -149,7 +149,7 @@ const AdminSettings = () => {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Current: {settings?.platform_fee_percentage.value}%
+                Saat ini: {settings?.platform_fee_percentage.value}%
               </p>
             </CardContent>
           </Card>
@@ -159,15 +159,15 @@ const AdminSettings = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Coins className="h-5 w-5 text-yellow-500" />
-                Point Rate
+                Nilai Poin
               </CardTitle>
               <CardDescription>
-                Exchange rate for 1 Point to IDR
+                Nilai tukar 1 Poin ke Rupiah
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="point-rate">1 Point = IDR</Label>
+                <Label htmlFor="point-rate">1 Poin = Rp</Label>
                 <div className="flex gap-2">
                   <Input
                     id="point-rate"
@@ -190,7 +190,7 @@ const AdminSettings = () => {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Current: Rp {parseInt(settings?.point_to_idr_rate.value || "0").toLocaleString('id-ID')}
+                Saat ini: Rp {parseInt(settings?.point_to_idr_rate.value || "0").toLocaleString('id-ID')}
               </p>
             </CardContent>
           </Card>
@@ -200,15 +200,15 @@ const AdminSettings = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Banknote className="h-5 w-5 text-green-500" />
-                Min Withdrawal
+                Penarikan Minimum
               </CardTitle>
               <CardDescription>
-                Minimum amount for withdrawal requests
+                Jumlah minimum untuk permintaan penarikan dana
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="min-withdrawal">Minimum Amount (IDR)</Label>
+                <Label htmlFor="min-withdrawal">Jumlah Minimum (Rp)</Label>
                 <div className="flex gap-2">
                   <Input
                     id="min-withdrawal"
@@ -232,7 +232,7 @@ const AdminSettings = () => {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Current: Rp {parseInt(settings?.min_withdrawal_amount.value || "0").toLocaleString('id-ID')}
+                Saat ini: Rp {parseInt(settings?.min_withdrawal_amount.value || "0").toLocaleString('id-ID')}
               </p>
             </CardContent>
           </Card>
@@ -241,29 +241,29 @@ const AdminSettings = () => {
         {/* Info Section */}
         <Card className="mt-6">
           <CardHeader>
-            <CardTitle>How Settings Work</CardTitle>
+            <CardTitle>Cara Kerja Pengaturan</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm text-muted-foreground">
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
-                <h4 className="font-medium text-foreground">Platform Fee</h4>
+                <h4 className="font-medium text-foreground">Biaya Platform</h4>
                 <p>
-                  When a photo is sold, this percentage is deducted as platform revenue.
-                  The remaining amount goes to the photographer's wallet.
+                  Ketika foto terjual, persentase ini dipotong sebagai pendapatan platform.
+                  Sisa jumlah akan masuk ke dompet fotografer.
                 </p>
               </div>
               <div className="space-y-2">
-                <h4 className="font-medium text-foreground">Point Rate</h4>
+                <h4 className="font-medium text-foreground">Nilai Poin</h4>
                 <p>
-                  Determines how much each point is worth in IDR.
-                  Used for point purchases and photo pricing in points.
+                  Menentukan berapa nilai setiap poin dalam Rupiah.
+                  Digunakan untuk pembelian poin dan harga foto dalam poin.
                 </p>
               </div>
               <div className="space-y-2">
-                <h4 className="font-medium text-foreground">Min Withdrawal</h4>
+                <h4 className="font-medium text-foreground">Penarikan Minimum</h4>
                 <p>
-                  Photographers must have at least this amount in their wallet
-                  before they can request a withdrawal.
+                  Fotografer harus memiliki setidaknya jumlah ini di dompet mereka
+                  sebelum dapat mengajukan permintaan penarikan dana.
                 </p>
               </div>
             </div>
