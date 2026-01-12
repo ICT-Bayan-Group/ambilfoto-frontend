@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { 
   Users, Camera, Image, Download, DollarSign, Activity, 
   Server, Database, AlertCircle, CheckCircle, RefreshCw,
-  TrendingUp, Calendar, Eye, Wallet, Banknote, Settings, CreditCard, ArrowRight
+  TrendingUp, Calendar, Eye, Wallet, Banknote, Settings, CreditCard, ArrowRight,
+  Coins, ShoppingCart, Percent
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,19 +15,42 @@ import { paymentService, WalletStatistics, WithdrawalAnalytics } from '@/service
 import { toast } from 'sonner';
 import { Header } from '@/components/layout/Header';
 
+// Revenue data interface matching the API response
+interface RevenueData {
+  period: string;
+  summary: {
+    total_platform_revenue: string;
+    total_transactions: number;
+    avg_transaction: number;
+    point_topup_revenue: string;
+    photo_platform_fee: number;
+    api_token_revenue: number;
+    photo_gross_sales: number;
+    photographer_earnings_total: number;
+    unique_buyers: number;
+  };
+  revenue_sources: {
+    point_topup: { amount: string; percentage: string };
+    photo_platform_fee: { amount: number; percentage: string };
+    api_token: { amount: number; percentage: string };
+  };
+}
+
 const AdminDashboard = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [walletStats, setWalletStats] = useState<WalletStatistics | null>(null);
   const [withdrawalStats, setWithdrawalStats] = useState<WithdrawalAnalytics | null>(null);
+  const [revenueData, setRevenueData] = useState<RevenueData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const [dashboardRes, walletRes, withdrawalRes] = await Promise.all([
+      const [dashboardRes, walletRes, withdrawalRes, revenueRes] = await Promise.all([
         adminService.getDashboardStats(),
         paymentService.getWalletStatistics(),
-        paymentService.getWithdrawalAnalytics()
+        paymentService.getWithdrawalAnalytics(),
+        adminService.getRevenueAnalytics({ period: '30d' })
       ]);
       
       if (dashboardRes.success) {
@@ -37,6 +61,9 @@ const AdminDashboard = () => {
       }
       if (withdrawalRes.success && withdrawalRes.data) {
         setWithdrawalStats(withdrawalRes.data);
+      }
+      if (revenueRes.success && revenueRes.data) {
+        setRevenueData(revenueRes.data);
       }
     } catch (error) {
       toast.error('Gagal memuat statistik dashboard');
@@ -181,20 +208,92 @@ const AdminDashboard = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Revenue (30d)</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats?.downloads.total_revenue || 0)}</div>
+              <div className="text-2xl font-bold">
+                {formatCurrency(parseFloat(revenueData?.summary.total_platform_revenue || '0'))}
+              </div>
               <p className="text-xs text-muted-foreground">
-                +{formatCurrency(stats?.downloads.today_revenue || 0)} hari ini
+                {revenueData?.summary.total_transactions || 0} transaksi
               </p>
               <div className="mt-2 text-xs text-muted-foreground">
-                {formatNumber(stats?.downloads.total_downloads || 0)} downloads
+                {revenueData?.summary.unique_buyers || 0} unique buyers
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Revenue Breakdown */}
+        <Card className="mb-8 bg-gradient-to-br from-blue-500/10 to-indigo-500/5 border-blue-500/20">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-blue-600" />
+                Revenue Breakdown (30 Hari)
+              </CardTitle>
+              <Link to="/admin/revenue">
+                <Button variant="outline" size="sm" className="gap-1">
+                  <DollarSign className="h-4 w-4" />
+                  Detail Revenue
+                </Button>
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 bg-background/80 rounded-lg">
+                <div className="flex items-center gap-2 mb-1">
+                  <Coins className="h-4 w-4 text-green-600" />
+                  <p className="text-sm text-muted-foreground">Top-up Points</p>
+                </div>
+                <p className="text-xl font-bold text-green-600">
+                  {formatCurrency(parseFloat(revenueData?.summary.point_topup_revenue || '0'))}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {revenueData?.revenue_sources?.point_topup?.percentage || '0'}% dari total
+                </p>
+              </div>
+              <div className="p-4 bg-background/80 rounded-lg">
+                <div className="flex items-center gap-2 mb-1">
+                  <ShoppingCart className="h-4 w-4 text-purple-600" />
+                  <p className="text-sm text-muted-foreground">Photo Sales</p>
+                </div>
+                <p className="text-xl font-bold text-purple-600">
+                  {formatCurrency(revenueData?.summary.photo_gross_sales || 0)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Platform fee: {formatCurrency(revenueData?.summary.photo_platform_fee || 0)}
+                </p>
+              </div>
+              <div className="p-4 bg-background/80 rounded-lg">
+                <div className="flex items-center gap-2 mb-1">
+                  <CreditCard className="h-4 w-4 text-orange-600" />
+                  <p className="text-sm text-muted-foreground">API Token</p>
+                </div>
+                <p className="text-xl font-bold text-orange-600">
+                  {formatCurrency(revenueData?.summary.api_token_revenue || 0)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {revenueData?.revenue_sources?.api_token?.percentage || '0'}% dari total
+                </p>
+              </div>
+              <div className="p-4 bg-background/80 rounded-lg">
+                <div className="flex items-center gap-2 mb-1">
+                  <Percent className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Avg Transaction</p>
+                </div>
+                <p className="text-xl font-bold">
+                  {formatCurrency(revenueData?.summary.avg_transaction || 0)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Photographer: {formatCurrency(revenueData?.summary.photographer_earnings_total || 0)}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Secondary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
