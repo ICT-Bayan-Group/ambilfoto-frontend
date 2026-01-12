@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const AUTH_API_URL = import.meta.env.VITE_AUTH_API_URL || 'http://192.168.0.139:5000/api';
+const AUTH_API_URL = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:3000/api';
 
 const photographerApi = axios.create({
   baseURL: AUTH_API_URL,
@@ -31,8 +31,6 @@ photographerApi.interceptors.response.use(
   }
 );
 
-// ==================== TYPES ====================
-
 export interface Event {
   id: string;
   photographer_id: string;
@@ -62,6 +60,8 @@ export interface EventPhoto {
   upload_order?: number;
   matched_users?: number;
   is_deleted: boolean;
+  price?: number;
+  price_in_points?: number;
   created_at: string;
 }
 
@@ -130,7 +130,29 @@ export interface UploadPhotoData {
   upload_order?: number;
 }
 
-// ==================== SERVICE ====================
+export interface PhotoSaleRecord {
+  photo_id: string;
+  ai_photo_id: string;
+  filename: string;
+  event_id: string;
+  event_name: string;
+  price: number;
+  total_sales: number;
+  total_revenue: number;
+  view_count?: number;
+  last_sale_at?: string;
+}
+
+export interface PhotoSalesData {
+  summary: {
+    total_photos: number;
+    total_sales: number;
+    total_revenue: number;
+    avg_revenue_per_photo: number;
+  };
+  photos: PhotoSaleRecord[];
+  top_performers: PhotoSaleRecord[];
+}
 
 export const photographerService = {
   // Profile
@@ -157,15 +179,7 @@ export const photographerService = {
   },
 
   // Events
-  async createEvent(data: CreateEventData): Promise<{ 
-    success: boolean; 
-    data?: { 
-      event_id: string; 
-      event_name: string; 
-      event_date: string 
-    }; 
-    error?: string 
-  }> {
+  async createEvent(data: CreateEventData): Promise<{ success: boolean; data?: { event_id: string; event_name: string; event_date: string }; error?: string }> {
     const response = await photographerApi.post('/photographer/events', data);
     return response.data;
   },
@@ -175,32 +189,17 @@ export const photographerService = {
     return response.data;
   },
 
-  async getEventDetails(eventId: string): Promise<{ 
-    success: boolean; 
-    data?: { 
-      event: Event; 
-      photos: EventPhoto[] 
-    }; 
-    error?: string 
-  }> {
+  async getEventDetails(eventId: string): Promise<{ success: boolean; data?: { event: Event; photos: EventPhoto[] }; error?: string }> {
     const response = await photographerApi.get(`/photographer/events/${eventId}`);
     return response.data;
   },
 
-  async updateEvent(eventId: string, data: UpdateEventData): Promise<{ 
-    success: boolean; 
-    message?: string; 
-    error?: string 
-  }> {
+  async updateEvent(eventId: string, data: UpdateEventData): Promise<{ success: boolean; message?: string; error?: string }> {
     const response = await photographerApi.put(`/photographer/events/${eventId}`, data);
     return response.data;
   },
 
-  async deleteEvent(eventId: string): Promise<{ 
-    success: boolean; 
-    message?: string; 
-    error?: string 
-  }> {
+  async deleteEvent(eventId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     const response = await photographerApi.delete(`/photographer/events/${eventId}`);
     return response.data;
   },
@@ -220,15 +219,20 @@ export const photographerService = {
     return response.data;
   },
 
-  async deletePhoto(eventId: string, photoId: string): Promise<{ 
-    success: boolean; 
-    message?: string; 
-    error?: string 
-  }> {
+  async deletePhoto(eventId: string, photoId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     const response = await photographerApi.delete(`/photographer/events/${eventId}/photos/${photoId}`);
     return response.data;
   },
-};
 
-// Default export
-export default photographerService;
+  // Update photo price
+  async updatePhotoPrice(eventId: string, photoId: string, price: number): Promise<{ success: boolean; message?: string; error?: string }> {
+    const response = await photographerApi.put(`/photographer/events/${eventId}/photos/${photoId}/price`, { price });
+    return response.data;
+  },
+
+  // Photo Sales Statistics
+  async getPhotoSales(): Promise<{ success: boolean; data?: PhotoSalesData; error?: string }> {
+    const response = await photographerApi.get('/photographer/photo-sales');
+    return response.data;
+  },
+};

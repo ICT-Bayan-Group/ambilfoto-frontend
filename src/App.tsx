@@ -42,7 +42,7 @@ import PaymentSuccess from "./pages/payment/PaymentSuccess";
 import PaymentPending from "./pages/payment/PaymentPending";
 import PaymentFailed from "./pages/payment/PaymentFailed";
 import NotFound from "./pages/NotFound";
-
+import PhotoSales from "./pages/photographer/PhotoSales";
 const queryClient = new QueryClient();
 
 // Protected route for photographers only
@@ -141,6 +141,14 @@ const App = () => (
               element={
                 <PhotographerRoute>
                   <PhotographerDashboard />
+                </PhotographerRoute>
+              } 
+            />
+            <Route 
+              path="/photographer/photosales" 
+              element={
+                <PhotographerRoute>
+                  <PhotoSales />
                 </PhotographerRoute>
               } 
             />

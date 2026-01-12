@@ -33,9 +33,17 @@ const AdminWithdrawals = () => {
       if (response.success) {
         setWithdrawals(response.data || []);
         setSummary(response.summary || null);
+      } else {
+        console.error('Withdrawal fetch error:', response.error);
+        toast.error(response.error || 'Gagal memuat data withdrawal');
+        setWithdrawals([]);
+        setSummary(null);
       }
-    } catch (error) {
-      toast.error('Gagal memuat data');
+    } catch (error: any) {
+      console.error('Withdrawal API error:', error);
+      toast.error(error.response?.data?.error || 'Gagal menghubungi server. Pastikan backend berjalan.');
+      setWithdrawals([]);
+      setSummary(null);
     } finally {
       setIsLoading(false);
     }
