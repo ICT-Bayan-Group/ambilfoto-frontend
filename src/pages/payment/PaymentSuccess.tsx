@@ -62,7 +62,7 @@ const PaymentSuccess = () => {
                 <CardTitle className="text-2xl">Pembayaran Berhasil!</CardTitle>
                 <CardDescription>
                   {isTopUp 
-                    ? 'Points telah ditambahkan ke akun Anda'
+                    ? 'Fotopoin telah ditambahkan ke akun Anda'
                     : 'Foto telah ditambahkan ke koleksi Anda'
                   }
                 </CardDescription>
@@ -77,7 +77,7 @@ const PaymentSuccess = () => {
                     </div>
                     {transaction.points_amount && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Points</span>
+                        <span className="text-muted-foreground">Fotopoin</span>
                         <span className="font-medium flex items-center gap-1">
                           <Star className="h-4 w-4 text-yellow-500" />
                           +{transaction.points_amount}
