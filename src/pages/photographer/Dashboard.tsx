@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import HeaderPhoto from "@/components/layout/HeaderPhoto";
+import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { photographerService, PhotographerStats, Event } from "@/services/api/photographer.service";
@@ -21,7 +21,8 @@ import {
   TrendingUp,
   Clock,
   Wallet,
-  Banknote
+  Banknote,
+  BarChart3
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -72,7 +73,7 @@ const PhotographerDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <HeaderPhoto />
+      <Header />
       
       <main className="container mx-auto px-4 py-8">
         {/* Welcome Section */}
@@ -247,6 +248,12 @@ const PhotographerDashboard = () => {
                 <Button variant="outline" className="w-full justify-start gap-3">
                   <Camera className="h-4 w-4" />
                   Edit Business Profile
+                </Button>
+              </Link>
+              <Link to="/photographer/photo-sales" className="block">
+                <Button variant="outline" className="w-full justify-start gap-3 text-primary border-primary/30 hover:bg-primary/10">
+                  <BarChart3 className="h-4 w-4" />
+                  Statistik Penjualan
                 </Button>
               </Link>
             </CardContent>

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import PhotographerHeader from "@/components/layout/HeaderPhoto";
+import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { photographerService, Event, EventPhoto } from "@/services/api/photographer.service";
 import { aiService } from "@/services/api/ai.service";
@@ -22,7 +22,10 @@ import {
   X,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  Coins,
+  Pencil,
+  Check
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -59,6 +62,9 @@ const EventDetail = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [deletePhotoDialog, setDeletePhotoDialog] = useState(false);
   const [photoToDelete, setPhotoToDelete] = useState<EventPhoto | null>(null);
+  const [editingPhotoId, setEditingPhotoId] = useState<string | null>(null);
+  const [editingPrice, setEditingPrice] = useState<string>("");
+  const [isSavingPrice, setIsSavingPrice] = useState(false);
 
   useEffect(() => {
     if (eventId) {
@@ -237,10 +243,58 @@ const EventDetail = () => {
     });
   };
 
+  const handleEditPrice = (photo: EventPhoto) => {
+    setEditingPhotoId(photo.id);
+    setEditingPrice(String(photo.price || event?.price_per_photo || 0));
+  };
+
+  const handleSavePrice = async (photoId: string) => {
+    if (!eventId) return;
+    
+    const price = parseInt(editingPrice) || 0;
+    
+    try {
+      setIsSavingPrice(true);
+      const response = await photographerService.updatePhotoPrice(eventId, photoId, price);
+      
+      if (response.success) {
+        setPhotos((prev) =>
+          prev.map((p) =>
+            p.id === photoId ? { ...p, price } : p
+          )
+        );
+        toast({
+          title: "Success",
+          description: "Harga foto berhasil diperbarui",
+        });
+        setEditingPhotoId(null);
+        setEditingPrice("");
+      } else {
+        throw new Error(response.error);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Gagal memperbarui harga",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingPrice(false);
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
-           <PhotographerHeader />
+        <Header />
         <main className="container mx-auto px-4 py-8">
           <Skeleton className="h-8 w-48 mb-4" />
           <Skeleton className="h-64 w-full" />
@@ -252,7 +306,7 @@ const EventDetail = () => {
   if (!event) {
     return (
       <div className="min-h-screen bg-background">
-        <PhotographerHeader />
+        <Header />
         <main className="container mx-auto px-4 py-8 text-center">
           <h1 className="text-2xl font-bold mb-4">Event not found</h1>
           <Button onClick={() => navigate('/photographer/events')}>
@@ -265,7 +319,7 @@ const EventDetail = () => {
 
   return (
     <div className="min-h-screen bg-background">
-        <PhotographerHeader />
+      <Header />
       
       <main className="container mx-auto px-4 py-8">
         {/* Back Button & Header */}
@@ -470,35 +524,103 @@ const EventDetail = () => {
                 <p className="text-muted-foreground">No photos uploaded yet</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {photos.map((photo) => (
-                  <div key={photo.id} className="relative group">
-                    <div className="aspect-square rounded-lg overflow-hidden bg-muted">
-                      <img
-                        src={aiService.getPreviewUrl(photo.ai_photo_id)}
-                        alt={photo.filename}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    
-                    {/* Info Overlay */}
-                    <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-background/90 to-transparent">
-                      <p className="text-xs truncate">{photo.filename}</p>
-                      <p className="text-xs text-muted-foreground">{photo.faces_count} faces</p>
-                    </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {photos.map((photo) => {
+                  const photoPrice = photo.price ?? event?.price_per_photo ?? 0;
+                  const isEditing = editingPhotoId === photo.id;
+                  
+                  return (
+                    <div key={photo.id} className="relative group rounded-xl overflow-hidden border bg-card animate-fade-in">
+                      {/* Image */}
+                      <div className="aspect-square overflow-hidden bg-muted">
+                        <img
+                          src={aiService.getPreviewUrl(photo.ai_photo_id)}
+                          alt={photo.filename}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                      </div>
+                      
+                      {/* Info Section */}
+                      <div className="p-3 space-y-2">
+                        <p className="text-sm font-medium truncate">{photo.filename}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Users className="h-3 w-3" />
+                          <span>{photo.faces_count} faces detected</span>
+                        </div>
+                        
+                        {/* Price Section */}
+                        <div className="pt-2 border-t">
+                          {isEditing ? (
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1">
+                                <Input
+                                  type="number"
+                                  value={editingPrice}
+                                  onChange={(e) => setEditingPrice(e.target.value)}
+                                  placeholder="Harga (Rp)"
+                                  className="h-8 text-sm"
+                                  min={0}
+                                  step={1000}
+                                />
+                              </div>
+                              <Button
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleSavePrice(photo.id)}
+                                disabled={isSavingPrice}
+                              >
+                                {isSavingPrice ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Check className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                onClick={() => {
+                                  setEditingPhotoId(null);
+                                  setEditingPrice("");
+                                }}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5">
+                                <Coins className="h-4 w-4 text-yellow-500" />
+                                <span className="text-sm font-semibold">
+                                  {photoPrice > 0 ? formatCurrency(photoPrice) : 'Gratis'}
+                                </span>
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => handleEditPrice(photo)}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
 
-                    {/* Delete Button */}
-                    <button
-                      onClick={() => {
-                        setPhotoToDelete(photo);
-                        setDeletePhotoDialog(true);
-                      }}
-                      className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-all"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
+                      {/* Delete Button */}
+                      <button
+                        onClick={() => {
+                          setPhotoToDelete(photo);
+                          setDeletePhotoDialog(true);
+                        }}
+                        className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-all"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>
