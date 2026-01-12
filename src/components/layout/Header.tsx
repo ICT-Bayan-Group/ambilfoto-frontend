@@ -29,12 +29,12 @@ export const Header = () => {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
+      <div className="container flex h-24 items-center justify-between py-2">
         <Link to={isAuthenticated ? getDashboardLink() : "/"} className="flex items-center gap-2 transition-smooth hover:opacity-80">
          <img 
             src="https://res.cloudinary.com/dwyi4d3rq/image/upload/v1765171746/ambilfoto-logo_hvn8s2.png" 
             alt="AmbilFoto.id Logo" 
-            className="h-20 w-auto"
+            className="h-28 w-auto"
           />
         </Link>
         
