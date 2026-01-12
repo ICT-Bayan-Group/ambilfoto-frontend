@@ -93,19 +93,18 @@ export interface Transaction {
 }
 
 export interface UserWallet {
-  point_balance: string;  // Changed from number to string
-  total_points_earned: string;  // Changed from number to string
-  total_points_spent: string;  // Changed from number to string
-  total_spent_cash: number;  // Changed from number to string
+  point_balance: number;
+  total_points_earned: number;
+  total_points_spent: number;
+  total_spent_cash: number;
   total_transactions: number;
 }
 
-// Also update related interfaces that might have the same issue
 export interface WalletHistoryItem {
   id: string;
   wallet_type: 'user' | 'photographer';
   transaction_type: 'topup' | 'purchase' | 'earning' | 'withdrawal';
-  amount: number;  // Keep as number if it's returned as number
+  amount: number;
   balance_before: number;
   balance_after: number;
   description: string;
@@ -120,7 +119,7 @@ export interface PurchasedPhoto {
   event_name: string;
   event_date: string;
   photographer_name: string;
-  purchase_price: number | string;  // Allow both types
+  purchase_price: number;
   payment_method: 'cash' | 'points';
   download_count: number;
   last_downloaded_at?: string;
@@ -128,14 +127,13 @@ export interface PurchasedPhoto {
 }
 
 export interface PhotographerWallet {
-  balance: string;  // Changed from number to string
-  total_earned: string;
-  total_withdrawn: string;
-  pending_withdrawal: string;
-  available_for_withdrawal: string;
-  total_sales: number;
+  balance: string | number;
+  total_earned: string | number;
+  total_withdrawn: string | number;
+  pending_withdrawal: string | number;
+  available_for_withdrawal: string | number;
+  total_sales: string | number;
 }
-
 
 export interface EarningRecord {
   id: string;
@@ -281,15 +279,6 @@ export interface WithdrawalAnalytics {
     max_hours: number;
   };
 }
-
-// Helper function to safely parse numeric strings
-export const parseNumericValue = (value: string | number | undefined | null, defaultValue: number = 0): number => {
-  if (value === undefined || value === null) return defaultValue;
-  if (typeof value === 'number') return value;
-  const parsed = parseFloat(value);
-  return isNaN(parsed) ? defaultValue : parsed;
-};
-
 
 // ============ PAGINATION ============
 

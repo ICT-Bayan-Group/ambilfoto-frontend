@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import PhotographerHeader from "@/components/layout/HeaderPhoto";
+import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { photographerService } from "@/services/api/photographer.service";
 import { useToast } from "@/hooks/use-toast";
@@ -83,7 +83,7 @@ const CreateEvent = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <PhotographerHeader/>
+      <Header />
       
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         <Button
@@ -221,19 +221,29 @@ const CreateEvent = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="price_per_photo">Price per Photo (Rp)</Label>
+                  <Label htmlFor="price_per_photo">Harga per Foto (Rp)</Label>
                   <Input
                     id="price_per_photo"
                     type="number"
                     min="0"
                     step="1000"
-                    placeholder="0 for free"
+                    placeholder="0 untuk gratis"
                     value={formData.price_per_photo}
                     onChange={(e) => handleChange('price_per_photo', parseInt(e.target.value) || 0)}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Set to 0 for free downloads
+                    Set ke 0 untuk download gratis
                   </p>
+                  
+                  {/* Syarat & Ketentuan FOTOPOIN */}
+                  <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      <strong className="text-foreground">Syarat & Ketentuan FOTOPOIN:</strong><br />
+                      Ketika foto ini diupload, foto tersebut juga akan terset harga menggunakan FOTOPOIN. 
+                      Pemasukan anda akan muncul ketika minimal 5 foto terdownload, 
+                      maka anda akan mendapat pendapatan dari FOTOPOIN.
+                    </p>
+                  </div>
                 </div>
               </div>
 
