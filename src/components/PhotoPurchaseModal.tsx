@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { CreditCard, Coins, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import { paymentService } from "@/services/api/payment.service";
+import { userService } from "@/services/api/user.service";
 import { useMidtransSnap } from "@/hooks/useMidtransSnap";
 
 interface PhotoPurchaseModalProps {
@@ -17,8 +17,8 @@ interface PhotoPurchaseModalProps {
     id: string;
     filename: string;
     event_name: string;
-    price: number;
-    price_in_points: number;
+    price_cash: number;
+    price_points: number;
   };
   userPointBalance: number;
   onPurchaseSuccess: (downloadUrl?: string) => void;
@@ -36,61 +36,81 @@ export const PhotoPurchaseModal = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const { pay, isLoaded: isSnapLoaded } = useMidtransSnap();
 
-  const canPayWithPoints = userPointBalance >= photo.price_in_points;
+  const canPayWithPoints = userPointBalance >= photo.price_points;
 
   const handlePurchase = async () => {
     try {
       setIsProcessing(true);
       
-      const response = await paymentService.purchasePhoto(photo.id, paymentMethod);
+      // Use new user service endpoint
+      const response = await userService.purchasePhoto(photo.id, paymentMethod);
       
       if (response.success && response.data) {
         if (paymentMethod === "points") {
-          toast.success("Photo purchased successfully!");
+          // FOTOPOIN payment - instant success
+          toast.success("Foto berhasil dibeli dengan FOTOPOIN!");
           onPurchaseSuccess(response.data.download_url);
           onClose();
         } else {
-          // Use Midtrans Snap if token available, otherwise redirect
+          // Cash payment - use Midtrans Snap (LOGIC SAMA SEPERTI TOP UP)
           if (response.data.token && isSnapLoaded) {
             try {
+              // Midtrans Snap akan muncul sebagai popup/overlay
+              // Modal ini tetap terbuka di background
               await pay(response.data.token, {
                 onSuccess: (result) => {
-                  toast.success("Pembayaran berhasil!");
+                  toast.success('Pembayaran berhasil!');
+                  onClose(); // Tutup modal setelah sukses
                   navigate(`/payment/success?order_id=${result.order_id}&transaction_id=${response.data?.transaction_id}`);
                 },
                 onPending: (result) => {
-                  toast.info("Menunggu pembayaran...");
+                  toast.info('Menunggu pembayaran...');
+                  onClose(); // Tutup modal
                   navigate(`/payment/pending?order_id=${result.order_id}`);
                 },
                 onError: (result) => {
-                  toast.error("Pembayaran gagal");
+                  toast.error('Pembayaran gagal');
+                  onClose(); // Tutup modal
                   navigate(`/payment/failed?order_id=${result.order_id}&status_message=${result.status_message}`);
                 },
                 onClose: () => {
-                  toast.info("Pembayaran dibatalkan");
+                  // User menutup Midtrans Snap tanpa menyelesaikan pembayaran
+                  toast.info('Pembayaran dibatalkan');
                   setIsProcessing(false);
+                  // Modal PhotoPurchase tetap terbuka, user bisa coba lagi
                 }
               });
             } catch (snapError) {
               console.error("Snap error:", snapError);
-              // Fallback to redirect
+              // Fallback to redirect jika Snap gagal
               if (response.data.payment_url) {
                 window.location.href = response.data.payment_url;
+                onClose();
+              } else {
+                toast.error('Gagal membuka payment gateway');
+                setIsProcessing(false);
               }
             }
           } else if (response.data.payment_url) {
-            // Redirect to Midtrans payment page
+            // Jika Snap tidak tersedia, redirect ke Midtrans payment page
             window.location.href = response.data.payment_url;
+            onClose();
+          } else {
+            toast.error('Payment URL tidak tersedia');
+            setIsProcessing(false);
           }
-          onClose();
         }
       } else {
-        toast.error(response.error || "Failed to process purchase");
+        // Show detailed error message
+        const errorMessage = response.error || "Gagal memproses pembelian";
+        const details = response.details ? ` (${JSON.stringify(response.details)})` : '';
+        toast.error(errorMessage + details);
+        setIsProcessing(false);
       }
     } catch (error: any) {
       console.error("Purchase error:", error);
-      toast.error(error.response?.data?.error || "Failed to process purchase");
-    } finally {
+      const errorMessage = error.response?.data?.error || error.message || "Gagal memproses pembelian";
+      toast.error(errorMessage);
       setIsProcessing(false);
     }
   };
@@ -101,10 +121,10 @@ export const PhotoPurchaseModal = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-primary" />
-            Purchase Photo
+            Beli Foto
           </DialogTitle>
           <DialogDescription>
-            Choose your preferred payment method
+            Pilih metode pembayaran yang kamu inginkan
           </DialogDescription>
         </DialogHeader>
 
@@ -115,12 +135,12 @@ export const PhotoPurchaseModal = ({
             <p className="text-xs text-muted-foreground">{photo.event_name}</p>
             <div className="flex items-center gap-2 mt-2">
               <Badge variant="secondary">
-                Rp {photo.price.toLocaleString('id-ID')}
+                Rp {photo.price_cash.toLocaleString('id-ID')}
               </Badge>
-              <span className="text-xs text-muted-foreground">or</span>
+              <span className="text-xs text-muted-foreground">atau</span>
               <Badge variant="outline" className="gap-1">
                 <Coins className="h-3 w-3" />
-                {photo.price_in_points} Points
+                {photo.price_points} FOTOPOIN
               </Badge>
             </div>
           </div>
@@ -132,7 +152,11 @@ export const PhotoPurchaseModal = ({
             className="space-y-3"
           >
             {/* Cash Payment */}
-            <div className="flex items-center space-x-3 p-4 rounded-lg border border-border hover:border-primary/50 transition-colors cursor-pointer">
+            <div className={`flex items-center space-x-3 p-4 rounded-lg border transition-colors cursor-pointer ${
+              paymentMethod === 'cash' 
+                ? 'border-primary bg-primary/5' 
+                : 'border-border hover:border-primary/50'
+            }`}>
               <RadioGroupItem value="cash" id="cash" />
               <Label htmlFor="cash" className="flex-1 cursor-pointer">
                 <div className="flex items-center justify-between">
@@ -141,12 +165,12 @@ export const PhotoPurchaseModal = ({
                       <CreditCard className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <p className="font-medium">Pay with Cash</p>
-                      <p className="text-xs text-muted-foreground">Via Midtrans (Bank, E-Wallet, etc)</p>
+                      <p className="font-medium">Bayar Cash</p>
+                      <p className="text-xs text-muted-foreground">Via Midtrans (Bank, E-Wallet, QRIS)</p>
                     </div>
                   </div>
-                  <span className="font-semibold">
-                    Rp {photo.price.toLocaleString('id-ID')}
+                  <span className="font-semibold text-primary">
+                    Rp {photo.price_cash.toLocaleString('id-ID')}
                   </span>
                 </div>
               </Label>
@@ -154,9 +178,11 @@ export const PhotoPurchaseModal = ({
 
             {/* Points Payment */}
             <div className={`flex items-center space-x-3 p-4 rounded-lg border transition-colors cursor-pointer ${
-              canPayWithPoints 
-                ? "border-border hover:border-primary/50" 
-                : "border-border/50 opacity-60"
+              !canPayWithPoints 
+                ? "border-border/50 opacity-60" 
+                : paymentMethod === 'points'
+                  ? 'border-yellow-500 bg-yellow-500/5'
+                  : "border-border hover:border-yellow-500/50"
             }`}>
               <RadioGroupItem value="points" id="points" disabled={!canPayWithPoints} />
               <Label htmlFor="points" className={`flex-1 ${canPayWithPoints ? "cursor-pointer" : "cursor-not-allowed"}`}>
@@ -166,15 +192,15 @@ export const PhotoPurchaseModal = ({
                       <Coins className="h-5 w-5 text-yellow-500" />
                     </div>
                     <div>
-                      <p className="font-medium">Pay with Points</p>
+                      <p className="font-medium">Bayar FOTOPOIN</p>
                       <p className="text-xs text-muted-foreground">
-                        Your balance: {userPointBalance.toFixed(2)} Points
+                        Saldo anda: <span className="font-semibold">{userPointBalance.toLocaleString('id-ID')}</span> FOTOPOIN
                       </p>
                     </div>
                   </div>
-                  <span className="font-semibold flex items-center gap-1">
-                    <Coins className="h-4 w-4 text-yellow-500" />
-                    {photo.price_in_points}
+                  <span className="font-semibold flex items-center gap-1 text-yellow-600">
+                    <Coins className="h-4 w-4" />
+                    {photo.price_points}
                   </span>
                 </div>
               </Label>
@@ -182,22 +208,37 @@ export const PhotoPurchaseModal = ({
           </RadioGroup>
 
           {/* Insufficient Points Warning */}
-          {!canPayWithPoints && paymentMethod === "points" && (
+          {!canPayWithPoints && (
             <div className="flex items-start gap-2 p-3 bg-destructive/10 rounded-lg text-sm">
               <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-destructive">Insufficient Points</p>
+                <p className="font-medium text-destructive">Saldo FOTOPOIN Tidak Cukup</p>
                 <p className="text-xs text-muted-foreground">
-                  You need {photo.price_in_points} points but only have {userPointBalance.toFixed(2)}
+                  Anda membutuhkan {photo.price_points} FOTOPOIN tetapi hanya memiliki {userPointBalance.toLocaleString('id-ID')}
                 </p>
               </div>
             </div>
           )}
 
+          {/* Selected method summary */}
+          <div className="p-3 bg-muted/30 rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              {paymentMethod === 'cash' 
+                ? `Anda akan membayar Rp ${photo.price_cash.toLocaleString('id-ID')} via Midtrans`
+                : `Anda akan menggunakan ${photo.price_points} FOTOPOIN`
+              }
+            </p>
+          </div>
+
           {/* Action Buttons */}
           <div className="flex gap-3">
-            <Button variant="outline" onClick={onClose} className="flex-1">
-              Cancel
+            <Button 
+              variant="outline" 
+              onClick={onClose} 
+              className="flex-1"
+              disabled={isProcessing}
+            >
+              Batal
             </Button>
             <Button 
               onClick={handlePurchase} 
@@ -207,12 +248,12 @@ export const PhotoPurchaseModal = ({
               {isProcessing ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
+                  Memproses...
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="mr-2 h-4 w-4" />
-                  Confirm Purchase
+                  Konfirmasi Beli
                 </>
               )}
             </Button>

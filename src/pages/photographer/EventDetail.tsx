@@ -252,15 +252,20 @@ const EventDetail = () => {
     if (!eventId) return;
     
     const price = parseInt(editingPrice) || 0;
+    const pricePoints = Math.ceil(price / 5000); // Convert to points (1 point = Rp 5.000)
     
     try {
       setIsSavingPrice(true);
-      const response = await photographerService.updatePhotoPrice(eventId, photoId, price);
+      const response = await photographerService.updatePhotoPricing(eventId, photoId, {
+        price_cash: price,
+        price_points: pricePoints,
+        is_for_sale: price > 0
+      });
       
       if (response.success) {
         setPhotos((prev) =>
           prev.map((p) =>
-            p.id === photoId ? { ...p, price } : p
+            p.id === photoId ? { ...p, price, price_in_points: pricePoints } : p
           )
         );
         toast({

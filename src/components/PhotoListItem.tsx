@@ -2,66 +2,68 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Download, Calendar, MapPin, Loader2, AlertCircle, Eye, Sparkles } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Download, Calendar, MapPin, Loader2, AlertCircle, Eye, Sparkles, ShoppingCart, Coins } from "lucide-react";
 import { Photo } from "@/services/api/ai.service";
+import { UserPhoto } from "@/services/api/user.service";
 import { aiService } from "@/services/api/ai.service";
-import { format } from "date-fns";
-import { id } from "date-fns/locale";
 
 interface PhotoListItemProps {
-  photo: Photo;
+  photo: Photo | UserPhoto;
   onDownload: (photoId: string) => void;
+  onBuy?: (photoId: string) => void;
   isDownloading: boolean;
   onClick: () => void;
 }
 
-export const PhotoListItem = ({ photo, onDownload, isDownloading, onClick }: PhotoListItemProps) => {
+export const PhotoListItem = ({ photo, onDownload, onBuy, isDownloading, onClick }: PhotoListItemProps) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  // ✅ Helper functions untuk extract metadata
-  const getEventDate = () => {
-    // Cek berbagai kemungkinan field name
-    return photo.metadata?.event_date || 
-           photo.metadata?.date || 
-           null;
+  const isUserPhoto = (p: Photo | UserPhoto): p is UserPhoto => {
+    return 'event_photo_id' in p;
   };
 
-  const getEventName = () => {
-    return photo.metadata?.event_name ||  
-           'Unknown Event';
-  };
-
-  const getLocation = () => {
-    return photo.metadata?.location || 
-           null;
-  };
-
-  // ✅ Format date dengan error handling
-  const formatEventDate = (dateStr: string | null) => {
-    if (!dateStr) return null;
-    
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return null;
-      return format(date, "d MMM yyyy", { locale: id });
-    } catch (error) {
-      console.error('Date format error:', error);
-      return null;
+  const getMatchPercentage = () => {
+    if (isUserPhoto(photo)) {
+      return Math.round(photo.similarity * 100);
     }
+    if (!photo.distance) return 0;
+    return Math.max(0, Math.min(100, Math.round((1 - photo.distance) * 100)));
   };
 
-  const getMatchPercentage = (distance?: number) => {
-    if (!distance) return 0;
-    return Math.max(0, Math.min(100, Math.round((1 - distance) * 100)));
-  };
+  const matchScore = getMatchPercentage();
+  
+  const previewUrl = isUserPhoto(photo) 
+    ? photo.preview_url 
+    : aiService.getPreviewUrl(photo.photo_id);
+  
+  const photoId = isUserPhoto(photo) ? photo.event_photo_id : photo.photo_id;
+  
+  const eventName = isUserPhoto(photo) 
+    ? photo.event_name 
+    : photo.metadata?.event_name || 'Unknown Event';
+  
+  const eventDate = isUserPhoto(photo) 
+    ? photo.event_date 
+    : photo.metadata?.date;
+  
+  const location = isUserPhoto(photo) 
+    ? photo.event_location 
+    : photo.metadata?.location;
 
-  const matchScore = getMatchPercentage(photo.distance);
-  const previewUrl = aiService.getPreviewUrl(photo.photo_id);
-  const eventDate = getEventDate();
-  const formattedDate = formatEventDate(eventDate);
-  const eventName = getEventName();
-  const location = getLocation();
+  // Get purchase and pricing info using CTA logic from backend
+  const isPurchased = isUserPhoto(photo) ? photo.is_purchased : true;
+  const isForSale = isUserPhoto(photo) ? (photo.is_for_sale !== false) : false;
+  const priceCash = isUserPhoto(photo) ? (photo.price_cash || photo.price || photo.purchase_price || 0) : 0;
+  const pricePoints = isUserPhoto(photo) ? (photo.price_points || photo.price_in_points || 0) : 0;
+  
+  // Get CTA from backend or calculate it
+  const cta = isUserPhoto(photo) 
+    ? (photo.cta || (isPurchased ? 'DOWNLOAD' : (isForSale && priceCash > 0 ? 'BUY' : 'FREE_DOWNLOAD')))
+    : 'DOWNLOAD';
+  
+  const priceDisplay = isUserPhoto(photo) ? photo.price_display : '';
 
   const getMatchColor = (percentage: number) => {
     if (percentage >= 90) return "bg-green-500/10 text-green-500 border-green-500/30";
@@ -72,7 +74,6 @@ export const PhotoListItem = ({ photo, onDownload, isDownloading, onClick }: Pho
   return (
     <Card className="border-border/50 shadow-soft hover:shadow-strong transition-smooth rounded-xl overflow-hidden">
       <div className="p-4 flex items-center gap-4">
-        {/* Thumbnail */}
         <div 
           className="h-20 w-20 rounded-xl bg-muted flex items-center justify-center shrink-0 relative overflow-hidden cursor-pointer group" 
           onClick={onClick}
@@ -92,10 +93,7 @@ export const PhotoListItem = ({ photo, onDownload, isDownloading, onClick }: Pho
                   imageLoaded ? 'opacity-100' : 'opacity-0'
                 }`}
                 onLoad={() => setImageLoaded(true)}
-                onError={() => {
-                  console.error('Image load error for photo:', photo.photo_id);
-                  setImageError(true);
-                }}
+                onError={() => setImageError(true)}
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
                 <Eye className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -104,28 +102,23 @@ export const PhotoListItem = ({ photo, onDownload, isDownloading, onClick }: Pho
           )}
         </div>
         
-        {/* Info */}
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold mb-1.5 truncate text-base">
             {eventName}
           </h3>
-          
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-            {/* ✅ FIXED: Tanggal - Always show */}
-            <div className="flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5" />
-              <span>{formattedDate || 'No date'}</span>
-            </div>
-            
-            {/* Location - Only if exists */}
+            {eventDate && (
+              <div className="flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5" />
+                <span>{new Date(eventDate).toLocaleDateString('id-ID')}</span>
+              </div>
+            )}
             {location && (
               <div className="flex items-center gap-1.5">
                 <MapPin className="h-3.5 w-3.5" />
                 <span className="truncate max-w-[150px]">{location}</span>
               </div>
             )}
-            
-            {/* Match score - Only if exists */}
             {matchScore > 0 && (
               <div className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${getMatchColor(matchScore)}`}>
                 <Sparkles className="h-3 w-3" />
@@ -135,32 +128,102 @@ export const PhotoListItem = ({ photo, onDownload, isDownloading, onClick }: Pho
           </div>
         </div>
         
-        {/* Action Buttons */}
-        <div className="flex gap-2 shrink-0">
+        <div className="flex gap-2 shrink-0 items-center">
+          {/* Price/Status badge */}
+          {cta === 'BUY' && (
+            <Badge variant="secondary" className="gap-1 hidden sm:flex">
+              <Coins className="h-3 w-3" />
+              {priceDisplay || `${pricePoints} FOTOPOIN`}
+            </Badge>
+          )}
+          {cta === 'FREE_DOWNLOAD' && (
+            <Badge variant="outline" className="gap-1 hidden sm:flex text-green-600 border-green-500/30">
+              GRATIS
+            </Badge>
+          )}
+          {cta === 'DOWNLOAD' && isPurchased && (
+            <Badge className="gap-1 hidden sm:flex bg-green-500/20 text-green-600 border-green-500/30">
+              ✓ Dibeli
+            </Badge>
+          )}
+          
           <Button 
-            size="sm" 
+            size="sm"
             variant="outline"
-            className="h-9 rounded-lg font-medium"
+            className="rounded-lg"
             onClick={onClick}
           >
             <Eye className="mr-1.5 h-4 w-4" />
             View
           </Button>
-          <Button 
-            size="sm"
-            className="h-9 rounded-lg font-medium"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDownload(photo.photo_id);
-            }}
-            disabled={isDownloading}
-          >
-            {isDownloading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-          </Button>
+          
+          {cta === 'BUY' ? (
+            <Button 
+              size="sm"
+              className="rounded-lg bg-gradient-to-r from-primary to-primary/80"
+              onClick={(e) => {
+                e.stopPropagation();
+                onBuy?.(photoId);
+              }}
+              disabled={isDownloading}
+            >
+              {isDownloading ? (
+                <>
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  ...
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="mr-1.5 h-4 w-4" />
+                  Beli
+                </>
+              )}
+            </Button>
+          ) : cta === 'FREE_DOWNLOAD' ? (
+            <Button 
+              size="sm"
+              className="rounded-lg bg-green-600 hover:bg-green-500"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDownload(photoId);
+              }}
+              disabled={isDownloading}
+            >
+              {isDownloading ? (
+                <>
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  ...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-1.5 h-4 w-4" />
+                  Free
+                </>
+              )}
+            </Button>
+          ) : (
+            <Button 
+              size="sm"
+              className="rounded-lg"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDownload(photoId);
+              }}
+              disabled={isDownloading}
+            >
+              {isDownloading ? (
+                <>
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  ...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-1.5 h-4 w-4" />
+                  Download
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </div>
     </Card>

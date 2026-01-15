@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import HeaderDash from "@/components/layout/HeaderDash";
+import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,16 +13,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Download, Search, Filter, Grid3x3, List, Camera, AlertCircle } from "lucide-react";
+import { ArrowLeft, Download, Search, Filter, Grid3x3, List, Camera } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { aiService, Photo } from "@/services/api/ai.service";
+import { userService, UserPhoto } from "@/services/api/user.service";
+import { paymentService } from "@/services/api/payment.service";
 import { PhotoCard } from "@/components/PhotoCard";
 import { PhotoListItem } from "@/components/PhotoListItem";
 import { PhotoDetailModal } from "@/components/PhotoDetailModal";
 import { PhotoLightbox } from "@/components/PhotoLightbox";
+import { PhotoPurchaseModal } from "@/components/PhotoPurchaseModal";
+import { toast as sonnerToast } from "sonner";
 
 const PhotoGallery = () => {
-  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [photos, setPhotos] = useState<UserPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>("");
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -30,24 +34,29 @@ const PhotoGallery = () => {
   const [sortBy, setSortBy] = useState<string>('newest');
   const [searchQuery, setSearchQuery] = useState("");
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
-  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<UserPhoto | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [photoToPurchase, setPhotoToPurchase] = useState<UserPhoto | null>(null);
+  const [userPointBalance, setUserPointBalance] = useState(0);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     loadPhotos();
+    loadUserBalance();
   }, []);
 
-  const loadPhotos = () => {
+  const loadPhotos = async () => {
     try {
       setIsLoading(true);
-      const storedPhotos = localStorage.getItem('matched_photos');
       
-      if (storedPhotos) {
-        const parsedPhotos = JSON.parse(storedPhotos);
-        setPhotos(parsedPhotos);
+      // Fetch from API - /user/my-photos
+      const response = await userService.getMyPhotos();
+      
+      if (response.success && response.data) {
+        setPhotos(response.data);
         setError("");
       } else {
         setPhotos([]);
@@ -62,12 +71,33 @@ const PhotoGallery = () => {
     }
   };
 
+  const loadUserBalance = async () => {
+    try {
+      // Use new balance endpoint
+      const response = await userService.getBalance();
+      if (response.success && response.data) {
+        setUserPointBalance(response.data.balance);
+      }
+    } catch (err) {
+      console.error('Error loading balance:', err);
+      // Fallback to wallet endpoint
+      try {
+        const walletRes = await paymentService.getUserWallet();
+        if (walletRes.success && walletRes.data) {
+          setUserPointBalance(walletRes.data.wallet.point_balance);
+        }
+      } catch (walletErr) {
+        console.error('Error loading wallet:', walletErr);
+      }
+    }
+  };
+
   // Extract unique events from photos
   const events = useMemo(() => {
     const uniqueEvents = new Set<string>();
     photos.forEach(photo => {
-      if (photo.metadata?.event_name) {
-        uniqueEvents.add(photo.metadata.event_name);
+      if (photo.event_name) {
+        uniqueEvents.add(photo.event_name);
       }
     });
     
@@ -87,7 +117,7 @@ const PhotoGallery = () => {
     // Filter by event
     if (selectedEvent !== 'all') {
       result = result.filter(photo => 
-        photo.metadata?.event_name?.toLowerCase().replace(/\s+/g, '-') === selectedEvent
+        photo.event_name?.toLowerCase().replace(/\s+/g, '-') === selectedEvent
       );
     }
 
@@ -95,9 +125,10 @@ const PhotoGallery = () => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(photo => 
-        photo.metadata?.event_name?.toLowerCase().includes(query) ||
-        photo.metadata?.location?.toLowerCase().includes(query) ||
-        photo.filename?.toLowerCase().includes(query)
+        photo.event_name?.toLowerCase().includes(query) ||
+        photo.event_location?.toLowerCase().includes(query) ||
+        photo.filename?.toLowerCase().includes(query) ||
+        photo.photographer_name?.toLowerCase().includes(query)
       );
     }
 
@@ -105,22 +136,22 @@ const PhotoGallery = () => {
     switch (sortBy) {
       case 'newest':
         result.sort((a, b) => 
-          new Date(b.metadata?.date || 0).getTime() - new Date(a.metadata?.date || 0).getTime()
+          new Date(b.event_date || 0).getTime() - new Date(a.event_date || 0).getTime()
         );
         break;
       case 'oldest':
         result.sort((a, b) => 
-          new Date(a.metadata?.date || 0).getTime() - new Date(b.metadata?.date || 0).getTime()
+          new Date(a.event_date || 0).getTime() - new Date(b.event_date || 0).getTime()
         );
         break;
       case 'match':
         result.sort((a, b) => 
-          (a.distance || 999) - (b.distance || 999)
+          (b.similarity || 0) - (a.similarity || 0)
         );
         break;
       case 'event':
         result.sort((a, b) => 
-          (a.metadata?.event_name || '').localeCompare(b.metadata?.event_name || '')
+          (a.event_name || '').localeCompare(b.event_name || '')
         );
         break;
     }
@@ -128,72 +159,94 @@ const PhotoGallery = () => {
     return result;
   }, [photos, selectedEvent, searchQuery, sortBy]);
 
-  // Download photo with fallback to preview if original fails
+  // Download photo - uses CTA logic from backend
   const handleDownloadPhoto = async (photoId: string) => {
     try {
+      const photo = photos.find(p => p.event_photo_id === photoId || p.photo_id === photoId);
+      
+      if (!photo) {
+        toast({
+          title: "Error",
+          description: "Photo not found",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check CTA status
+      const cta = photo.cta || (photo.is_purchased ? 'DOWNLOAD' : (photo.is_for_sale === false ? 'FREE_DOWNLOAD' : 'BUY'));
+      
+      if (cta === 'BUY') {
+        // Photo needs to be purchased first
+        toast({
+          title: "Foto belum dibeli",
+          description: "Silakan beli foto terlebih dahulu untuk mendownload.",
+          variant: "destructive",
+        });
+        handleBuyPhoto(photo);
+        return;
+      }
+
       setDownloadingIds(prev => new Set(prev).add(photoId));
       
-      const photo = photos.find(p => p.photo_id === photoId);
-      const filename = photo?.filename || `photo-${photoId}.jpg`;
-      
-      // Try to download original from Dropbox first
-      let downloadUrl = aiService.getDownloadUrl(photoId);
-      let blob: Blob;
+      // Use the download_url from API if available, otherwise construct it
+      const filename = photo.filename || `photo-${photoId}.jpg`;
       
       try {
-        console.log('📥 Downloading original from:', downloadUrl);
-        const response = await fetch(downloadUrl);
+        // Try using the API download endpoint
+        const blob = await userService.downloadPhotoBlob(photo.event_photo_id);
         
-        if (!response.ok) {
-          throw new Error(`Original download failed: ${response.status}`);
-        }
-        
-        blob = await response.blob();
-        console.log('✅ Original download successful');
-        
-      } catch (originalError) {
-        console.warn('⚠️ Original download failed, trying preview:', originalError);
-        
-        // Fallback to preview/compressed version
-        downloadUrl = aiService.getPreviewUrl(photoId);
-        console.log('📥 Downloading preview from:', downloadUrl);
-        
-        const previewResponse = await fetch(downloadUrl);
-        
-        if (!previewResponse.ok) {
-          throw new Error('Both original and preview download failed');
-        }
-        
-        blob = await previewResponse.blob();
-        console.log('✅ Preview download successful');
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
         
         toast({
-          title: "Downloaded Preview Version",
-          description: "Original file unavailable. Downloaded compressed version instead.",
-          variant: "default",
+          title: "Download berhasil! 🎉",
+          description: `${filename} telah diunduh`,
+        });
+      } catch (downloadErr: any) {
+        // Check if it's a 403 (not purchased)
+        if (downloadErr.response?.status === 403) {
+          toast({
+            title: "Foto belum dibeli",
+            description: downloadErr.response?.data?.error || "Silakan beli foto terlebih dahulu.",
+            variant: "destructive",
+          });
+          handleBuyPhoto(photo);
+          return;
+        }
+        
+        // Fallback to preview URL download
+        const downloadUrl = photo.download_url || photo.preview_url || aiService.getDownloadUrl(photo.photo_id);
+        const response = await fetch(downloadUrl);
+        if (!response.ok) throw new Error('Download failed');
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Download berhasil! 🎉",
+          description: `${filename} telah diunduh`,
         });
       }
-      
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-      toast({
-        title: "Download berhasil! 🎉",
-        description: `${filename} telah diunduh`,
-      });
-      
     } catch (err) {
-      console.error('❌ Download error:', err);
+      console.error('Download error:', err);
       toast({
         title: "Download gagal",
-        description: "Gagal mengunduh foto. File mungkin tidak tersedia di server.",
+        description: "Gagal mengunduh foto. Silakan coba lagi.",
         variant: "destructive",
       });
     } finally {
@@ -211,29 +264,15 @@ const PhotoGallery = () => {
       description: `Mengunduh ${filteredPhotos.length} foto...`,
     });
     
-    let successCount = 0;
-    let failCount = 0;
-    
     // Download each photo sequentially
     for (const photo of filteredPhotos) {
-      try {
-        await handleDownloadPhoto(photo.photo_id);
-        successCount++;
-      } catch (error) {
-        failCount++;
-      }
+      await handleDownloadPhoto(photo.photo_id);
       // Small delay between downloads
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
     }
-    
-    toast({
-      title: "Download Selesai",
-      description: `Berhasil: ${successCount}, Gagal: ${failCount}`,
-      variant: failCount > 0 ? "destructive" : "default",
-    });
   };
 
-  const handlePhotoClick = (photo: Photo) => {
+  const handlePhotoClick = (photo: UserPhoto) => {
     setSelectedPhoto(photo);
     setIsModalOpen(true);
   };
@@ -250,6 +289,29 @@ const PhotoGallery = () => {
 
   const handleLightboxClose = () => {
     setIsLightboxOpen(false);
+  };
+
+  const handleBuyPhoto = (photo: UserPhoto) => {
+    setPhotoToPurchase(photo);
+    setIsPurchaseModalOpen(true);
+  };
+
+  const handlePurchaseSuccess = (downloadUrl?: string) => {
+    // Mark photo as purchased locally and update CTA
+    if (photoToPurchase) {
+      setPhotos(prev => prev.map(p => 
+        p.event_photo_id === photoToPurchase.event_photo_id 
+          ? { ...p, is_purchased: true, cta: 'DOWNLOAD' as const, download_url: downloadUrl }
+          : p
+      ));
+    }
+    setIsPurchaseModalOpen(false);
+    setPhotoToPurchase(null);
+    
+    // Refresh user balance
+    loadUserBalance();
+    
+    sonnerToast.success("Foto berhasil dibeli! Anda sekarang bisa download foto ini.");
   };
 
   const handleNext = () => {
@@ -269,14 +331,14 @@ const PhotoGallery = () => {
   };
 
   const selectedPhotoIndex = selectedPhoto 
-    ? filteredPhotos.findIndex(p => p.photo_id === selectedPhoto.photo_id)
+    ? filteredPhotos.findIndex(p => p.event_photo_id === selectedPhoto.event_photo_id)
     : -1;
 
   // Loading state
   if (isLoading) {
     return (
       <div className="flex min-h-screen flex-col">
-        <HeaderDash />
+        <Header />
         <main className="flex-1 py-8">
           <div className="container max-w-7xl">
             <Skeleton className="h-8 w-64 mb-4" />
@@ -302,7 +364,7 @@ const PhotoGallery = () => {
   if (!isLoading && photos.length === 0) {
     return (
       <div className="flex min-h-screen flex-col">
-        <HeaderDash />
+        <Header />
         <main className="flex-1 py-8">
           <div className="container max-w-7xl">
             <Link 
@@ -335,7 +397,7 @@ const PhotoGallery = () => {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <HeaderDash />
+      <Header />
       
       <main className="flex-1 py-8">
         <div className="container max-w-7xl">
@@ -376,21 +438,6 @@ const PhotoGallery = () => {
               </div>
             </div>
           </div>
-
-          {/* Info Banner
-          <Card className="mb-6 border-blue-500/20 bg-blue-500/5">
-            <div className="p-4 flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
-              <div className="text-sm">
-                <p className="font-medium text-blue-700 dark:text-blue-400 mb-1">
-                  Download Information
-                </p>
-                <p className="text-blue-600 dark:text-blue-300">
-                  Original photos are stored in Dropbox. If download fails, a compressed preview version will be downloaded automatically.
-                </p>
-              </div>
-            </div>
-          </Card> */}
 
           {/* Filters & Controls */}
           <Card className="mb-6 border-border/50 shadow-soft">
@@ -483,6 +530,7 @@ const PhotoGallery = () => {
                   key={photo.photo_id}
                   photo={photo}
                   onDownload={handleDownloadPhoto}
+                  onBuy={() => handleBuyPhoto(photo)}
                   isDownloading={downloadingIds.has(photo.photo_id)}
                   onClick={() => handlePhotoClick(photo)}
                 />
@@ -495,6 +543,7 @@ const PhotoGallery = () => {
                   key={photo.photo_id}
                   photo={photo}
                   onDownload={handleDownloadPhoto}
+                  onBuy={() => handleBuyPhoto(photo)}
                   isDownloading={downloadingIds.has(photo.photo_id)}
                   onClick={() => handlePhotoClick(photo)}
                 />
@@ -508,30 +557,51 @@ const PhotoGallery = () => {
 
       {/* Photo Detail Modal */}
       <PhotoDetailModal
-        photo={selectedPhoto}
+        photo={selectedPhoto as any}
         isOpen={isModalOpen}
         onClose={handleModalClose}
-        onDownload={handleDownloadPhoto}
+        onDownload={() => selectedPhoto && handleDownloadPhoto(selectedPhoto.event_photo_id)}
+        onBuy={() => selectedPhoto && handleBuyPhoto(selectedPhoto)}
         onView={handleViewFullscreen}
         onNext={handleNext}
         onPrevious={handlePrevious}
-        isDownloading={selectedPhoto ? downloadingIds.has(selectedPhoto.photo_id) : false}
+        isDownloading={selectedPhoto ? downloadingIds.has(selectedPhoto.event_photo_id) : false}
         hasNext={selectedPhotoIndex < filteredPhotos.length - 1}
         hasPrevious={selectedPhotoIndex > 0}
       />
 
       {/* Fullscreen Lightbox */}
       <PhotoLightbox
-        photo={selectedPhoto}
+        photo={selectedPhoto as any}
         isOpen={isLightboxOpen}
         onClose={handleLightboxClose}
-        onDownload={handleDownloadPhoto}
+        onDownload={() => selectedPhoto && handleDownloadPhoto(selectedPhoto.event_photo_id)}
         onNext={handleNext}
         onPrevious={handlePrevious}
-        isDownloading={selectedPhoto ? downloadingIds.has(selectedPhoto.photo_id) : false}
+        isDownloading={selectedPhoto ? downloadingIds.has(selectedPhoto.event_photo_id) : false}
         hasNext={selectedPhotoIndex < filteredPhotos.length - 1}
         hasPrevious={selectedPhotoIndex > 0}
       />
+
+      {/* Purchase Modal */}
+      {photoToPurchase && (
+        <PhotoPurchaseModal
+          isOpen={isPurchaseModalOpen}
+          onClose={() => {
+            setIsPurchaseModalOpen(false);
+            setPhotoToPurchase(null);
+          }}
+          photo={{
+            id: photoToPurchase.event_photo_id,
+            filename: photoToPurchase.filename || 'Photo',
+            event_name: photoToPurchase.event_name || 'Event',
+            price_cash: photoToPurchase.price_cash || photoToPurchase.price || 30000,
+            price_points: photoToPurchase.price_points || photoToPurchase.price_in_points || 6,
+          }}
+          userPointBalance={userPointBalance}
+          onPurchaseSuccess={handlePurchaseSuccess}
+        />
+      )}
     </div>
   );
 };

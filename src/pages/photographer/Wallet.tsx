@@ -159,10 +159,10 @@ const PhotographerWalletPage = () => {
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <Wallet className="h-8 w-8" />
-              FOTOPOIN Saya
+              Pendapatan Saya
             </h1>
             <p className="text-muted-foreground mt-1">
-              Pantau FOTOPOIN Anda dan ajukan penarikan dana
+              Pantau Pendapatan Anda dan ajukan penarikan dana
             </p>
           </div>
           
