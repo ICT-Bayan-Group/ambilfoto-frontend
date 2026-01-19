@@ -33,65 +33,65 @@ export const Header = () => {
         <Link to={isAuthenticated ? getDashboardLink() : "/"} className="flex items-center gap-2 transition-smooth hover:opacity-80">
          <img 
             src="https://res.cloudinary.com/dwyi4d3rq/image/upload/v1765171746/ambilfoto-logo_hvn8s2.png" 
-            alt="AmbilFoto.id Logo" 
+            alt="Logo AmbilFoto.id" 
             className="h-28 w-auto"
           />
         </Link>
         
         {isAuthenticated ? (
           isAdmin ? (
-            // Admin Navigation
+            // Navigasi Admin
             <nav className="hidden md:flex items-center gap-6">
               <Link to="/admin/dashboard" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
-                Dashboard
+                Dasbor
               </Link>
               <Link to="/admin/users" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
-                Users
+                Pengguna
               </Link>
               <Link to="/admin/events" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
-                Events
+                Acara
               </Link>
               <Link to="/admin/revenue" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
-                Revenue
+                Pendapatan
               </Link>
             </nav>
           ) : isPhotographer ? (
-            // Photographer Navigation
+            // Navigasi Fotografer
             <nav className="hidden md:flex items-center gap-6">
               <Link to="/photographer/dashboard" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
-                Dashboard
+                Dasbor
               </Link>
               <Link to="/photographer/events" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
-                Events
+                Acara
               </Link>
               <Link to="/photographer/wallet" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
-                Wallet
+                Dompet
               </Link>
             </nav>
           ) : (
-            // User Navigation
+            // Navigasi Pengguna
             <nav className="hidden md:flex items-center gap-6">
               <Link to="/user/dashboard" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
-                Dashboard
+                Dasbor
               </Link>
               <Link to="/user/photos" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
-                My Photos
+                Foto Saya
               </Link>
               <Link to="/user/wallet" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
-                Wallet
+                Dompet
               </Link>
             </nav>
           )
         ) : (
           <nav className="hidden md:flex items-center gap-6">
             <Link to="/features" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
-              Features
+              Fitur
             </Link>
             <Link to="/pricing" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
-              Pricing
+              Harga
             </Link>
             <Link to="/about" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
-              About
+              Tentang
             </Link>
           </nav>
         )}
@@ -102,143 +102,143 @@ export const Header = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2">
                   <User className="h-4 w-4" />
-                  <span className="hidden md:inline">{user?.full_name || 'User'}</span>
+                  <span className="hidden md:inline">{user?.full_name || 'Pengguna'}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
-                  {isAdmin ? 'Admin Account' : isPhotographer ? 'Photographer Account' : 'My Account'}
+                  {isAdmin ? 'Akun Admin' : isPhotographer ? 'Akun Fotografer' : 'Akun Saya'}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 
                 {isAdmin ? (
-                  // Admin Menu Items
+                  // Menu Admin
                   <>
                     <DropdownMenuItem asChild>
                       <Link to="/admin/dashboard" className="cursor-pointer">
                         <Shield className="mr-2 h-4 w-4" />
-                        Dashboard
+                        Dasbor
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/admin/users" className="cursor-pointer">
                         <Users className="mr-2 h-4 w-4" />
-                        User Management
+                        Kelola Pengguna
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/admin/events" className="cursor-pointer">
                         <Calendar className="mr-2 h-4 w-4" />
-                        Events
+                        Acara
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/admin/downloads" className="cursor-pointer">
                         <Image className="mr-2 h-4 w-4" />
-                        Downloads
+                        Unduhan
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/admin/revenue" className="cursor-pointer">
                         <DollarSign className="mr-2 h-4 w-4" />
-                        Revenue
+                        Pendapatan
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/admin/logs" className="cursor-pointer">
                         <Activity className="mr-2 h-4 w-4" />
-                        Activity Logs
+                        Log Aktivitas
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/admin/storage" className="cursor-pointer">
                         <Database className="mr-2 h-4 w-4" />
-                        Storage
+                        Penyimpanan
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/admin/withdrawals" className="cursor-pointer">
                         <Banknote className="mr-2 h-4 w-4" />
-                        Withdrawals
+                        Penarikan
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/admin/settings" className="cursor-pointer">
                         <Settings className="mr-2 h-4 w-4" />
-                        Settings
+                        Pengaturan
                       </Link>
                     </DropdownMenuItem>
                   </>
                 ) : isPhotographer ? (
-                  // Photographer Menu Items
+                  // Menu Fotografer
                   <>
                     <DropdownMenuItem asChild>
                       <Link to="/photographer/dashboard" className="cursor-pointer">
                         <Calendar className="mr-2 h-4 w-4" />
-                        Dashboard
+                        Dasbor
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/photographer/events" className="cursor-pointer">
                         <Image className="mr-2 h-4 w-4" />
-                        My Events
+                        Acara Saya
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/photographer/events/new" className="cursor-pointer">
                         <Upload className="mr-2 h-4 w-4" />
-                        Create Event
+                        Buat Acara
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/photographer/wallet" className="cursor-pointer">
                         <Wallet className="mr-2 h-4 w-4" />
-                        Wallet
+                        Dompet
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
                       <Link to="/photographer/profile" className="cursor-pointer">
                         <Settings className="mr-2 h-4 w-4" />
-                        Business Profile
+                        Profil Bisnis
                       </Link>
                     </DropdownMenuItem>
                   </>
                 ) : (
-                  // User Menu Items
+                  // Menu Pengguna
                   <>
                     <DropdownMenuItem asChild>
                       <Link to="/user/dashboard" className="cursor-pointer">
-                        Dashboard
+                        Dasbor
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/user/photos" className="cursor-pointer">
-                        My Photos
+                        Foto Saya
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/user/scan-face" className="cursor-pointer">
-                        Scan Face
+                        Pindai Wajah
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/user/wallet" className="cursor-pointer">
                         <Wallet className="mr-2 h-4 w-4" />
-                        Wallet
+                        Dompet
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/user/topup" className="cursor-pointer">
                         <CreditCard className="mr-2 h-4 w-4" />
-                        Top Up Points
+                        Isi Poin
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
                       <Link to="/user/profile" className="cursor-pointer">
                         <Settings className="mr-2 h-4 w-4" />
-                        Profile Settings
+                        Pengaturan Profil
                       </Link>
                     </DropdownMenuItem>
                   </>
@@ -246,17 +246,17 @@ export const Header = () => {
                 
                 <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
-                  Logout
+                  Keluar
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
             <>
               <Link to="/login">
-                <Button variant="ghost">Login</Button>
+                <Button variant="ghost">Masuk</Button>
               </Link>
               <Link to="/register">
-                <Button>Get Started</Button>
+                <Button>Mulai</Button>
               </Link>
             </>
           )}

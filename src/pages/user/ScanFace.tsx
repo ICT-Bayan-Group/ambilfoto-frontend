@@ -7,7 +7,7 @@ import { Footer } from "@/components/layout/Footer";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { aiService } from "@/services/api/ai.service";
-
+import { userService } from "@/services/api/user.service"; // ✅ Import userService
 
 const ScanFace = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -18,7 +18,9 @@ const ScanFace = () => {
     setIsProcessing(true);
     
     try {
-      // Extract face embedding
+      console.log('📸 Step 1: Extracting face embedding...');
+      
+      // Step 1: Extract face embedding from image
       const faceResult = await aiService.registerFace(imageData);
       
       if (!faceResult.success || !faceResult.embedding) {
@@ -31,20 +33,28 @@ const ScanFace = () => {
         return;
       }
       
-      // Find matching photos
-      const photosResult = await aiService.findMyPhotos(faceResult.embedding);
+      console.log('✅ Face detected, embedding length:', faceResult.embedding.length);
+      console.log('📤 Step 2: Matching photos via Node.js API...');
       
-      if (photosResult.success) {
-        const photoCount = photosResult.photos.length;
+      // Step 2: Match photos via Node.js API (authenticated, akan save ke DB)
+      const matchResult = await userService.matchPhotos({
+        face_image: faceResult.embedding
+      });
+      
+      console.log('📥 Match result:', matchResult);
+      
+      if (matchResult.success && matchResult.data) {
+        const photoCount = matchResult.data.matched_count;
         
         if (photoCount > 0) {
           toast({
-            title: "Photos found!",
+            title: "Photos found! 🎉",
             description: `We found ${photoCount} photo${photoCount > 1 ? 's' : ''} of you`,
           });
           
-          // Store results and redirect
-          localStorage.setItem('matched_photos', JSON.stringify(photosResult.photos));
+          console.log('✅ Navigating to photo gallery...');
+          
+          // Navigate to photos page (data sudah di database, tidak perlu localStorage)
           navigate('/user/photos');
         } else {
           toast({
@@ -54,12 +64,18 @@ const ScanFace = () => {
           });
           setIsProcessing(false);
         }
+      } else {
+        throw new Error(matchResult.error || 'Face matching failed');
       }
       
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ Error:', error);
+      
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to process image';
+      
       toast({
         title: "Error",
-        description: "Failed to process image. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
       setIsProcessing(false);

@@ -1,7 +1,7 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, X, ChevronLeft, ChevronRight, Calendar, MapPin, Camera, Sparkles, Eye, Lock, ShoppingCart, Coins, CreditCard } from "lucide-react";
+import { Download, X, ChevronLeft, ChevronRight, Calendar, MapPin, Camera, Sparkles, Eye, ShoppingCart, Coins, FileImage, Tag, Clock, CheckCircle } from "lucide-react";
 import { Photo } from "@/services/api/ai.service";
 import { UserPhoto } from "@/services/api/user.service";
 import { aiService } from "@/services/api/ai.service";
@@ -73,8 +73,27 @@ export const PhotoDetailModal = ({
     ? photo.photographer_name 
     : photo.metadata?.photographer;
 
+  // Get price - check multiple possible fields from API
   const isPurchased = isUserPhoto(photo) ? photo.is_purchased : true;
-  const purchasePrice = isUserPhoto(photo) ? photo.purchase_price : 0;
+  const isForSale = isUserPhoto(photo) ? (photo.is_for_sale !== false) : false;
+  
+  // Get cash price from price_cash or fallback to price
+  const priceCash = isUserPhoto(photo) 
+    ? (photo.price_cash || photo.price || photo.purchase_price || 0) 
+    : 0;
+  
+  // Get points price from price_points or fallback to price_in_points
+  const pricePoints = isUserPhoto(photo) 
+    ? (photo.price_points || photo.price_in_points || Math.ceil(priceCash / 5000)) 
+    : 0;
+
+  // Get additional metadata for UserPhoto
+  const eventId = isUserPhoto(photo) ? photo.event_id : null;
+  const eventType = isUserPhoto(photo) ? photo.event_type : null;
+  const eventDescription = isUserPhoto(photo) ? photo.event_description : null;
+  const matchDate = isUserPhoto(photo) ? photo.match_date : null;
+  const uploadTimestamp = isUserPhoto(photo) ? photo.upload_timestamp : null;
+  const photographerId = isUserPhoto(photo) ? photo.photographer_id : null;
 
   const getMatchColor = (percentage: number) => {
     if (percentage >= 90) return "bg-green-500/20 text-green-400 border-green-500/30";
@@ -82,9 +101,18 @@ export const PhotoDetailModal = ({
     return "bg-orange-500/20 text-orange-400 border-orange-500/30";
   };
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl p-0 gap-0 bg-card/95 backdrop-blur-xl border-border/50 overflow-hidden rounded-2xl">
+      <DialogContent className="max-w-2xl p-0 gap-0 bg-card/95 backdrop-blur-xl border-border/50 overflow-hidden rounded-2xl max-h-[90vh] overflow-y-auto">
         {/* Header with gradient */}
         <div className="relative">
           {/* Close button */}
@@ -148,6 +176,15 @@ export const PhotoDetailModal = ({
               </Badge>
             </div>
 
+            {/* Purchase Badge */}
+            {isPurchased && (
+              <div className="absolute top-3 left-32">
+                <Badge className="bg-green-500/90 text-white border-green-400/50">
+                  ✓ Sudah Dibeli
+                </Badge>
+              </div>
+            )}
+
             {/* Event name overlay */}
             <div className="absolute bottom-3 left-3 right-3">
               <h3 className="text-white font-bold text-xl drop-shadow-lg">
@@ -164,8 +201,8 @@ export const PhotoDetailModal = ({
         </div>
 
         {/* Content */}
-        <div className="p-5 space-y-5">
-          {/* Info Cards */}
+        <div className="p-5 space-y-4">
+          {/* Info Cards - Row 1 */}
           <div className="grid grid-cols-2 gap-3">
             {eventDate && (
               <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border border-border/50">
@@ -173,7 +210,7 @@ export const PhotoDetailModal = ({
                   <Calendar className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Tanggal</p>
+                  <p className="text-xs text-muted-foreground">Tanggal Event</p>
                   <p className="text-sm font-medium">
                     {format(new Date(eventDate), "d MMM yyyy", { locale: idLocale })}
                   </p>
@@ -199,7 +236,7 @@ export const PhotoDetailModal = ({
           {/* Match Stats */}
           <div className="p-4 rounded-xl bg-gradient-to-r from-primary/5 via-primary/10 to-secondary/5 border border-primary/20">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-muted-foreground">Tingkat Kecocokan</span>
+              <span className="text-sm font-medium text-muted-foreground">Tingkat Kecocokan Wajah</span>
               <span className="text-2xl font-bold text-primary">{matchPercentage}%</span>
             </div>
             <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -208,27 +245,115 @@ export const PhotoDetailModal = ({
                 style={{ width: `${matchPercentage}%` }}
               />
             </div>
+            {matchDate && (
+              <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                Ditemukan pada: {format(new Date(matchDate), "d MMM yyyy, HH:mm", { locale: idLocale })}
+              </p>
+            )}
           </div>
 
-          {/* Filename */}
-          <div className="text-xs text-muted-foreground bg-muted/30 px-3 py-2 rounded-lg font-mono truncate">
-            📁 {photo.filename}
+          {/* Additional Metadata */}
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30">
+              <FileImage className="h-4 w-4 text-muted-foreground" />
+              <span className="truncate font-mono">{photo.filename}</span>
+            </div>
+            {eventId && (
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30">
+                <Tag className="h-4 w-4 text-muted-foreground" />
+                <span className="truncate">Event ID: {eventId.substring(0, 8)}...</span>
+              </div>
+            )}
           </div>
 
-          {/* Price Info for unpurchased photos */}
-          {!isPurchased && purchasePrice && purchasePrice > 0 && (
-            <div className="p-4 rounded-xl bg-gradient-to-r from-primary/5 to-secondary/5 border border-primary/20">
-              <div className="flex items-center justify-between">
+          {/* Event Type Badge */}
+          {eventType && (
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="capitalize">
+                {eventType.replace('_', ' ')}
+              </Badge>
+            </div>
+          )}
+
+          {/* Event Description if available */}
+          {eventDescription && (
+            <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+              <p className="text-xs text-muted-foreground mb-1">Deskripsi Event</p>
+              <p className="text-sm">{eventDescription}</p>
+            </div>
+          )}
+
+          {/* Upload Timestamp */}
+          {uploadTimestamp && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              <span>Di-upload: {format(new Date(uploadTimestamp), "d MMM yyyy, HH:mm", { locale: idLocale })}</span>
+            </div>
+          )}
+
+          {/* Price Info for unpurchased photos that are for sale */}
+          {!isPurchased && isForSale && priceCash > 0 && (
+            <div className="p-4 rounded-xl bg-gradient-to-r from-yellow-500/10 via-orange-500/10 to-red-500/10 border border-yellow-500/30">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <Coins className="h-5 w-5 text-yellow-500" />
-                  <span className="text-sm font-medium">Harga Foto</span>
+                  <div className="h-10 w-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                    <Coins className="h-5 w-5 text-yellow-500" />
+                  </div>
+                  <div>
+                    <p className="font-semibold">Harga Foto</p>
+                    <p className="text-xs text-muted-foreground">Pilih metode pembayaran saat beli</p>
+                  </div>
                 </div>
-                <div className="text-right">
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-background/60 border border-border/50 hover:border-primary/50 transition-colors">
+                  <p className="text-xs text-muted-foreground mb-1">💵 Bayar Cash</p>
                   <p className="text-lg font-bold text-primary">
-                    Rp {purchasePrice.toLocaleString('id-ID')}
+                    {formatCurrency(priceCash)}
                   </p>
+                  <p className="text-xs text-muted-foreground">Via Midtrans</p>
+                </div>
+                <div className="p-3 rounded-lg bg-background/60 border border-border/50 hover:border-yellow-500/50 transition-colors">
+                  <p className="text-xs text-muted-foreground mb-1">🪙 Bayar FOTOPOIN</p>
+                  <p className="text-lg font-bold text-yellow-600 flex items-center gap-1">
+                    <Coins className="h-4 w-4" />
+                    {pricePoints} Points
+                  </p>
+                  <p className="text-xs text-muted-foreground">Instant download</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Free photo (not for sale or price is 0) */}
+          {!isPurchased && (!isForSale || priceCash === 0) && (
+            <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                  <Download className="h-5 w-5 text-blue-500" />
+                </div>
+                <div>
+                  <p className="font-semibold text-blue-600">Foto Gratis!</p>
                   <p className="text-xs text-muted-foreground">
-                    atau {Math.ceil(purchasePrice / 5000)} Points
+                    Anda bisa langsung download foto ini
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Already purchased info */}
+          {isPurchased && (
+            <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                </div>
+                <div>
+                  <p className="font-semibold text-green-600">Foto Sudah Dibeli!</p>
+                  <p className="text-xs text-muted-foreground">
+                    Anda bisa download foto ini kapan saja dalam resolusi HD
                   </p>
                 </div>
               </div>
@@ -236,7 +361,7 @@ export const PhotoDetailModal = ({
           )}
 
           {/* Action Buttons */}
-          <div className="flex gap-3">
+          <div className="flex gap-3 pt-2">
             <Button 
               variant="outline"
               onClick={onView}
@@ -245,7 +370,7 @@ export const PhotoDetailModal = ({
               <Eye className="mr-2 h-4 w-4" />
               Lihat Fullscreen
             </Button>
-            {!isPurchased && purchasePrice && purchasePrice > 0 ? (
+            {!isPurchased && isForSale && priceCash > 0 ? (
               <Button 
                 onClick={() => onBuy?.(photoId)}
                 disabled={isDownloading}
@@ -264,7 +389,7 @@ export const PhotoDetailModal = ({
               <Button 
                 onClick={() => onDownload(photoId)}
                 disabled={isDownloading}
-                className="flex-1 h-12 rounded-xl font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                className="flex-1 h-12 rounded-xl font-semibold bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400"
               >
                 {isDownloading ? (
                   "Downloading..."

@@ -224,9 +224,23 @@ export const photographerService = {
     return response.data;
   },
 
-  // Update photo price
-  async updatePhotoPrice(eventId: string, photoId: string, price: number): Promise<{ success: boolean; message?: string; error?: string }> {
-    const response = await photographerApi.put(`/photographer/events/${eventId}/photos/${photoId}/price`, { price });
+  // Update single photo pricing
+  async updatePhotoPricing(eventId: string, photoId: string, data: {
+    price_cash: number;
+    price_points: number;
+    is_for_sale: boolean;
+  }): Promise<{ success: boolean; message?: string; error?: string }> {
+    const response = await photographerApi.put(`/photographer/events/${eventId}/photos/${photoId}/pricing`, data);
+    return response.data;
+  },
+
+  // Bulk update pricing for all photos in event
+  async updateBulkPricing(eventId: string, data: {
+    price_cash: number;
+    price_points: number;
+    is_for_sale: boolean;
+  }): Promise<{ success: boolean; message?: string; error?: string }> {
+    const response = await photographerApi.put(`/photographer/events/${eventId}/photos/bulk-pricing`, data);
     return response.data;
   },
 
