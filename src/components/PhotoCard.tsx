@@ -48,8 +48,18 @@ export const PhotoCard = ({ photo, onDownload, onBuy, isDownloading, onClick }: 
     ? photo.event_date 
     : photo.metadata?.date;
 
+  // Get purchase and pricing info using CTA logic from backend
   const isPurchased = isUserPhoto(photo) ? photo.is_purchased : true;
-  const purchasePrice = isUserPhoto(photo) ? photo.purchase_price : 0;
+  const isForSale = isUserPhoto(photo) ? (photo.is_for_sale !== false) : false;
+  const priceCash = isUserPhoto(photo) ? (photo.price_cash || photo.price || photo.purchase_price || 0) : 0;
+  const pricePoints = isUserPhoto(photo) ? (photo.price_points || photo.price_in_points || 0) : 0;
+  
+  // Get CTA from backend or calculate it
+  const cta = isUserPhoto(photo) 
+    ? (photo.cta || (isPurchased ? 'DOWNLOAD' : (isForSale && priceCash > 0 ? 'BUY' : 'FREE_DOWNLOAD')))
+    : 'DOWNLOAD';
+  
+  const priceDisplay = isUserPhoto(photo) ? photo.price_display : '';
 
   const getMatchColor = (percentage: number) => {
     if (percentage >= 90) return "bg-green-500 text-white";
@@ -109,11 +119,29 @@ export const PhotoCard = ({ photo, onDownload, onBuy, isDownloading, onClick }: 
       </div>
       
       {/* Price badge for unpurchased photos */}
-      {!isPurchased && purchasePrice && purchasePrice > 0 && (
+      {cta === 'BUY' && (priceCash > 0 || pricePoints > 0) && (
         <div className="px-3 pt-2 bg-card">
           <Badge variant="secondary" className="w-full justify-center gap-1.5 py-1.5">
             <Coins className="h-3.5 w-3.5" />
-            Rp {purchasePrice.toLocaleString('id-ID')}
+            {priceDisplay || `${pricePoints} FOTOPOIN`}
+          </Badge>
+        </div>
+      )}
+
+      {/* Free badge */}
+      {cta === 'FREE_DOWNLOAD' && (
+        <div className="px-3 pt-2 bg-card">
+          <Badge variant="outline" className="w-full justify-center gap-1.5 py-1.5 text-green-600 border-green-500/30">
+            GRATIS
+          </Badge>
+        </div>
+      )}
+
+      {/* Purchased badge */}
+      {cta === 'DOWNLOAD' && isPurchased && (
+        <div className="px-3 pt-2 bg-card">
+          <Badge className="w-full justify-center gap-1.5 py-1.5 bg-green-500/20 text-green-600 border-green-500/30">
+            ✓ Sudah Dibeli
           </Badge>
         </div>
       )}
@@ -129,7 +157,7 @@ export const PhotoCard = ({ photo, onDownload, onBuy, isDownloading, onClick }: 
           <Eye className="mr-1.5 h-3.5 w-3.5" />
           View
         </Button>
-        {!isPurchased && purchasePrice && purchasePrice > 0 ? (
+        {cta === 'BUY' ? (
           <Button 
             size="sm" 
             className="flex-1 h-9 text-xs font-medium rounded-lg bg-gradient-to-r from-primary to-primary/80"
@@ -144,7 +172,24 @@ export const PhotoCard = ({ photo, onDownload, onBuy, isDownloading, onClick }: 
             ) : (
               <ShoppingCart className="mr-1.5 h-3.5 w-3.5" />
             )}
-            {isDownloading ? "..." : "Buy"}
+            {isDownloading ? "..." : "Beli"}
+          </Button>
+        ) : cta === 'FREE_DOWNLOAD' ? (
+          <Button 
+            size="sm" 
+            className="flex-1 h-9 text-xs font-medium rounded-lg bg-green-600 hover:bg-green-500"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDownload(photoId);
+            }}
+            disabled={isDownloading}
+          >
+            {isDownloading ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            {isDownloading ? "..." : "Free"}
           </Button>
         ) : (
           <Button 

@@ -82,6 +82,7 @@ export const useMidtransSnap = () => {
       setIsLoading(true);
 
       window.snap.pay(token, {
+        
         onSuccess: (result) => {
           setIsLoading(false);
           options?.onSuccess?.(result);

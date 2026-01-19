@@ -44,6 +44,10 @@ export interface PointPackage {
   sort_order: number;
 }
 
+export interface TopUpRequest {
+  package_id: string;
+}
+
 export interface TopUpResponse {
   transaction_id: string;
   order_id: string;
@@ -57,6 +61,20 @@ export interface TopUpResponse {
   payment_url: string;
   token: string;
   expired_at: string;
+}
+
+export interface TransactionStatus {
+  id: string;
+  transaction_type: 'point_topup' | 'photo_purchase';
+  payment_method: 'cash' | 'points';
+  amount: number;
+  points_amount: number;
+  status: 'pending' | 'paid' | 'failed' | 'expired';
+  midtrans_order_id: string;
+  payment_url?: string;
+  created_at: string;
+  paid_at?: string;
+  package_name?: string;
 }
 
 export interface PhotoPurchaseResponse {

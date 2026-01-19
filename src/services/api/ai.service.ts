@@ -63,39 +63,45 @@ export interface FaceEmbeddingResponse {
 }
 
 export const aiService = {
+  // Upload photo (photographer only)
   async uploadPhoto(data: UploadPhotoData): Promise<UploadResponse> {
     const response = await aiApi.post('/photographer/upload', data);
     return response.data;
   },
 
+  // Get photographer's photos
   async getPhotographerPhotos(): Promise<PhotosResponse> {
     const response = await aiApi.get('/photographer/photos');
     return response.data;
   },
 
+  // Delete photo (photographer only)
   async deletePhoto(photoId: string): Promise<{ success: boolean; error?: string }> {
     const response = await aiApi.delete(`/photographer/delete/${photoId}`);
     return response.data;
   },
 
+  // Register/extract face embedding from image
   async registerFace(image: string): Promise<FaceEmbeddingResponse> {
     const response = await aiApi.post('/user/register_face', { image });
     return response.data;
   },
 
-  async findMyPhotos(embedding: number[]): Promise<PhotosResponse> {
-    const response = await aiApi.post('/user/my_photos', { embedding });
-    return response.data;
-  },
+  // ❌ REMOVED: findMyPhotos - use userService.matchPhotos() instead
+  // This function was calling Python API directly without authentication
+  // Now frontend should use userService.matchPhotos() which goes through Node.js
 
+  // Get preview URL for a photo
   getPreviewUrl(photoId: string): string {
     return `${AI_API_URL}/image/preview/${photoId}`;
   },
 
+  // Get download URL for a photo
   getDownloadUrl(photoId: string): string {
     return `${AI_API_URL}/download/dropbox/${photoId}`;
   },
 
+  // Health check
   async healthCheck(): Promise<any> {
     const response = await aiApi.get('/health');
     return response.data;
