@@ -42,7 +42,6 @@ export const PhotoPurchaseModal = ({
     try {
       setIsProcessing(true);
       
-      // Use new user service endpoint
       const response = await userService.purchasePhoto(photo.id, paymentMethod);
       
       if (response.success && response.data) {
@@ -52,56 +51,54 @@ export const PhotoPurchaseModal = ({
           onPurchaseSuccess(response.data.download_url);
           onClose();
         } else {
-          // Cash payment - use Midtrans Snap (LOGIC SAMA SEPERTI TOP UP)
+          // Cash payment - TUTUP MODAL DULU sebelum buka Snap
           if (response.data.token && isSnapLoaded) {
             try {
-              // Midtrans Snap akan muncul sebagai popup/overlay
-              // Modal ini tetap terbuka di background
+              // PENTING: Tutup modal sebelum membuka Snap
+              onClose();
+              
+              // Tunggu sebentar agar animasi close modal selesai
+              await new Promise(resolve => setTimeout(resolve, 300));
+              
+              // Baru buka Midtrans Snap
               await pay(response.data.token, {
                 onSuccess: (result) => {
                   toast.success('Pembayaran berhasil!');
-                  onClose(); // Tutup modal setelah sukses
                   navigate(`/payment/success?order_id=${result.order_id}&transaction_id=${response.data?.transaction_id}`);
                 },
                 onPending: (result) => {
                   toast.info('Menunggu pembayaran...');
-                  onClose(); // Tutup modal
                   navigate(`/payment/pending?order_id=${result.order_id}`);
                 },
                 onError: (result) => {
                   toast.error('Pembayaran gagal');
-                  onClose(); // Tutup modal
                   navigate(`/payment/failed?order_id=${result.order_id}&status_message=${result.status_message}`);
                 },
                 onClose: () => {
-                  // User menutup Midtrans Snap tanpa menyelesaikan pembayaran
+                  // User menutup Snap tanpa menyelesaikan pembayaran
                   toast.info('Pembayaran dibatalkan');
                   setIsProcessing(false);
-                  // Modal PhotoPurchase tetap terbuka, user bisa coba lagi
+                  // Modal sudah tertutup, tidak perlu buka lagi
                 }
               });
             } catch (snapError) {
               console.error("Snap error:", snapError);
-              // Fallback to redirect jika Snap gagal
               if (response.data.payment_url) {
                 window.location.href = response.data.payment_url;
-                onClose();
               } else {
                 toast.error('Gagal membuka payment gateway');
                 setIsProcessing(false);
               }
             }
           } else if (response.data.payment_url) {
-            // Jika Snap tidak tersedia, redirect ke Midtrans payment page
-            window.location.href = response.data.payment_url;
             onClose();
+            window.location.href = response.data.payment_url;
           } else {
             toast.error('Payment URL tidak tersedia');
             setIsProcessing(false);
           }
         }
       } else {
-        // Show detailed error message
         const errorMessage = response.error || "Gagal memproses pembelian";
         const details = response.details ? ` (${JSON.stringify(response.details)})` : '';
         toast.error(errorMessage + details);
