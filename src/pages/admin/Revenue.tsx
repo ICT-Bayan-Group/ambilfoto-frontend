@@ -99,7 +99,7 @@ const AdminRevenue = () => {
 
   // Transform payment method data for bar chart
   const paymentMethodData = byPaymentMethod.map((item: any) => ({
-    name: item.payment_method === 'cash' ? 'Cash' : 
+    name: item.payment_method === 'Transfer' ? 'Transfer' : 
           item.payment_method === 'bank_transfer' ? 'Transfer Bank' : 
           item.payment_method || 'Unknown',
     transactions: item.transaction_count || 0,
