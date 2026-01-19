@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -67,7 +66,6 @@ const PhotographerWalletPage = () => {
     }
   };
 
-  // Helper to safely convert to number
   const toNumber = (value: string | number | undefined | null): number => {
     if (value === undefined || value === null) return 0;
     if (typeof value === 'number') return value;
@@ -106,7 +104,7 @@ const PhotographerWalletPage = () => {
         toast.success('Permintaan penarikan berhasil diajukan!');
         setDialogOpen(false);
         setWithdrawAmount("");
-        fetchWalletData();
+        await fetchWalletData(); // Refresh data after withdrawal
       } else {
         toast.error(response.error || 'Gagal mengajukan penarikan');
       }
@@ -122,7 +120,7 @@ const PhotographerWalletPage = () => {
       const response = await paymentService.cancelWithdrawal(requestId);
       if (response.success) {
         toast.success('Penarikan dibatalkan');
-        fetchWalletData();
+        await fetchWalletData(); // Refresh to update pending_withdrawal
       } else {
         toast.error(response.error || 'Gagal membatalkan');
       }
@@ -147,7 +145,11 @@ const PhotographerWalletPage = () => {
   };
 
   const availableBalance = toNumber(wallet?.available_for_withdrawal);
+  const pendingWithdrawal = toNumber(wallet?.pending_withdrawal);
   const isWithdrawEnabled = availableBalance >= 100000;
+
+  // Filter hanya pending withdrawals untuk alert
+  const hasPendingWithdrawal = withdrawals.some(w => w.status === 'pending');
 
   return (
     <div className="min-h-screen bg-background">
@@ -305,8 +307,8 @@ const PhotographerWalletPage = () => {
           )}
         </div>
 
-        {/* Pending Withdrawal Alert */}
-        {wallet && toNumber(wallet.pending_withdrawal) > 0 && (
+        {/* Pending Withdrawal Alert - HANYA MUNCUL JIKA ADA PENDING */}
+        {hasPendingWithdrawal && pendingWithdrawal > 0 && (
           <Card className="mb-6 border-yellow-500/50 bg-yellow-500/5">
             <CardContent className="py-4">
               <div className="flex items-center justify-between">
@@ -320,7 +322,7 @@ const PhotographerWalletPage = () => {
                   </div>
                 </div>
                 <p className="text-xl font-bold text-yellow-600">
-                  {formatCurrency(wallet.pending_withdrawal)}
+                  {formatCurrency(pendingWithdrawal)}
                 </p>
               </div>
             </CardContent>
