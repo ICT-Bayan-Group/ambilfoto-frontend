@@ -37,7 +37,7 @@ const RegisterFace = () => {
         role: userData.role || 'user'
       });
       
-      // Redirect based on role
+      // Redirect berdasarkan role
       if (userData.role === 'photographer') {
         navigate('/photographer/dashboard');
       } else {
@@ -53,14 +53,14 @@ const RegisterFace = () => {
       <div className="w-full max-w-lg">
         <Link to="/register" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-smooth">
           <ArrowLeft className="h-4 w-4" />
-          Back to Registration
+          Kembali ke Pendaftaran
         </Link>
         
         <Card className="shadow-strong border-border/50">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl">Register Your Face</CardTitle>
+            <CardTitle className="text-2xl">Daftarkan Wajah Anda</CardTitle>
             <CardDescription>
-              Take a clear photo of your face to complete registration
+              Ambil foto wajah Anda dengan jelas untuk menyelesaikan pendaftaran
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -71,12 +71,12 @@ const RegisterFace = () => {
             />
             
             <div className="p-4 rounded-lg bg-muted/50 space-y-2">
-              <h3 className="font-medium text-sm">Tips for best results:</h3>
+              <h3 className="font-medium text-sm">Tips untuk hasil terbaik:</h3>
               <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                <li>Ensure good lighting on your face</li>
-                <li>Look directly at the camera</li>
-                <li>Remove sunglasses or face coverings</li>
-                <li>Keep your face centered in the circle</li>
+                <li>Pastikan pencahayaan yang baik pada wajah Anda</li>
+                <li>Lihat langsung ke kamera</li>
+                <li>Lepaskan kacamata hitam atau penutup wajah</li>
+                <li>Pastikan wajah Anda berada di tengah lingkaran</li>
               </ul>
             </div>
           </CardContent>

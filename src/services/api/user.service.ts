@@ -170,6 +170,7 @@ export interface PurchaseResponse {
 export interface MyPhotosResponse {
   success: boolean;
   data?: UserPhoto[];
+  matched_count?: number;
   pagination?: {
     total: number;
     page: number;

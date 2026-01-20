@@ -7,7 +7,7 @@ import { Footer } from "@/components/layout/Footer";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { aiService } from "@/services/api/ai.service";
-import { userService } from "@/services/api/user.service"; // ✅ Import userService
+import { userService } from "@/services/api/user.service";
 
 const ScanFace = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -18,60 +18,60 @@ const ScanFace = () => {
     setIsProcessing(true);
     
     try {
-      console.log('📸 Step 1: Extracting face embedding...');
+      console.log('📸 Langkah 1: Mengekstrak embedding wajah...');
       
-      // Step 1: Extract face embedding from image
+      // Langkah 1: Ekstrak embedding wajah dari gambar
       const faceResult = await aiService.registerFace(imageData);
       
       if (!faceResult.success || !faceResult.embedding) {
         toast({
-          title: "No face detected",
-          description: "Please try again with a clear face photo",
+          title: "Wajah tidak terdeteksi",
+          description: "Silakan coba lagi dengan foto wajah yang jelas",
           variant: "destructive",
         });
         setIsProcessing(false);
         return;
       }
       
-      console.log('✅ Face detected, embedding length:', faceResult.embedding.length);
-      console.log('📤 Step 2: Matching photos via Node.js API...');
+      console.log('✅ Wajah terdeteksi, panjang embedding:', faceResult.embedding.length);
+      console.log('📤 Langkah 2: Mencocokkan foto melalui API Node.js...');
       
-      // Step 2: Match photos via Node.js API (authenticated, akan save ke DB)
+      // Langkah 2: Cocokkan foto melalui API Node.js (terautentikasi, akan disimpan ke DB)
       const matchResult = await userService.matchPhotos({
-        face_image: faceResult.embedding
+        face_image: JSON.stringify(faceResult.embedding) // ✅ Convert array to string
       });
       
-      console.log('📥 Match result:', matchResult);
+      console.log('📥 Hasil pencocokan:', matchResult);
       
       if (matchResult.success && matchResult.data) {
-        const photoCount = matchResult.data.matched_count;
+        const photoCount = matchResult.data.length; // ✅ Fixed: use .length instead of .matched_count
         
         if (photoCount > 0) {
           toast({
-            title: "Photos found! 🎉",
-            description: `We found ${photoCount} photo${photoCount > 1 ? 's' : ''} of you`,
+            title: "Foto ditemukan! 🎉",
+            description: `Kami menemukan ${photoCount} foto Anda`,
           });
           
-          console.log('✅ Navigating to photo gallery...');
+          console.log('✅ Navigasi ke galeri foto...');
           
-          // Navigate to photos page (data sudah di database, tidak perlu localStorage)
+          // Navigasi ke halaman foto (data sudah di database, tidak perlu localStorage)
           navigate('/user/photos');
         } else {
           toast({
-            title: "No photos found",
-            description: "We couldn't find any photos matching your face",
+            title: "Foto tidak ditemukan",
+            description: "Kami tidak dapat menemukan foto yang cocok dengan wajah Anda",
             variant: "destructive",
           });
           setIsProcessing(false);
         }
       } else {
-        throw new Error(matchResult.error || 'Face matching failed');
+        throw new Error(matchResult.error || 'Pencocokan wajah gagal');
       }
       
     } catch (error: any) {
       console.error('❌ Error:', error);
       
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to process image';
+      const errorMessage = error.response?.data?.error || error.message || 'Gagal memproses gambar';
       
       toast({
         title: "Error",
@@ -93,14 +93,14 @@ const ScanFace = () => {
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-smooth"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
+            Kembali ke Dashboard
           </Link>
           
           <Card className="shadow-strong border-border/50">
             <CardHeader>
-              <CardTitle className="text-2xl">Scan Your Face</CardTitle>
+              <CardTitle className="text-2xl">Pindai Wajah Anda</CardTitle>
               <CardDescription>
-                Position your face clearly in the camera to find all your photos automatically
+                Posisikan wajah Anda dengan jelas di kamera untuk menemukan semua foto Anda secara otomatis
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -108,9 +108,9 @@ const ScanFace = () => {
                 <div className="aspect-square w-full rounded-lg bg-muted flex flex-col items-center justify-center gap-4">
                   <Loader2 className="h-12 w-12 text-primary animate-spin" />
                   <div className="text-center space-y-2">
-                    <p className="font-medium">Processing your photo...</p>
+                    <p className="font-medium">Memproses foto Anda...</p>
                     <p className="text-sm text-muted-foreground">
-                      Analyzing face and searching photos
+                      Menganalisis wajah dan mencari foto
                     </p>
                   </div>
                   <div className="w-64 h-1 bg-primary/20 rounded-full overflow-hidden">
@@ -122,12 +122,12 @@ const ScanFace = () => {
               )}
               
               <div className="mt-6 p-4 rounded-lg bg-muted/50 space-y-2">
-                <h3 className="font-medium text-sm">Tips for best results:</h3>
+                <h3 className="font-medium text-sm">Tips untuk hasil terbaik:</h3>
                 <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                  <li>Ensure good lighting on your face</li>
-                  <li>Look directly at the camera</li>
-                  <li>Remove sunglasses or face coverings</li>
-                  <li>Keep your face centered in the circle</li>
+                  <li>Pastikan pencahayaan yang baik pada wajah Anda</li>
+                  <li>Lihat langsung ke kamera</li>
+                  <li>Lepaskan kacamata hitam atau penutup wajah</li>
+                  <li>Pastikan wajah Anda berada di tengah lingkaran</li>
                 </ul>
               </div>
             </CardContent>
