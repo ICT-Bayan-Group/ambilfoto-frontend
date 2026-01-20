@@ -52,7 +52,7 @@ const PhotoGallery = () => {
     try {
       setIsLoading(true);
       
-      // Fetch from API - /user/my-photos
+      // Ambil dari API - /user/my-photos
       const response = await userService.getMyPhotos();
       
       if (response.success && response.data) {
@@ -60,11 +60,11 @@ const PhotoGallery = () => {
         setError("");
       } else {
         setPhotos([]);
-        setError("No photos found. Try scanning your face first.");
+        setError("Foto tidak ditemukan. Coba pindai wajah Anda terlebih dahulu.");
       }
     } catch (err) {
       console.error('Error loading photos:', err);
-      setError("Failed to load photos");
+      setError("Gagal memuat foto");
       setPhotos([]);
     } finally {
       setIsLoading(false);
@@ -73,14 +73,14 @@ const PhotoGallery = () => {
 
   const loadUserBalance = async () => {
     try {
-      // Use new balance endpoint
+      // Gunakan endpoint balance yang baru
       const response = await userService.getBalance();
       if (response.success && response.data) {
         setUserPointBalance(response.data.balance);
       }
     } catch (err) {
       console.error('Error loading balance:', err);
-      // Fallback to wallet endpoint
+      // Fallback ke endpoint wallet
       try {
         const walletRes = await paymentService.getUserWallet();
         if (walletRes.success && walletRes.data) {
@@ -92,7 +92,7 @@ const PhotoGallery = () => {
     }
   };
 
-  // Extract unique events from photos
+  // Ekstrak event unik dari foto
   const events = useMemo(() => {
     const uniqueEvents = new Set<string>();
     photos.forEach(photo => {
@@ -102,7 +102,7 @@ const PhotoGallery = () => {
     });
     
     return [
-      { value: 'all', label: 'All Events' },
+      { value: 'all', label: 'Semua Acara' },
       ...Array.from(uniqueEvents).map(event => ({
         value: event.toLowerCase().replace(/\s+/g, '-'),
         label: event
@@ -110,18 +110,18 @@ const PhotoGallery = () => {
     ];
   }, [photos]);
 
-  // Filter and sort photos
+  // Filter dan urutkan foto
   const filteredPhotos = useMemo(() => {
     let result = [...photos];
 
-    // Filter by event
+    // Filter berdasarkan acara
     if (selectedEvent !== 'all') {
       result = result.filter(photo => 
         photo.event_name?.toLowerCase().replace(/\s+/g, '-') === selectedEvent
       );
     }
 
-    // Filter by search query
+    // Filter berdasarkan pencarian
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(photo => 
@@ -132,7 +132,7 @@ const PhotoGallery = () => {
       );
     }
 
-    // Sort photos
+    // Urutkan foto
     switch (sortBy) {
       case 'newest':
         result.sort((a, b) => 
@@ -159,7 +159,7 @@ const PhotoGallery = () => {
     return result;
   }, [photos, selectedEvent, searchQuery, sortBy]);
 
-  // Download photo - uses CTA logic from backend
+  // Download foto - menggunakan logika CTA dari backend
   const handleDownloadPhoto = async (photoId: string) => {
     try {
       const photo = photos.find(p => p.event_photo_id === photoId || p.photo_id === photoId);
@@ -167,20 +167,20 @@ const PhotoGallery = () => {
       if (!photo) {
         toast({
           title: "Error",
-          description: "Photo not found",
+          description: "Foto tidak ditemukan",
           variant: "destructive",
         });
         return;
       }
 
-      // Check CTA status
+      // Cek status CTA
       const cta = photo.cta || (photo.is_purchased ? 'DOWNLOAD' : (photo.is_for_sale === false ? 'FREE_DOWNLOAD' : 'BUY'));
       
       if (cta === 'BUY') {
-        // Photo needs to be purchased first
+        // Foto perlu dibeli terlebih dahulu
         toast({
           title: "Foto belum dibeli",
-          description: "Silakan beli foto terlebih dahulu untuk mendownload.",
+          description: "Silakan beli foto terlebih dahulu untuk mengunduh.",
           variant: "destructive",
         });
         handleBuyPhoto(photo);
@@ -189,14 +189,14 @@ const PhotoGallery = () => {
 
       setDownloadingIds(prev => new Set(prev).add(photoId));
       
-      // Use the download_url from API if available, otherwise construct it
-      const filename = photo.filename || `photo-${photoId}.jpg`;
+      // Gunakan download_url dari API jika tersedia, jika tidak konstruksi sendiri
+      const filename = photo.filename || `foto-${photoId}.jpg`;
       
       try {
-        // Try using the API download endpoint
+        // Coba gunakan endpoint download API
         const blob = await userService.downloadPhotoBlob(photo.event_photo_id);
         
-        // Create download link
+        // Buat link download
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -211,7 +211,7 @@ const PhotoGallery = () => {
           description: `${filename} telah diunduh`,
         });
       } catch (downloadErr: any) {
-        // Check if it's a 403 (not purchased)
+        // Cek jika error 403 (belum dibeli)
         if (downloadErr.response?.status === 403) {
           toast({
             title: "Foto belum dibeli",
@@ -222,10 +222,10 @@ const PhotoGallery = () => {
           return;
         }
         
-        // Fallback to preview URL download
+        // Fallback ke download URL preview
         const downloadUrl = photo.download_url || photo.preview_url || aiService.getDownloadUrl(photo.photo_id);
         const response = await fetch(downloadUrl);
-        if (!response.ok) throw new Error('Download failed');
+        if (!response.ok) throw new Error('Download gagal');
         
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -260,14 +260,14 @@ const PhotoGallery = () => {
 
   const handleDownloadAll = async () => {
     toast({
-      title: "Mempersiapkan download",
+      title: "Mempersiapkan unduhan",
       description: `Mengunduh ${filteredPhotos.length} foto...`,
     });
     
-    // Download each photo sequentially
+    // Download setiap foto secara berurutan
     for (const photo of filteredPhotos) {
       await handleDownloadPhoto(photo.photo_id);
-      // Small delay between downloads
+      // Jeda kecil antar unduhan
       await new Promise(resolve => setTimeout(resolve, 300));
     }
   };
@@ -297,7 +297,7 @@ const PhotoGallery = () => {
   };
 
   const handlePurchaseSuccess = (downloadUrl?: string) => {
-    // Mark photo as purchased locally and update CTA
+    // Tandai foto sebagai dibeli secara lokal dan perbarui CTA
     if (photoToPurchase) {
       setPhotos(prev => prev.map(p => 
         p.event_photo_id === photoToPurchase.event_photo_id 
@@ -308,10 +308,10 @@ const PhotoGallery = () => {
     setIsPurchaseModalOpen(false);
     setPhotoToPurchase(null);
     
-    // Refresh user balance
+    // Perbarui saldo pengguna
     loadUserBalance();
     
-    sonnerToast.success("Foto berhasil dibeli! Anda sekarang bisa download foto ini.");
+    sonnerToast.success("Foto berhasil dibeli! Anda sekarang bisa mengunduh foto ini.");
   };
 
   const handleNext = () => {
@@ -334,7 +334,7 @@ const PhotoGallery = () => {
     ? filteredPhotos.findIndex(p => p.event_photo_id === selectedPhoto.event_photo_id)
     : -1;
 
-  // Loading state
+  // Status loading
   if (isLoading) {
     return (
       <div className="flex min-h-screen flex-col">
@@ -360,7 +360,7 @@ const PhotoGallery = () => {
     );
   }
 
-  // Empty state
+  // Status kosong
   if (!isLoading && photos.length === 0) {
     return (
       <div className="flex min-h-screen flex-col">
@@ -372,19 +372,19 @@ const PhotoGallery = () => {
               className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-smooth"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back to Dashboard
+              Kembali ke Dashboard
             </Link>
             
             <Card className="border-border/50 shadow-soft">
               <div className="p-12 text-center">
                 <Camera className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-2">No Photos Found</h2>
+                <h2 className="text-2xl font-bold mb-2">Foto Tidak Ditemukan</h2>
                 <p className="text-muted-foreground mb-6">
-                  {error || "We couldn't find any photos matching your face. Try scanning your face to discover your photos."}
+                  {error || "Kami tidak menemukan foto yang cocok dengan wajah Anda. Coba pindai wajah Anda untuk menemukan foto Anda."}
                 </p>
                 <Button onClick={() => navigate('/user/scan-face')}>
                   <Camera className="mr-2 h-4 w-4" />
-                  Scan Your Face
+                  Pindai Wajah Anda
                 </Button>
               </div>
             </Card>
@@ -408,16 +408,16 @@ const PhotoGallery = () => {
               className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4 transition-smooth"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back to Dashboard
+              Kembali ke Dashboard
             </Link>
             
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold mb-2">Your Photos ({filteredPhotos.length})</h1>
+                <h1 className="text-3xl font-bold mb-2">Foto Anda ({filteredPhotos.length})</h1>
                 <p className="text-muted-foreground">
                   {filteredPhotos.length === photos.length 
-                    ? "All photos found from face recognition"
-                    : `Showing ${filteredPhotos.length} of ${photos.length} photos`
+                    ? "Semua foto ditemukan dari pengenalan wajah"
+                    : `Menampilkan ${filteredPhotos.length} dari ${photos.length} foto`
                   }
                 </p>
               </div>
@@ -426,39 +426,39 @@ const PhotoGallery = () => {
                 <Link to="/user/scan-face">
                   <Button variant="outline">
                     <Camera className="mr-2 h-4 w-4" />
-                    Scan Again
+                    Pindai Lagi
                   </Button>
                 </Link>
                 {filteredPhotos.length > 0 && (
                   <Button onClick={handleDownloadAll}>
                     <Download className="mr-2 h-4 w-4" />
-                    Download All ({filteredPhotos.length})
+                    Unduh Semua ({filteredPhotos.length})
                   </Button>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Filters & Controls */}
+          {/* Filter & Kontrol */}
           <Card className="mb-6 border-border/50 shadow-soft">
             <div className="p-4">
               <div className="flex flex-col md:flex-row gap-4">
-                {/* Search */}
+                {/* Pencarian */}
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input 
-                    placeholder="Search by event, date, or location..." 
+                    placeholder="Cari berdasarkan acara, tanggal, atau lokasi..." 
                     className="pl-9"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
                 
-                {/* Event Filter */}
+                {/* Filter Acara */}
                 <Select value={selectedEvent} onValueChange={setSelectedEvent}>
                   <SelectTrigger className="w-full md:w-[200px]">
                     <Filter className="mr-2 h-4 w-4" />
-                    <SelectValue placeholder="Filter by event" />
+                    <SelectValue placeholder="Filter berdasarkan acara" />
                   </SelectTrigger>
                   <SelectContent>
                     {events.map((event) => (
@@ -469,20 +469,20 @@ const PhotoGallery = () => {
                   </SelectContent>
                 </Select>
                 
-                {/* Sort */}
+                {/* Urutkan */}
                 <Select value={sortBy} onValueChange={setSortBy}>
                   <SelectTrigger className="w-full md:w-[180px]">
-                    <SelectValue placeholder="Sort by" />
+                    <SelectValue placeholder="Urutkan berdasarkan" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="newest">Newest First</SelectItem>
-                    <SelectItem value="oldest">Oldest First</SelectItem>
-                    <SelectItem value="match">Best Match</SelectItem>
-                    <SelectItem value="event">By Event</SelectItem>
+                    <SelectItem value="newest">Terbaru</SelectItem>
+                    <SelectItem value="oldest">Terlama</SelectItem>
+                    <SelectItem value="match">Kecocokan Terbaik</SelectItem>
+                    <SelectItem value="event">Berdasarkan Acara</SelectItem>
                   </SelectContent>
                 </Select>
                 
-                {/* View Mode Toggle */}
+                {/* Toggle Mode Tampilan */}
                 <div className="flex gap-1 border border-border rounded-md p-1">
                   <Button
                     variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
@@ -505,13 +505,13 @@ const PhotoGallery = () => {
             </div>
           </Card>
 
-          {/* Photo Grid/List */}
+          {/* Grid/List Foto */}
           {filteredPhotos.length === 0 ? (
             <Card className="border-border/50 shadow-soft p-12 text-center">
               <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No photos match your filters</h3>
+              <h3 className="text-lg font-semibold mb-2">Tidak ada foto yang cocok dengan filter Anda</h3>
               <p className="text-muted-foreground mb-4">
-                Try adjusting your search or filter criteria
+                Coba sesuaikan pencarian atau kriteria filter Anda
               </p>
               <Button 
                 variant="outline" 
@@ -520,7 +520,7 @@ const PhotoGallery = () => {
                   setSearchQuery('');
                 }}
               >
-                Clear Filters
+                Hapus Filter
               </Button>
             </Card>
           ) : viewMode === 'grid' ? (
@@ -555,7 +555,7 @@ const PhotoGallery = () => {
       
       <Footer />
 
-      {/* Photo Detail Modal */}
+      {/* Modal Detail Foto */}
       <PhotoDetailModal
         photo={selectedPhoto as any}
         isOpen={isModalOpen}
@@ -570,7 +570,7 @@ const PhotoGallery = () => {
         hasPrevious={selectedPhotoIndex > 0}
       />
 
-      {/* Fullscreen Lightbox */}
+      {/* Lightbox Fullscreen */}
       <PhotoLightbox
         photo={selectedPhoto as any}
         isOpen={isLightboxOpen}
@@ -583,7 +583,7 @@ const PhotoGallery = () => {
         hasPrevious={selectedPhotoIndex > 0}
       />
 
-      {/* Purchase Modal */}
+      {/* Modal Pembelian */}
       {photoToPurchase && (
         <PhotoPurchaseModal
           isOpen={isPurchaseModalOpen}
@@ -593,8 +593,8 @@ const PhotoGallery = () => {
           }}
           photo={{
             id: photoToPurchase.event_photo_id,
-            filename: photoToPurchase.filename || 'Photo',
-            event_name: photoToPurchase.event_name || 'Event',
+            filename: photoToPurchase.filename || 'Foto',
+            event_name: photoToPurchase.event_name || 'Acara',
             price_cash: photoToPurchase.price_cash || photoToPurchase.price || 30000,
             price_points: photoToPurchase.price_points || photoToPurchase.price_in_points || 6,
           }}
