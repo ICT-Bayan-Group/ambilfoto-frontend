@@ -32,14 +32,14 @@ const FaceLogin = () => {
       <div className="w-full max-w-lg">
         <Link to="/login" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-smooth">
           <ArrowLeft className="h-4 w-4" />
-          Back to Login
+          Kembali ke Login
         </Link>
         
         <Card className="shadow-strong border-border/50">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl">Login with Face Recognition</CardTitle>
+            <CardTitle className="text-2xl">Masuk dengan Pengenalan Wajah</CardTitle>
             <CardDescription>
-              Position your face in the frame for secure login
+              Posisikan wajah Anda dalam bingkai untuk login yang aman
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -50,7 +50,7 @@ const FaceLogin = () => {
             />
             
             <p className="text-xs text-center text-muted-foreground">
-              Your face data is encrypted and never shared. We use it only to verify your identity.
+              Data wajah Anda dienkripsi dan tidak akan pernah dibagikan. Kami menggunakannya hanya untuk memverifikasi identitas Anda.
             </p>
           </CardContent>
         </Card>
