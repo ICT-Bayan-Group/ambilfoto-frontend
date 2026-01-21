@@ -43,6 +43,9 @@ import PaymentPending from "./pages/payment/PaymentPending";
 import PaymentFailed from "./pages/payment/PaymentFailed";
 import NotFound from "./pages/NotFound";
 import PhotoSales from "./pages/photographer/PhotoSales";
+import AdminHiResAnalytics from "./pages/admin/HiResAnalytics";
+import HiResQueue from "./pages/photographer/HiResQueue";
+import UserHiResPhotos from "./pages/user/HiResPhotos";
 const queryClient = new QueryClient();
 
 // Protected route for photographers only
@@ -134,6 +137,14 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+             <Route 
+              path="/user/hires" 
+              element={
+                <ProtectedRoute>
+                  <UserHiResPhotos />
+                </ProtectedRoute>
+              } 
+            />
             
             {/* Photographer Routes */}
             <Route 
@@ -189,6 +200,14 @@ const App = () => (
               element={
                 <PhotographerRoute>
                   <PhotographerWallet />
+                </PhotographerRoute>
+              } 
+            />
+             <Route 
+              path="/photographer/hires-queue" 
+              element={
+                <PhotographerRoute>
+                  <HiResQueue />
                 </PhotographerRoute>
               } 
             />
@@ -263,6 +282,14 @@ const App = () => (
               element={
                 <AdminRoute>
                   <AdminSettings />
+                </AdminRoute>
+              } 
+            />
+              <Route 
+              path="/admin/hires-analytics" 
+              element={
+                <AdminRoute>
+                  <AdminHiResAnalytics />
                 </AdminRoute>
               } 
             />
