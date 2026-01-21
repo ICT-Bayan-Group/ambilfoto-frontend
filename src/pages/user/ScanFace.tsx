@@ -36,34 +36,27 @@ const ScanFace = () => {
       console.log('✅ Wajah terdeteksi, panjang embedding:', faceResult.embedding.length);
       console.log('📤 Langkah 2: Mencocokkan foto melalui API Node.js...');
       
-      // Langkah 2: Cocokkan foto melalui API Node.js (terautentikasi, akan disimpan ke DB)
+      // Kirim embedding untuk pencocokan
       const matchResult = await userService.matchPhotos({
-        face_image: JSON.stringify(faceResult.embedding) // ✅ Convert array to string
+        embedding: faceResult.embedding
       });
       
       console.log('📥 Hasil pencocokan:', matchResult);
       
       if (matchResult.success && matchResult.data) {
-        const photoCount = matchResult.data.length; // ✅ Fixed: use .length instead of .matched_count
+        const photoCount = matchResult.data.length;
         
-        if (photoCount > 0) {
-          toast({
-            title: "Foto ditemukan! 🎉",
-            description: `Kami menemukan ${photoCount} foto Anda`,
-          });
-          
-          console.log('✅ Navigasi ke galeri foto...');
-          
-          // Navigasi ke halaman foto (data sudah di database, tidak perlu localStorage)
-          navigate('/user/photos');
-        } else {
-          toast({
-            title: "Foto tidak ditemukan",
-            description: "Kami tidak dapat menemukan foto yang cocok dengan wajah Anda",
-            variant: "destructive",
-          });
-          setIsProcessing(false);
-        }
+        toast({
+          title: photoCount > 0 ? "Foto ditemukan! 🎉" : "Foto tidak ditemukan",
+          description: photoCount > 0 
+            ? `Kami menemukan ${photoCount} foto Anda`
+            : "Kami tidak dapat menemukan foto yang cocok dengan wajah Anda",
+          variant: photoCount > 0 ? "default" : "destructive",
+        });
+        
+        console.log('✅ Navigasi ke galeri foto...');
+        // Redirect ke halaman photos tanpa peduli jumlah foto
+        navigate('/user/photos');
       } else {
         throw new Error(matchResult.error || 'Pencocokan wajah gagal');
       }

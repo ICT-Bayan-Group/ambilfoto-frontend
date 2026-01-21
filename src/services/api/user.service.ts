@@ -127,7 +127,7 @@ export interface UserBalance {
 }
 
 export interface MatchPhotosData {
-  face_image: string;
+  embedding: number[];
 }
 
 export interface PurchaseResponse {
@@ -231,7 +231,7 @@ export const userService = {
 
   // ============ FACE MATCHING ============
 
-  async matchPhotos(data: MatchPhotosData): Promise<MyPhotosResponse> {
+    async matchPhotos(data: MatchPhotosData): Promise<MyPhotosResponse> {
     const response = await userApi.post('/user/match-face', data);
     return response.data;
   },

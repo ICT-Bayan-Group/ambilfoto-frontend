@@ -156,9 +156,9 @@ const UserDashboard = () => {
     },
     {
       icon: Download,
-      label: "Unduhan",
+      label: "Unduh Hires",
       description: `${stats.purchased} dibeli`,
-      href: "/user/photos",
+      href: "/user/hires",
       color: "bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200"
     }
   ];
