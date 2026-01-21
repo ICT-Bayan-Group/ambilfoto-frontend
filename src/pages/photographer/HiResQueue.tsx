@@ -431,7 +431,7 @@ const HiResQueue = () => {
                           {item.status === 'uploaded' && (
                             <Badge className="bg-blue-600">
                               <CheckCircle className="h-3 w-3 mr-1" />
-                              Waiting Delivery
+                               Delivery
                             </Badge>
                           )}
                           {item.status === 'delivered' && (
