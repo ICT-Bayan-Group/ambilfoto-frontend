@@ -46,6 +46,8 @@ import PhotoSales from "./pages/photographer/PhotoSales";
 import AdminHiResAnalytics from "./pages/admin/HiResAnalytics";
 import HiResQueue from "./pages/photographer/HiResQueue";
 import UserHiResPhotos from "./pages/user/HiResPhotos";
+import PhotographerPhotoLocations from "./pages/photographer/PhotoLocations";
+import UserFotoMap from "./pages/user/FotoMap";
 const queryClient = new QueryClient();
 
 // Protected route for photographers only
@@ -145,6 +147,14 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+             <Route 
+              path="/user/fotomap/:eventId" 
+              element={
+                <ProtectedRoute>
+                  <UserFotoMap />
+                </ProtectedRoute>
+              } 
+            />
             
             {/* Photographer Routes */}
             <Route 
@@ -184,6 +194,14 @@ const App = () => (
               element={
                 <PhotographerRoute>
                   <PhotographerEventDetail />
+                </PhotographerRoute>
+              } 
+            />
+             <Route 
+              path="/photographer/events/:eventId/locations" 
+              element={
+                <PhotographerRoute>
+                  <PhotographerPhotoLocations />
                 </PhotographerRoute>
               } 
             />
