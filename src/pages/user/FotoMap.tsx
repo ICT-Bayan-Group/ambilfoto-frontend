@@ -16,7 +16,8 @@ import {
   ShoppingCart,
   MapPin,
   Crosshair,
-  Plus
+  Map as MapIcon,
+  Globe
 } from 'lucide-react';
 import { geoPhotoService, GeoPhoto, EventMapData } from '@/services/api/geophoto.service';
 
@@ -224,13 +225,23 @@ export default function FotoMap() {
         >
           <ArrowLeft className="h-5 w-5 text-gray-700" />
         </button>
+
+        {/* 🆕 NEW: Go to Global Events Map Button */}
+        <button
+          onClick={() => navigate('/user/events/map')}
+          className="bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-full px-4 py-3 shadow-lg border border-blue-800 transition-all hover:scale-105 flex items-center gap-2"
+          title="Lihat Semua Events"
+        >
+          <Globe className="h-4 w-4" />
+          <span className="text-sm font-medium hidden sm:inline">Semua Events</span>
+        </button>
         
         {/* Search Bar */}
         <div className="flex-1 max-w-md">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Masukkan nama FotoMap"
+              placeholder="Cari foto..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-11 h-12 bg-white shadow-lg border-gray-200 rounded-full"
@@ -380,27 +391,27 @@ export default function FotoMap() {
                       </code>
                     </div>
 
-                  <div className="flex gap-2">
-                    {photo.is_purchased ? (
-                      <Button size="sm" className="flex-1 gap-1.5 h-9">
-                        <Download className="h-3.5 w-3.5" />
-                        Download
-                      </Button>
-                    ) : photo.price_points > 0 ? (
-                      <Button size="sm" className="flex-1 gap-1.5 h-9">
-                        <ShoppingCart className="h-3.5 w-3.5" />
-                        {photo.price_points} Poin
-                      </Button>
-                    ) : (
-                      <Button size="sm" variant="secondary" className="flex-1 gap-1.5 h-9">
-                        <Download className="h-3.5 w-3.5" />
-                        Gratis
-                      </Button>
-                    )}
+                    <div className="flex gap-2">
+                      {photo.is_purchased ? (
+                        <Button size="sm" className="flex-1 gap-1.5 h-9">
+                          <Download className="h-3.5 w-3.5" />
+                          Download
+                        </Button>
+                      ) : photo.price_points > 0 ? (
+                        <Button size="sm" className="flex-1 gap-1.5 h-9">
+                          <ShoppingCart className="h-3.5 w-3.5" />
+                          {photo.price_points} Poin
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="secondary" className="flex-1 gap-1.5 h-9">
+                          <Download className="h-3.5 w-3.5" />
+                          Gratis
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Popup>
-            </Marker>
+                </Popup>
+              </Marker>
             );
           })}
         </MapContainer>
@@ -432,14 +443,6 @@ export default function FotoMap() {
             </div>
           </div>
         </div>
-
-        {/* Add FotoMap Button 
-        <button
-          className="absolute bottom-6 right-20 z-[1000] bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-full px-5 py-3.5 shadow-xl flex items-center gap-2 font-semibold text-sm transition-all hover:scale-105"
-        >
-          <Plus className="h-5 w-5" />
-          Tanam FotoMap
-        </button>*/}
       </div>
     </div>
   );

@@ -31,7 +31,8 @@ api.interceptors.response.use(
   }
 );
 
-// Types
+// ==================== TYPES ====================
+
 export interface GeoPhoto {
   id: string;
   ai_photo_id: string;
@@ -61,12 +62,57 @@ export interface MapCluster {
   price_range: { min: number; max: number };
 }
 
+export interface EventCluster {
+  center: { lat: number; lng: number };
+  count: number;
+  event_ids: string[];
+  preview_photos: string[];
+  total_photos: number;
+  date_range: {
+    earliest: number;
+    latest: number;
+  };
+}
+
 export interface MapBounds {
   min_lat: number;
   max_lat: number;
   min_lng: number;
   max_lng: number;
   center: { latitude: number; longitude: number };
+}
+
+export interface Photographer {
+  id: string;
+  name: string;
+  photo?: string;
+}
+
+export interface GlobalEvent {
+  event_id: string;
+  event_name: string;
+  event_date: string;
+  location: string | null;
+  latitude: number;
+  longitude: number;
+  total_photos: number;
+  geo_photos: number;
+  geo_percentage: number;
+  photos_for_sale: number;
+  photographer: Photographer;
+  preview_photos: string[];
+  is_public: boolean;
+}
+
+export interface GlobalEventsMapData {
+  events: GlobalEvent[];
+  clusters: EventCluster[];
+  bounds: MapBounds | null;
+  stats: {
+    total_events: number;
+    total_photos: number;
+    total_geo_photos: number;
+  };
 }
 
 export interface EventMapData {
@@ -138,9 +184,34 @@ export interface BulkUpdateResult {
   error?: string;
 }
 
-
+// ==================== SERVICE ====================
 
 export const geoPhotoService = {
+  /**
+   * 🆕 NEW: Get global events map for discovery
+   */
+  async getGlobalEventsMap(options?: { 
+    bounds?: string; 
+    zoom?: number; 
+    cluster?: boolean;
+    with_stats?: boolean;
+    limit?: number;
+  }): Promise<GlobalEventsMapData> {
+    const params = new URLSearchParams();
+    if (options?.bounds) params.append('bounds', options.bounds);
+    if (options?.zoom) params.append('zoom', options.zoom.toString());
+    if (options?.cluster !== undefined) params.append('cluster', options.cluster.toString());
+    if (options?.with_stats !== undefined) params.append('with_stats', options.with_stats.toString());
+    if (options?.limit) params.append('limit', options.limit.toString());
+
+    const url = `/geophoto/events/map${params.toString() ? '?' + params.toString() : ''}`;
+    
+    console.log('🌍 Fetching global events map:', { url, params: params.toString() });
+
+    const response = await api.get(url);
+    return response.data.data;
+  },
+
   /**
    * Get photos for map view with clustering
    */
@@ -161,7 +232,7 @@ export const geoPhotoService = {
     // Build URL properly - eventId should already be a real ID, not :eventId
     const url = `/geophoto/events/${eventId}/map${params.toString() ? '?' + params.toString() : ''}`;
     
-    console.log('🔍 Fetching map data:', { eventId, url, params: params.toString() });
+    console.log('🔍 Fetching event photos map:', { eventId, url, params: params.toString() });
 
     const response = await api.get(url);
     return response.data.data;
@@ -189,7 +260,7 @@ export const geoPhotoService = {
     if (options?.limit) params.append('limit', options.limit.toString());
 
     const url = `/geophoto/events/${eventId}/nearby?${params.toString()}`;
-    console.log('🔍 Fetching nearby photos:', { eventId, url });
+    console.log('📍 Fetching nearby photos:', { eventId, url });
 
     const response = await api.get(url);
     return response.data.data;
@@ -245,7 +316,7 @@ export const geoPhotoService = {
       throw new Error('Invalid event ID provided');
     }
 
-    console.log('🔍 Fetching location stats for event:', eventId);
+    console.log('📊 Fetching location stats for event:', eventId);
     const response = await api.get(`/geophoto/events/${eventId}/stats`);
     return response.data.data;
   },

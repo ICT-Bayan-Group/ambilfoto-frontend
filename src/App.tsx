@@ -48,6 +48,8 @@ import HiResQueue from "./pages/photographer/HiResQueue";
 import UserHiResPhotos from "./pages/user/HiResPhotos";
 import PhotographerPhotoLocations from "./pages/photographer/PhotoLocations";
 import UserFotoMap from "./pages/user/FotoMap";
+import GlobalEventsMap from "./pages/user/GlobalEventMap"; // 🆕 NEW IMPORT
+
 const queryClient = new QueryClient();
 
 // Protected route for photographers only
@@ -80,7 +82,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/logout" element={<Navigate to="/login" replace />} />
-             <Route path="/about" element={<About />} />
+            <Route path="/about" element={<About />} />
             <Route path="/features" element={<Features />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
@@ -122,7 +124,6 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-
             <Route 
               path="/user/wallet" 
               element={
@@ -139,7 +140,7 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-             <Route 
+            <Route 
               path="/user/hires" 
               element={
                 <ProtectedRoute>
@@ -147,7 +148,17 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-             <Route 
+            {/* 🆕 NEW: Global Events Discovery Map */}
+            <Route 
+              path="/user/fotomap" 
+              element={
+                <ProtectedRoute>
+                  <GlobalEventsMap />
+                </ProtectedRoute>
+              } 
+            />
+            {/* Event-specific FotoMap (existing) */}
+            <Route 
               path="/user/fotomap/:eventId" 
               element={
                 <ProtectedRoute>
@@ -197,7 +208,7 @@ const App = () => (
                 </PhotographerRoute>
               } 
             />
-             <Route 
+            <Route 
               path="/photographer/events/:eventId/locations" 
               element={
                 <PhotographerRoute>
@@ -213,7 +224,7 @@ const App = () => (
                 </PhotographerRoute>
               } 
             />
-             <Route 
+            <Route 
               path="/photographer/wallet" 
               element={
                 <PhotographerRoute>
@@ -221,7 +232,7 @@ const App = () => (
                 </PhotographerRoute>
               } 
             />
-             <Route 
+            <Route 
               path="/photographer/hires-queue" 
               element={
                 <PhotographerRoute>
@@ -287,7 +298,7 @@ const App = () => (
                 </AdminRoute>
               } 
             />
-             <Route 
+            <Route 
               path="/admin/withdrawals" 
               element={
                 <AdminRoute>
@@ -303,7 +314,7 @@ const App = () => (
                 </AdminRoute>
               } 
             />
-              <Route 
+            <Route 
               path="/admin/hires-analytics" 
               element={
                 <AdminRoute>
@@ -311,6 +322,7 @@ const App = () => (
                 </AdminRoute>
               } 
             />
+            
             {/* Payment Callback Routes */}
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/pending" element={<PaymentPending />} />
