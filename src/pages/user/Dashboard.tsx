@@ -7,7 +7,7 @@ import {
   Camera, Scan, Image, Calendar, Wallet, CreditCard, 
   ArrowRight, ShoppingCart, Download, TrendingUp, Award, 
   Sparkles, Eye, Star, MapPin, Clock, ChevronRight, Grid3x3,
-  Zap, Heart
+  Zap, Heart, Map as MapIcon
 } from "lucide-react";
 import { userService, UserPhoto } from "@/services/api/user.service";
 import { paymentService, UserWallet } from "@/services/api/payment.service";
@@ -61,14 +61,14 @@ const UserDashboard = () => {
 
   // Group photos by event with enhanced stats
   const eventStats = useMemo(() => {
-    const events = new Map<string, { 
+    const events: Map<string, { 
       name: string; 
       photos: UserPhoto[];
       location: string;
       date: string;
       purchased: number;
       totalValue: number;
-    }>();
+    }> = new Map();
     
     photos.forEach(photo => {
       const eventName = photo.event_name || 'Event Tidak Diketahui';
@@ -131,14 +131,21 @@ const UserDashboard = () => {
       .slice(0, 6);
   }, [photos]);
 
-  // Quick actions
+  // Quick actions - UPDATED with FotoMap
   const quickActions = [
     {
       icon: Camera,
-      label: "Pindai Wajah",
-      description: "Temukan lebih banyak foto",
-      href: "/user/scan-face",
+      label: "Hi Res Foto",
+      description: "Unduh versi Hi-Res",
+      href: "/user/Hires",
       color: "bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200"
+    },
+    {
+      icon: MapIcon,
+      label: "FotoMap",
+      description: "Jelajahi event di peta",
+      href: "/user/fotomap",
+      color: "bg-purple-50 text-purple-600 hover:bg-purple-100 border-purple-200"
     },
     {
       icon: Grid3x3,
@@ -153,13 +160,6 @@ const UserDashboard = () => {
       description: `${Number(wallet?.point_balance || 0).toLocaleString('id-ID')} FotoPoin`,
       href: "/user/wallet",
       color: "bg-green-50 text-green-600 hover:bg-green-100 border-green-200"
-    },
-    {
-      icon: Download,
-      label: "Unduh Hires",
-      description: `${stats.purchased} dibeli`,
-      href: "/user/hires",
-      color: "bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200"
     }
   ];
 
@@ -212,8 +212,35 @@ const UserDashboard = () => {
               </Card>
             )}
           </div>
+          <div className="mb-8">
+              {/* FotoMap CTA - NEW SECTION */}
+              <Card className="border-2 border-blue-200 shadow-lg bg-gradient-to-br from-blue-500 to-yellow-500 text-white overflow-hidden relative">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+                <CardContent className="pt-8 pb-8 relative z-10">
+                  <div className="flex flex-col md:flex-row items-center gap-6">
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
+                      <MapIcon className="h-10 w-10" />
+                    </div>
+                    <div className="flex-1 text-center md:text-left">
+                      <h2 className="text-2xl font-bold mb-2">Jelajahi Event di Sekitar Anda</h2>
+                      <p className="text-white/90">
+                        Temukan event-event menarik di peta interaktif dan lihat foto-foto dari berbagai lokasi
+                      </p>
+                    </div>
+                    <Link to="/user/fotomap">
+                      <Button size="lg" className="bg-white text-yellow-600 hover:bg-gray-100 shadow-lg hover:shadow-xl transition-shadow">
+                        <MapPin className="mr-2 h-5 w-5" />
+                        Buka FotoMap
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+          </div>
+        
 
-          {/* Quick Actions */}
+          {/* Quick Actions - Now with FotoMap */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {quickActions.map((action, index) => (
               <Link key={index} to={action.href}>
@@ -308,7 +335,7 @@ const UserDashboard = () => {
                       </div>
                     </div>
                     <Link to="/user/topup">
-                      <Button size="sm" variant="ghost" className="w-full text-xs gap-1 hover:bg-green-700 text-green-700">
+                      <Button size="sm" variant="ghost" className="w-full text-xs gap-1 hover:bg-green-100 text-green-700">
                         <Zap className="h-3 w-3" />
                         Isi Ulang
                       </Button>
@@ -344,6 +371,8 @@ const UserDashboard = () => {
           {/* Tab Content */}
           {activeTab === 'overview' && (
             <div className="space-y-8">
+              
+
               {/* Face Scan CTA */}
               <Card className="border-2 border-blue-200 shadow-lg bg-gradient-to-br from-blue-500 to-yellow-500 text-white overflow-hidden relative">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
@@ -377,7 +406,7 @@ const UserDashboard = () => {
                       <h2 className="text-2xl font-semibold text-gray-800">Kecocokan Terbaik</h2>
                     </div>
                     <Link to="/user/photos">
-                      <Button variant="ghost" size="sm" className="gap-1 text-blue-600 hover:bg-blue-500">
+                      <Button variant="ghost" size="sm" className="gap-1 text-blue-600 hover:bg-blue-50">
                         Lihat Semua
                         <ChevronRight className="h-4 w-4" />
                       </Button>
