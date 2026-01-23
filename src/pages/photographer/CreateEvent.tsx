@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,12 +11,13 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { photographerService } from "@/services/api/photographer.service";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Calendar, Loader2 } from "lucide-react";
+import { ArrowLeft, Calendar, Loader2, MapPin, Locate } from "lucide-react";
 
 const CreateEvent = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   
   const [formData, setFormData] = useState({
     event_name: "",
@@ -28,10 +29,54 @@ const CreateEvent = () => {
     access_code: "",
     watermark_enabled: true,
     price_per_photo: 0,
+    // NEW: Event GPS coordinates
+    event_latitude: null as number | null,
+    event_longitude: null as number | null,
   });
 
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // NEW: Get current location
+  const handleGetCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Error",
+        description: "Geolocation tidak didukung di browser ini",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        handleChange('event_latitude', latitude);
+        handleChange('event_longitude', longitude);
+        
+        toast({
+          title: "Lokasi Terdeteksi!",
+          description: `Lat: ${latitude.toFixed(6)}, Lng: ${longitude.toFixed(6)}`,
+        });
+        setIsLocating(false);
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+        toast({
+          title: "Error",
+          description: "Gagal mendapatkan lokasi. Pastikan izin lokasi diaktifkan.",
+          variant: "destructive",
+        });
+        setIsLocating(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,7 +109,9 @@ const CreateEvent = () => {
       if (response.success && response.data) {
         toast({
           title: "Success!",
-          description: "Event created successfully",
+          description: formData.event_latitude && formData.event_longitude
+            ? "Event created with location mapping!"
+            : "Event created successfully",
         });
         navigate(`/photographer/events/${response.data.event_id}`);
       } else {
@@ -102,7 +149,7 @@ const CreateEvent = () => {
               Create New Event
             </CardTitle>
             <CardDescription>
-              Set up a new photography event
+              Set up a new photography event with location mapping
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -155,13 +202,76 @@ const CreateEvent = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="location">Location</Label>
+                  <Label htmlFor="location">Location Name</Label>
                   <Input
                     id="location"
                     placeholder="e.g., Grand Ballroom, Jakarta"
                     value={formData.location}
                     onChange={(e) => handleChange('location', e.target.value)}
                   />
+                </div>
+
+                {/* NEW: GPS Coordinates Section */}
+                <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        Event GPS Location (Optional)
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Set koordinat untuk menampilkan lokasi event di FotoMap
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleGetCurrentLocation}
+                      disabled={isLocating}
+                    >
+                      {isLocating ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Locate className="h-4 w-4 mr-2" />
+                      )}
+                      {isLocating ? 'Detecting...' : 'Use Current Location'}
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="event_latitude" className="text-xs">Latitude</Label>
+                      <Input
+                        id="event_latitude"
+                        type="number"
+                        step="0.000001"
+                        placeholder="-6.200000"
+                        value={formData.event_latitude || ''}
+                        onChange={(e) => handleChange('event_latitude', parseFloat(e.target.value) || null)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="event_longitude" className="text-xs">Longitude</Label>
+                      <Input
+                        id="event_longitude"
+                        type="number"
+                        step="0.000001"
+                        placeholder="106.816666"
+                        value={formData.event_longitude || ''}
+                        onChange={(e) => handleChange('event_longitude', parseFloat(e.target.value) || null)}
+                      />
+                    </div>
+                  </div>
+
+                  {formData.event_latitude && formData.event_longitude && (
+                    <div className="flex items-center gap-2 text-xs text-green-600">
+                      <MapPin className="h-3 w-3" />
+                      <span>
+                        Event location will appear on FotoMap: {formData.event_latitude.toFixed(6)}, {formData.event_longitude.toFixed(6)}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
