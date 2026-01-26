@@ -49,7 +49,7 @@ import UserHiResPhotos from "./pages/user/HiResPhotos";
 import PhotographerPhotoLocations from "./pages/photographer/PhotoLocations";
 import UserFotoMap from "./pages/user/FotoMap";
 import GlobalEventsMap from "./pages/user/GlobalEventMap"; // 🆕 NEW IMPORT
-
+import AdminDropboxImport from "./pages/admin/DropboxImport";
 const queryClient = new QueryClient();
 
 // Protected route for photographers only
@@ -319,6 +319,14 @@ const App = () => (
               element={
                 <AdminRoute>
                   <AdminHiResAnalytics />
+                </AdminRoute>
+              } 
+            />
+            <Route 
+              path="/admin/dropbox-import" 
+              element={
+                <AdminRoute>
+                  <AdminDropboxImport />
                 </AdminRoute>
               } 
             />
