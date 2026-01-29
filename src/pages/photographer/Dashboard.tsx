@@ -63,12 +63,13 @@ const PhotographerDashboard = () => {
 
   const recentEvents = events.slice(0, 5);
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | string) => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
       minimumFractionDigits: 0
-    }).format(amount);
+    }).format(numAmount || 0);
   };
 
   return (
@@ -158,8 +159,8 @@ const PhotographerDashboard = () => {
                       <Download className="h-5 w-5 text-green-600" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{stats?.downloads.total_downloads || 0}</p>
-                      <p className="text-sm text-muted-foreground">Downloads</p>
+                      <p className="text-2xl font-bold">{wallet?.total_sales || 0}</p>
+                      <p className="text-sm text-muted-foreground">Photo Sales</p>
                     </div>
                   </div>
                 </CardContent>
@@ -188,25 +189,25 @@ const PhotographerDashboard = () => {
               <div className="p-4 bg-background/80 rounded-lg">
                 <p className="text-sm text-muted-foreground">Total Balance</p>
                 <p className="text-xl font-bold text-green-600">
-                  {formatCurrency(Number(wallet?.balance) || 0)}
+                  {formatCurrency(wallet?.balance || 0)}
                 </p>
               </div>
               <div className="p-4 bg-background/80 rounded-lg">
                 <p className="text-sm text-muted-foreground">Available</p>
                 <p className="text-xl font-bold">
-                  {formatCurrency(Number(wallet?.available_for_withdrawal) || 0)}
+                  {formatCurrency(wallet?.available_for_withdrawal || 0)}
                 </p>
               </div>
               <div className="p-4 bg-background/80 rounded-lg">
                 <p className="text-sm text-muted-foreground">Total Earned</p>
                 <p className="text-xl font-bold text-primary">
-                  {formatCurrency(Number(wallet?.total_earned) || 0)}
+                  {formatCurrency(wallet?.total_earned || 0)}
                 </p>
               </div>
               <div className="p-4 bg-background/80 rounded-lg">
                 <p className="text-sm text-muted-foreground">Pending</p>
                 <p className="text-xl font-bold text-yellow-600">
-                  {formatCurrency(Number(wallet?.pending_withdrawal) || 0)}
+                  {formatCurrency(wallet?.pending_withdrawal || 0)}
                 </p>
               </div>
             </div>
@@ -357,9 +358,9 @@ const PhotographerDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-3xl font-bold">
-                    Rp {(stats?.downloads.total_revenue || 0).toLocaleString('id-ID')}
+                    {formatCurrency(wallet?.total_earned || 0)}
                   </p>
-                  <p className="text-sm text-muted-foreground">Total revenue</p>
+                  <p className="text-sm text-muted-foreground">Total earned</p>
                 </div>
                 <div className="text-right">
                   <p className="text-3xl font-bold">{stats?.events.completed_events || 0}</p>
