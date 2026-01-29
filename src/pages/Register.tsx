@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Camera, Eye, EyeOff, User, CameraIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { authService } from "@/services/api/auth.service";
 
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -39,46 +40,61 @@ const Register = () => {
   };
 
   const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (formData.password !== formData.confirmPassword) {
-      toast({
-        title: "Error",
-        description: "Passwords do not match",
-        variant: "destructive",
-      });
-      return;
+  e.preventDefault();
+
+  if (loading) return;
+
+  if (formData.password !== formData.confirmPassword) {
+    toast({
+      title: "Error",
+      description: "Passwords do not match",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const res = await authService.register({
+      email: formData.email,
+      password: formData.password,
+      full_name: formData.name,
+      phone: formData.phone,
+      role: formData.role,
+    });
+
+    if (!res.success || !res.data) {
+      throw new Error(res.error || 'Register failed');
     }
-    
-    if (formData.password.length < 8) {
-      toast({
-        title: "Error",
-        description: "Password must be at least 8 characters",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setLoading(true);
-    
-    try {
-      // Note: Face registration will be added in a separate step
-      // For now, redirect to face capture page after initial registration
-      navigate('/register/face', { 
-        state: { 
-          email: formData.email,
-          password: formData.password,
-          full_name: formData.name,
-          phone: formData.phone,
-          role: formData.role
-        } 
-      });
-    } catch (error) {
-      // Error handled by AuthContext
-    } finally {
-      setLoading(false);
-    }
-  };
+
+    // ✅ Simpan token sementara untuk step face registration
+    localStorage.setItem('auth_token', res.data.token);
+
+    toast({
+      title: "Berhasil!",
+      description: "Akun berhasil dibuat. Silakan daftarkan wajah Anda.",
+    });
+
+    // Navigate ke face registration
+    navigate('/register/face', {
+      state: {
+        userId: res.data.user.id,
+        role: formData.role
+      }
+    });
+
+  } catch (err: any) {
+    toast({
+      title: "Register gagal",
+      description: err.message,
+      variant: "destructive"
+    });
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-background p-4">

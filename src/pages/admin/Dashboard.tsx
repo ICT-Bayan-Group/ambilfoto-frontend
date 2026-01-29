@@ -428,6 +428,59 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
 
+        {/* B2B & Advanced Features */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <Link to="/admin/dropbox-import">
+            <Card className="hover:shadow-lg cursor-pointer transition-all bg-gradient-to-br from-blue-500/10 to-cyan-500/5 border-blue-500/20">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Database className="h-5 w-5 text-blue-600" />
+                    Dropbox Import B2B
+                  </CardTitle>
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                    Enterprise
+                  </Badge>
+                </div>
+                <CardDescription>
+                  Import photos dari Dropbox untuk klien korporat
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Bulk photo management</span>
+                  <ArrowRight className="h-4 w-4 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link to="/admin/hires-analytics">
+            <Card className="hover:shadow-lg cursor-pointer transition-all bg-gradient-to-br from-purple-500/10 to-pink-500/5 border-purple-500/20">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <TrendingUp className="h-5 w-5 text-purple-600" />
+                    HiRes Analytics
+                  </CardTitle>
+                  <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                    Premium
+                  </Badge>
+                </div>
+                <CardDescription>
+                  Monitor dan analisis penjualan foto HiRes
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Sales performance tracking</span>
+                  <ArrowRight className="h-4 w-4 text-purple-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+
         {/* Quick Links */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
           <Link to="/admin/users">
