@@ -6,6 +6,7 @@ import { Camera, ArrowLeft } from "lucide-react";
 import { FaceCamera } from "@/components/camera/FaceCamera";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { authService } from "@/services/api/auth.service";
 
 const RegisterFace = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -28,25 +29,54 @@ const RegisterFace = () => {
   }
 
   const handleCapture = async (imageData: string) => {
-    setIsProcessing(true);
+  setIsProcessing(true);
+  
+  try {
+    // ✅ Call registerFace (bukan register lagi)
+    const res = await authService.registerFace(imageData);
     
-    try {
-      await register({
-        ...userData,
-        face_image: imageData,
-        role: userData.role || 'user'
-      });
-      
-      // Redirect berdasarkan role
-      if (userData.role === 'photographer') {
-        navigate('/photographer/dashboard');
-      } else {
-        navigate('/user/dashboard');
-      }
-    } catch (error) {
-      setIsProcessing(false);
+    if (!res.success) {
+      throw new Error(res.error || 'Face upload failed');
     }
-  };
+
+    // ✅ Update token dengan yang baru (verified)
+    if (res.data?.token) {
+      localStorage.setItem('auth_token', res.data.token);
+    }
+
+    toast({
+      title: "Berhasil!",
+      description: "Wajah Anda telah terdaftar. Selamat datang!",
+    });
+    
+    // Redirect berdasarkan role
+    if (userData.role === 'photographer') {
+      navigate('/photographer/dashboard');
+    } else {
+      navigate('/user/dashboard');
+    }
+  } catch (error: any) {
+    toast({
+      title: "Upload gagal",
+      description: error.message,
+      variant: "destructive"
+    });
+    setIsProcessing(false);
+  }
+};
+
+const handleSkip = () => {
+  toast({
+    title: "Info",
+    description: "Anda dapat mendaftarkan wajah nanti di pengaturan profil.",
+  });
+  
+  if (userData.role === 'photographer') {
+    navigate('/photographer/dashboard');
+  } else {
+    navigate('/user/dashboard');
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-background p-4">

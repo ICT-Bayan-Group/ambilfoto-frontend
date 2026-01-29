@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const AUTH_API_URL = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5000/api';
+const AUTH_API_URL =
+  import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5000/api';
 
 const authApi = axios.create({
   baseURL: AUTH_API_URL,
@@ -9,7 +10,9 @@ const authApi = axios.create({
   },
 });
 
-// Add token to requests
+// =====================
+// INTERCEPTORS
+// =====================
 authApi.interceptors.request.use((config) => {
   const token = localStorage.getItem('auth_token');
   if (token) {
@@ -18,7 +21,6 @@ authApi.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle auth errors
 authApi.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -31,13 +33,19 @@ authApi.interceptors.response.use(
   }
 );
 
+// =====================
+// TYPES
+// =====================
 export interface RegisterData {
   email: string;
   phone?: string;
   password: string;
   full_name: string;
-  face_image: string;
   role?: 'user' | 'photographer';
+}
+
+export interface RegisterFaceData {
+  face_image: string;
 }
 
 export interface LoginData {
@@ -67,28 +75,53 @@ export interface AuthResponse {
   message?: string;
   data?: {
     user: UserProfile;
-    token: string;
+    token?: string;
     similarity?: number;
   };
   error?: string;
 }
 
+// =====================
+// SERVICE
+// =====================
 export const authService = {
+  /**
+   * Register user (NO FACE)
+   */
   async register(data: RegisterData): Promise<AuthResponse> {
     const response = await authApi.post('/auth/register', data);
     return response.data;
   },
 
+  /**
+   * Register face after signup
+   */
+  async registerFace(faceImage: string): Promise<AuthResponse> {
+    const response = await authApi.put('/auth/register/face', {
+      face_image: faceImage,
+    });
+    return response.data;
+  },
+
+  /**
+   * Login email/password
+   */
   async login(data: LoginData): Promise<AuthResponse> {
     const response = await authApi.post('/auth/login', data);
     return response.data;
   },
 
+  /**
+   * Login using face biometric
+   */
   async loginWithFace(data: FaceLoginData): Promise<AuthResponse> {
     const response = await authApi.post('/auth/login/face', data);
     return response.data;
   },
 
+  /**
+   * Get logged-in user profile
+   */
   async getProfile(): Promise<{ success: boolean; data: UserProfile }> {
     const response = await authApi.get('/auth/profile');
     return response.data;
@@ -99,30 +132,46 @@ export const authService = {
     return response.data;
   },
 
-  async updateProfile(data: { full_name?: string; phone?: string; profile_photo?: string }): Promise<{ success: boolean; message?: string; data?: UserProfile; error?: string }> {
+  async updateProfile(data: {
+    full_name?: string;
+    phone?: string;
+    profile_photo?: string;
+  }): Promise<{ success: boolean; data?: UserProfile; error?: string }> {
     const response = await authApi.put('/auth/profile', data);
     return response.data;
   },
 
-  async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  async changePassword(
+    currentPassword: string,
+    newPassword: string
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
     const response = await authApi.put('/auth/profile/password', {
       current_password: currentPassword,
-      new_password: newPassword
+      new_password: newPassword,
     });
     return response.data;
   },
 
-  async updateFaceBiometric(faceImage: string, password: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  /**
+   * Update face after login (security)
+   */
+  async updateFaceBiometric(
+    faceImage: string,
+    password: string
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
     const response = await authApi.put('/auth/profile/face', {
       face_image: faceImage,
-      password
+      password,
     });
     return response.data;
   },
 
-  async deleteAccount(password: string, confirmation: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  async deleteAccount(
+    password: string,
+    confirmation: string
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
     const response = await authApi.delete('/auth/profile', {
-      data: { password, confirmation }
+      data: { password, confirmation },
     });
     return response.data;
   },
