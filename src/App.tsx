@@ -48,8 +48,14 @@ import HiResQueue from "./pages/photographer/HiResQueue";
 import UserHiResPhotos from "./pages/user/HiResPhotos";
 import PhotographerPhotoLocations from "./pages/photographer/PhotoLocations";
 import UserFotoMap from "./pages/user/FotoMap";
-import GlobalEventsMap from "./pages/user/GlobalEventMap"; // 🆕 NEW IMPORT
+import GlobalEventsMap from "./pages/user/GlobalEventMap";
 import AdminDropboxImport from "./pages/admin/DropboxImport";
+
+// ✅ NEW IMPORTS - Photographer Upgrade Feature
+import PhotographerUpgradeRequest from "./pages/user/PhotographerUpgradeRequest";
+import PhotographerUpgradeStatus from "./pages/user/PhotographerUpgradeStatus";
+import AdminPhotographerRequests from "./pages/admin/AdminPhotographerRequest";
+
 const queryClient = new QueryClient();
 
 // Protected route for photographers only
@@ -66,6 +72,30 @@ const PhotographerRoute = ({ children }: { children: React.ReactNode }) => {
   
   if (user?.role !== 'photographer' && user?.role !== 'admin') {
     return <Navigate to="/user/dashboard" replace />;
+  }
+  
+  return <>{children}</>;
+};
+
+// ✅ NEW: Protected route for users only (cannot access if already photographer)
+const UserOnlyRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  // If already photographer or admin, redirect to their dashboard
+  if (user?.role === 'photographer') {
+    return <Navigate to="/photographer/dashboard" replace />;
+  }
+  
+  if (user?.role === 'admin') {
+    return <Navigate to="/admin/dashboard" replace />;
   }
   
   return <>{children}</>;
@@ -148,7 +178,6 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-            {/* 🆕 NEW: Global Events Discovery Map */}
             <Route 
               path="/user/fotomap" 
               element={
@@ -157,12 +186,31 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-            {/* Event-specific FotoMap (existing) */}
             <Route 
               path="/user/fotomap/:eventId" 
               element={
                 <ProtectedRoute>
                   <UserFotoMap />
+                </ProtectedRoute>
+              } 
+            />
+
+            {/* ✅ NEW ROUTES - Photographer Upgrade Feature */}
+            {/* User can request to upgrade to photographer */}
+            <Route 
+              path="/user/upgrade-to-photographer" 
+              element={
+                <UserOnlyRoute>
+                  <PhotographerUpgradeRequest />
+                </UserOnlyRoute>
+              } 
+            />
+            {/* User can check their upgrade request status */}
+            <Route 
+              path="/user/upgrade-status" 
+              element={
+                <ProtectedRoute>
+                  <PhotographerUpgradeStatus />
                 </ProtectedRoute>
               } 
             />
@@ -327,6 +375,16 @@ const App = () => (
               element={
                 <AdminRoute>
                   <AdminDropboxImport />
+                </AdminRoute>
+              } 
+            />
+
+            {/* ✅ NEW ROUTE - Admin Photographer Requests Management */}
+            <Route 
+              path="/admin/photographer-requests" 
+              element={
+                <AdminRoute>
+                  <AdminPhotographerRequests />
                 </AdminRoute>
               } 
             />
