@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Camera, Eye, EyeOff, User, CameraIcon } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { authService } from "@/services/api/auth.service";
@@ -19,10 +18,9 @@ const Register = () => {
     phone: "",
     password: "",
     confirmPassword: "",
-    role: "user" as "user" | "photographer",
   });
   const [loading, setLoading] = useState(false);
-  const { register, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -40,67 +38,80 @@ const Register = () => {
   };
 
   const handleRegister = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (loading) return;
+    if (loading) return;
 
-  if (formData.password !== formData.confirmPassword) {
-    toast({
-      title: "Error",
-      description: "Passwords do not match",
-      variant: "destructive",
-    });
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    const res = await authService.register({
-      email: formData.email,
-      password: formData.password,
-      full_name: formData.name,
-      phone: formData.phone,
-      role: formData.role,
-    });
-
-    if (!res.success || !res.data) {
-      throw new Error(res.error || 'Register failed');
+    if (formData.password !== formData.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Password tidak cocok",
+        variant: "destructive",
+      });
+      return;
     }
 
-    // ✅ Simpan token sementara untuk step face registration
-    localStorage.setItem('auth_token', res.data.token);
+    if (formData.password.length < 8) {
+      toast({
+        title: "Error",
+        description: "Password minimal 8 karakter",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    toast({
-      title: "Berhasil!",
-      description: "Akun berhasil dibuat. Silakan daftarkan wajah Anda.",
-    });
+    setLoading(true);
 
-    // Navigate ke face registration
-    navigate('/register/face', {
-      state: {
-        userId: res.data.user.id,
-        role: formData.role
+    try {
+      // ✅ ROLE ALWAYS 'user' - tidak ada pilihan role
+      const res = await authService.register({
+        email: formData.email,
+        password: formData.password,
+        full_name: formData.name,
+        phone: formData.phone,
+        role: 'user', // ✅ HARDCODED - semua user register sebagai 'user'
+      });
+
+      if (!res.success || !res.data) {
+        throw new Error(res.error || 'Register failed');
       }
-    });
 
-  } catch (err: any) {
-    toast({
-      title: "Register gagal",
-      description: err.message,
-      variant: "destructive"
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+      // ✅ Simpan token sementara untuk step face registration
+      localStorage.setItem('auth_token', res.data.token);
 
+      toast({
+        title: "Berhasil!",
+        description: "Akun berhasil dibuat. Silakan daftarkan wajah Anda.",
+      });
+
+      // Navigate ke face registration dengan role 'user'
+      navigate('/register/face', {
+        state: {
+          userId: res.data.user.id,
+          email: formData.email,
+          password: formData.password,
+          full_name: formData.name,
+          phone: formData.phone,
+          role: 'user' // ✅ Always user
+        }
+      });
+
+    } catch (err: any) {
+      toast({
+        title: "Register gagal",
+        description: err.message || "Terjadi kesalahan saat mendaftar",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-background p-4">
       <div className="w-full max-w-md">
         <Link to="/" className="flex items-center justify-center gap-2 mb-8">
-         <img 
+          <img 
             src="https://res.cloudinary.com/dwyi4d3rq/image/upload/v1765171746/ambilfoto-logo_hvn8s2.png" 
             alt="AmbilFoto.id Logo" 
             className="h-24 mx-auto w-auto"
@@ -111,7 +122,7 @@ const Register = () => {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl">Daftar Akun</CardTitle>
             <CardDescription>
-              Masukkan informasi detail Anda untuk memulai
+              Buat akun baru untuk mulai menggunakan AmbilFoto
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -126,6 +137,7 @@ const Register = () => {
                   onChange={handleChange}
                   required
                   minLength={3}
+                  disabled={loading}
                 />
               </div>
               
@@ -138,6 +150,7 @@ const Register = () => {
                   value={formData.email}
                   onChange={handleChange}
                   required
+                  disabled={loading}
                 />
               </div>
               
@@ -146,9 +159,11 @@ const Register = () => {
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder="+62 812 3456 7890"
+                  placeholder="08123456789"
                   value={formData.phone}
                   onChange={handleChange}
+                  required
+                  disabled={loading}
                 />
               </div>
               
@@ -163,11 +178,13 @@ const Register = () => {
                     onChange={handleChange}
                     required
                     minLength={8}
+                    disabled={loading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-smooth"
+                    disabled={loading}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -184,58 +201,24 @@ const Register = () => {
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     required
+                    disabled={loading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-smooth"
+                    disabled={loading}
                   >
                     {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
               
-              {/* Role Selection */}
-              <div className="space-y-3">
-                <Label>Saya adalah</Label>
-                <RadioGroup
-                  value={formData.role}
-                  onValueChange={(value: "user" | "photographer") => 
-                    setFormData({ ...formData, role: value })
-                  }
-                  className="grid grid-cols-2 gap-3"
-                >
-                  <div>
-                    <RadioGroupItem
-                      value="user"
-                      id="role-user"
-                      className="peer sr-only"
-                    />
-                    <Label
-                      htmlFor="role-user"
-                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
-                    >
-                      <User className="mb-2 h-6 w-6" />
-                      <span className="text-sm font-medium">Pengguna</span>
-                      <span className="text-xs text-muted-foreground">Ambil foto saya</span>
-                    </Label>
-                  </div>
-                  <div>
-                    <RadioGroupItem
-                      value="photographer"
-                      id="role-photographer"
-                      className="peer sr-only"
-                    />
-                    <Label
-                      htmlFor="role-photographer"
-                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
-                    >
-                      <CameraIcon className="mb-2 h-6 w-6" />
-                      <span className="text-sm font-medium">Photographer</span>
-                      <span className="text-xs text-muted-foreground">Upload jepretan saya</span>
-                    </Label>
-                  </div>
-                </RadioGroup>
+              {/* ✅ INFO: Photographer upgrade tersedia setelah registrasi */}
+              <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+                <p className="text-xs text-blue-900">
+                  💡 <strong>Ingin jadi Photographer?</strong> Anda dapat upgrade ke akun photographer setelah registrasi selesai.
+                </p>
               </div>
               
               <div className="text-xs text-muted-foreground">
