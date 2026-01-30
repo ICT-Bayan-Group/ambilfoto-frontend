@@ -3,14 +3,18 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { 
   Camera, Scan, Image, Calendar, Wallet, CreditCard, 
   ArrowRight, ShoppingCart, Download, TrendingUp, Award, 
   Sparkles, Eye, Star, MapPin, Clock, ChevronRight, Grid3x3,
-  Zap, Heart, Map as MapIcon
+  Zap, Heart, Map as MapIcon, Briefcase, CheckCircle, XCircle,
+  AlertCircle
 } from "lucide-react";
 import { userService, UserPhoto } from "@/services/api/user.service";
 import { paymentService, UserWallet } from "@/services/api/payment.service";
+import { photographerUpgradeService, UpgradeStatus } from "@/services/api/photographer.upgrade.service";
 import { aiService } from "@/services/api/ai.service";
 import HeaderDash from "@/components/layout/HeaderDash";
 import { Footer } from "@/components/layout/Footer";
@@ -24,6 +28,7 @@ const UserDashboard = () => {
   const [wallet, setWallet] = useState<UserWallet | null>(null);
   const [purchasedCount, setPurchasedCount] = useState(0);
   const [activeTab, setActiveTab] = useState<'overview' | 'recent' | 'events'>('overview');
+  const [upgradeStatus, setUpgradeStatus] = useState<UpgradeStatus | null>(null);
 
   useEffect(() => {
     loadData();
@@ -31,7 +36,7 @@ const UserDashboard = () => {
 
   const loadData = async () => {
     setIsLoading(true);
-    await Promise.all([loadPhotos(), loadWallet()]);
+    await Promise.all([loadPhotos(), loadWallet(), loadUpgradeStatus()]);
     setIsLoading(false);
   };
 
@@ -56,6 +61,18 @@ const UserDashboard = () => {
     } catch (err) {
       console.error('Error loading photos:', err);
       setPhotos([]);
+    }
+  };
+
+  const loadUpgradeStatus = async () => {
+    try {
+      const response = await photographerUpgradeService.getUpgradeStatus();
+      if (response.success && response.data) {
+        setUpgradeStatus(response.data);
+      }
+    } catch (error) {
+      // Silently fail - upgrade status is optional
+      console.error('Error loading upgrade status:', error);
     }
   };
 
@@ -131,7 +148,7 @@ const UserDashboard = () => {
       .slice(0, 6);
   }, [photos]);
 
-  // Quick actions - UPDATED with FotoMap
+  // Quick actions
   const quickActions = [
     {
       icon: Camera,
@@ -212,35 +229,97 @@ const UserDashboard = () => {
               </Card>
             )}
           </div>
-          <div className="mb-8">
-              {/* FotoMap CTA - NEW SECTION */}
-              <Card className="border-2 border-blue-200 shadow-lg bg-gradient-to-br from-blue-500 to-yellow-500 text-white overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-                <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
-                <CardContent className="pt-8 pb-8 relative z-10">
-                  <div className="flex flex-col md:flex-row items-center gap-6">
-                    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
-                      <MapIcon className="h-10 w-10" />
-                    </div>
-                    <div className="flex-1 text-center md:text-left">
-                      <h2 className="text-2xl font-bold mb-2">Jelajahi Event di Sekitar Anda</h2>
-                      <p className="text-white/90">
-                        Temukan event-event menarik di peta interaktif dan lihat foto-foto dari berbagai lokasi
-                      </p>
-                    </div>
-                    <Link to="/user/fotomap">
-                      <Button size="lg" className="bg-white text-yellow-600 hover:bg-gray-100 shadow-lg hover:shadow-xl transition-shadow">
-                        <MapPin className="mr-2 h-5 w-5" />
-                        Buka FotoMap
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-          </div>
-        
 
-          {/* Quick Actions - Now with FotoMap */}
+          {/* ✅ PHOTOGRAPHER UPGRADE CTA - NEW SECTION */}
+          {!upgradeStatus?.has_request && !isLoading && (
+            <Card className="mb-8 border-2 border-purple-200 shadow-lg bg-gradient-to-br from-purple-500 to-indigo-500 text-white overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+              <CardContent className="pt-8 pb-8 relative z-10">
+                <div className="flex flex-col md:flex-row items-center gap-6">
+                  <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
+                    <Briefcase className="h-10 w-10" />
+                  </div>
+                  <div className="flex-1 text-center md:text-left">
+                    <h2 className="text-2xl font-bold mb-2">Ingin Jadi Photographer?</h2>
+                    <p className="text-white/90">
+                      Upgrade akun Anda dan mulai upload foto, buat event, dan hasilkan pendapatan dari foto Anda!
+                    </p>
+                  </div>
+                  <Link to="/user/upgrade-to-photographer">
+                    <Button size="lg" className="bg-white text-purple-600 hover:bg-gray-100 shadow-lg hover:shadow-xl transition-shadow">
+                      <Camera className="mr-2 h-5 w-5" />
+                      Upgrade Sekarang
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ✅ UPGRADE STATUS ALERT - Jika ada request */}
+          {upgradeStatus?.has_request && upgradeStatus.current_request && (
+            <Alert className={`mb-8 ${
+              upgradeStatus.current_request.status === 'pending' ? 'border-yellow-500 bg-yellow-50' :
+              upgradeStatus.current_request.status === 'approved' ? 'border-green-500 bg-green-50' :
+              'border-red-500 bg-red-50'
+            }`}>
+              {upgradeStatus.current_request.status === 'pending' && <Clock className="h-4 w-4 text-yellow-600" />}
+              {upgradeStatus.current_request.status === 'approved' && <CheckCircle className="h-4 w-4 text-green-600" />}
+              {upgradeStatus.current_request.status === 'rejected' && <XCircle className="h-4 w-4 text-red-600" />}
+              <AlertDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <strong>
+                      {upgradeStatus.current_request.status === 'pending' && 'Permintaan Upgrade Sedang Diproses'}
+                      {upgradeStatus.current_request.status === 'approved' && 'Upgrade Berhasil! 🎉'}
+                      {upgradeStatus.current_request.status === 'rejected' && 'Permintaan Ditolak'}
+                    </strong>
+                    <p className="text-sm mt-1">
+                      {upgradeStatus.current_request.status === 'pending' && 'Tim kami sedang meninjau dokumen Anda. Proses ini biasanya memakan waktu 1-3 hari kerja.'}
+                      {upgradeStatus.current_request.status === 'approved' && 'Akun Anda sekarang adalah Photographer. Anda dapat mulai membuat event dan upload foto!'}
+                      {upgradeStatus.current_request.status === 'rejected' && upgradeStatus.current_request.rejection_reason}
+                    </p>
+                  </div>
+                  <Link to="/user/upgrade-status">
+                    <Button variant="outline" size="sm" className="gap-1">
+                      Lihat Detail
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* FotoMap CTA */}
+          <div className="mb-8">
+            <Card className="border-2 border-blue-200 shadow-lg bg-gradient-to-br from-blue-500 to-yellow-500 text-white overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+              <CardContent className="pt-8 pb-8 relative z-10">
+                <div className="flex flex-col md:flex-row items-center gap-6">
+                  <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
+                    <MapIcon className="h-10 w-10" />
+                  </div>
+                  <div className="flex-1 text-center md:text-left">
+                    <h2 className="text-2xl font-bold mb-2">Jelajahi Event di Sekitar Anda</h2>
+                    <p className="text-white/90">
+                      Temukan event-event menarik di peta interaktif dan lihat foto-foto dari berbagai lokasi
+                    </p>
+                  </div>
+                  <Link to="/user/fotomap">
+                    <Button size="lg" className="bg-white text-yellow-600 hover:bg-gray-100 shadow-lg hover:shadow-xl transition-shadow">
+                      <MapPin className="mr-2 h-5 w-5" />
+                      Buka FotoMap
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Quick Actions */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {quickActions.map((action, index) => (
               <Link key={index} to={action.href}>
@@ -299,7 +378,7 @@ const UserDashboard = () => {
                       </div>
                     </div>
                     <p className="text-xs text-gray-600">
-                      {topEvents.length > 0 && `Terbaru: ${topEvents[0].name}`}
+                      {topEvents.length > 0 && `Terbaru: ${topEvents[0].name.substring(0, 20)}...`}
                     </p>
                   </CardContent>
                 </Card>
@@ -371,8 +450,6 @@ const UserDashboard = () => {
           {/* Tab Content */}
           {activeTab === 'overview' && (
             <div className="space-y-8">
-              
-
               {/* Face Scan CTA */}
               <Card className="border-2 border-blue-200 shadow-lg bg-gradient-to-br from-blue-500 to-yellow-500 text-white overflow-hidden relative">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
