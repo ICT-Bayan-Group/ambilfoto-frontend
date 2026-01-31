@@ -11,7 +11,7 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend } from 'recharts';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 const AdminRevenue = () => {
   const [data, setData] = useState<any>(null);
@@ -23,10 +23,12 @@ const AdminRevenue = () => {
       setLoading(true);
       const response = await adminService.getRevenueAnalytics({ period });
       if (response.success) {
+        console.log('📊 Revenue data received:', response.data);
         setData(response.data);
       }
     } catch (error) {
       toast.error('Gagal memuat data revenue');
+      console.error('Revenue fetch error:', error);
     } finally {
       setLoading(false);
     }
@@ -36,23 +38,37 @@ const AdminRevenue = () => {
     fetchRevenue();
   }, [period]);
 
+  // Fungsi untuk parsing number dengan aman
+  const parseNumber = (value: any): number => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+      // Remove currency symbols and parse
+      const cleaned = value.replace(/[^\d.-]/g, '');
+      const parsed = parseFloat(cleaned);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    return 0;
+  };
+
   const formatCurrency = (num: number | string) => {
-    const value = typeof num === 'string' ? parseFloat(num) : num;
+    const value = parseNumber(num);
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
       minimumFractionDigits: 0,
-    }).format(value || 0);
+    }).format(value);
   };
 
   const formatShortCurrency = (num: number | string) => {
-    const value = typeof num === 'string' ? parseFloat(num) : num;
-    if (value >= 1000000) {
-      return `Rp${(value / 1000000).toFixed(1)}M`;
+    const value = parseNumber(num);
+    if (value >= 1000000000) {
+      return `Rp${(value / 1000000000).toFixed(1)}M`;
+    } else if (value >= 1000000) {
+      return `Rp${(value / 1000000).toFixed(1)}jt`;
     } else if (value >= 1000) {
-      return `Rp${(value / 1000).toFixed(0)}K`;
+      return `Rp${(value / 1000).toFixed(0)}rb`;
     }
-    return `Rp${value}`;
+    return `Rp${Math.round(value)}`;
   };
 
   if (loading) {
@@ -82,30 +98,64 @@ const AdminRevenue = () => {
   // Transform daily revenue data for chart
   const dailyRevenueData = dailyRevenue.map((item: any) => ({
     date: format(new Date(item.date), 'dd MMM', { locale: id }),
-    topup: parseFloat(item.topup_revenue) || 0,
-    photo_fee: parseFloat(item.photo_platform_fee) || 0,
-    api: item.api_revenue || 0,
-    total: parseFloat(item.total_platform_revenue) || 0,
+    topup: parseNumber(item.topup_revenue),
+    photo_fee: parseNumber(item.photo_platform_fee),
+    api: parseNumber(item.api_revenue),
+    total: parseNumber(item.total_platform_revenue),
   })).reverse();
 
   // Transform revenue sources for pie chart
-  const revenueSourcesData = Object.entries(revenueSources).map(([key, value]: [string, any]) => ({
-    name: key === 'point_topup' ? 'Top Up FotoPoin' : 
-          key === 'photo_platform_fee' ? 'Fee Foto' : 
-          key === 'api_token' ? 'API Token' : key,
-    value: parseFloat(value.amount) || 0,
-    percentage: parseFloat(value.percentage) || 0,
-  })).filter(item => item.value > 0);
+  const revenueSourcesData = [
+    {
+      name: 'Top-Up FotoPoin',
+      value: parseNumber(revenueSources.point_topup?.amount),
+      percentage: parseFloat(revenueSources.point_topup?.percentage || 0),
+      color: COLORS[0]
+    },
+    {
+      name: 'Fee Penjualan Foto',
+      value: parseNumber(revenueSources.photo_platform_fee?.amount),
+      percentage: parseFloat(revenueSources.photo_platform_fee?.percentage || 0),
+      color: COLORS[1]
+    },
+    {
+      name: 'Token API',
+      value: parseNumber(revenueSources.api_token?.amount),
+      percentage: parseFloat(revenueSources.api_token?.percentage || 0),
+      color: COLORS[2]
+    },
+  ].filter(item => item.value > 0);
 
   // Transform payment method data for bar chart
   const paymentMethodData = byPaymentMethod.map((item: any) => ({
-    name: item.payment_method === 'Transfer' ? 'Transfer' : 
-          item.payment_method === 'bank_transfer' ? 'Transfer Bank' : 
-          item.payment_method || 'Unknown',
+    name: item.payment_method === 'Transfer' || item.payment_method === 'bank_transfer' ? 'Transfer Bank' : 
+          item.payment_method === 'cash' ? 'Tunai' :
+          item.payment_method === 'points' ? 'FotoPoin' :
+          item.payment_method || 'Lainnya',
     transactions: item.transaction_count || 0,
-    amount: parseFloat(item.total_amount) || 0,
+    amount: parseNumber(item.total_amount),
     type: item.transaction_type,
   }));
+
+  // Transform transaction type labels
+  const getTransactionTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      'point_topup': 'Top-Up FotoPoin',
+      'photo_purchase': 'Pembelian Foto',
+      'api_token_purchase': 'Pembelian Token API'
+    };
+    return labels[type] || type;
+  };
+
+  const getPaymentMethodLabel = (method: string) => {
+    const labels: Record<string, string> = {
+      'cash': 'Tunai',
+      'points': 'FotoPoin',
+      'bank_transfer': 'Transfer Bank',
+      'Transfer': 'Transfer Bank'
+    };
+    return labels[method] || method;
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -113,8 +163,10 @@ const AdminRevenue = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Revenue Analytics</h1>
-            <p className="text-muted-foreground">Analisis pendapatan platform - Periode: {period}</p>
+            <h1 className="text-3xl font-bold">Analitik Pendapatan</h1>
+            <p className="text-muted-foreground">
+              Analisis pendapatan platform - Periode: {period === '7d' ? '7 Hari' : period === '30d' ? '30 Hari' : period === '90d' ? '90 Hari' : '1 Tahun'}
+            </p>
           </div>
           <Select value={period} onValueChange={(value: any) => setPeriod(value)}>
             <SelectTrigger className="w-40">
@@ -133,7 +185,7 @@ const AdminRevenue = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Platform Revenue</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Pendapatan Platform</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -154,7 +206,7 @@ const AdminRevenue = () => {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Unique Buyers</CardTitle>
+              <CardTitle className="text-sm font-medium">Pembeli Unik</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -163,7 +215,7 @@ const AdminRevenue = () => {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Photo Gross Sales</CardTitle>
+              <CardTitle className="text-sm font-medium">Penjualan Kotor Foto</CardTitle>
               <Image className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -176,37 +228,43 @@ const AdminRevenue = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">FotoPoin Top Up</CardTitle>
+              <CardTitle className="text-sm font-medium">Top-Up FotoPoin</CardTitle>
               <Coins className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">{formatCurrency(summary.point_topup_revenue)}</div>
-              <p className="text-xs text-muted-foreground">Revenue dari top up</p>
+              <p className="text-xs text-muted-foreground">
+                {revenueSources.point_topup?.percentage}% dari total
+              </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Photo Platform Fee</CardTitle>
+              <CardTitle className="text-sm font-medium">Fee Platform Foto</CardTitle>
               <Percent className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-600">{formatCurrency(summary.photo_platform_fee)}</div>
-              <p className="text-xs text-muted-foreground">Fee dari penjualan foto</p>
+              <p className="text-xs text-muted-foreground">
+                {revenueSources.photo_platform_fee?.percentage}% dari total
+              </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">API Token Revenue</CardTitle>
+              <CardTitle className="text-sm font-medium">Pendapatan Token API</CardTitle>
               <CreditCard className="h-4 w-4 text-purple-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-purple-600">{formatCurrency(summary.api_token_revenue)}</div>
-              <p className="text-xs text-muted-foreground">Revenue dari API</p>
+              <p className="text-xs text-muted-foreground">
+                {revenueSources.api_token?.percentage}% dari total
+              </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Photographer Earnings</CardTitle>
+              <CardTitle className="text-sm font-medium">Pendapatan Fotografer</CardTitle>
               <Camera className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent>
@@ -220,7 +278,7 @@ const AdminRevenue = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <Card>
             <CardHeader>
-              <CardTitle>Revenue Harian</CardTitle>
+              <CardTitle>Pendapatan Harian</CardTitle>
               <CardDescription>Trend pendapatan platform per hari</CardDescription>
             </CardHeader>
             <CardContent>
@@ -233,9 +291,9 @@ const AdminRevenue = () => {
                       <YAxis tickFormatter={formatShortCurrency} />
                       <Tooltip formatter={(value: number) => formatCurrency(value)} />
                       <Legend />
-                      <Line type="monotone" dataKey="total" name="Total Revenue" stroke="hsl(var(--primary))" strokeWidth={2} />
-                      <Line type="monotone" dataKey="topup" name="Top Up" stroke="#00C49F" strokeWidth={2} />
-                      <Line type="monotone" dataKey="photo_fee" name="Photo Fee" stroke="#0088FE" strokeWidth={2} />
+                      <Line type="monotone" dataKey="total" name="Total Pendapatan" stroke="hsl(var(--primary))" strokeWidth={2} />
+                      <Line type="monotone" dataKey="topup" name="Top-Up" stroke="#10b981" strokeWidth={2} />
+                      <Line type="monotone" dataKey="photo_fee" name="Fee Foto" stroke="#3b82f6" strokeWidth={2} />
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
@@ -249,7 +307,7 @@ const AdminRevenue = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Sumber Revenue</CardTitle>
+              <CardTitle>Sumber Pendapatan</CardTitle>
               <CardDescription>Distribusi pendapatan berdasarkan sumber</CardDescription>
             </CardHeader>
             <CardContent>
@@ -262,13 +320,13 @@ const AdminRevenue = () => {
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ name, percentage }) => `${name} (${percentage.toFixed(0)}%)`}
+                        label={({ name, percentage }) => `${name} (${percentage.toFixed(1)}%)`}
                         outerRadius={100}
                         fill="#8884d8"
                         dataKey="value"
                       >
-                        {revenueSourcesData.map((_: any, index: number) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        {revenueSourcesData.map((entry: any, index: number) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
                       <Tooltip formatter={(value: number) => formatCurrency(value)} />
@@ -276,7 +334,7 @@ const AdminRevenue = () => {
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex items-center justify-center h-full text-muted-foreground">
-                    Tidak ada data revenue
+                    Tidak ada data pendapatan
                   </div>
                 )}
               </div>
@@ -307,8 +365,8 @@ const AdminRevenue = () => {
                         } 
                       />
                       <Legend />
-                      <Bar yAxisId="left" dataKey="amount" name="Total Amount" fill="#0088FE" />
-                      <Bar yAxisId="right" dataKey="transactions" name="Transaksi" fill="#00C49F" />
+                      <Bar yAxisId="left" dataKey="amount" name="Total Amount" fill="#3b82f6" />
+                      <Bar yAxisId="right" dataKey="transactions" name="Transaksi" fill="#10b981" />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
@@ -343,12 +401,10 @@ const AdminRevenue = () => {
                         </div>
                         <div>
                           <p className="font-medium">
-                            {item.transaction_type === 'point_topup' ? 'FotoPoin Top Up' : 
-                             item.transaction_type === 'photo_purchase' ? 'Photo Purchase' : 
-                             item.transaction_type}
+                            {getTransactionTypeLabel(item.transaction_type)}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {item.count} transaksi via {item.payment_method}
+                            {item.count} transaksi via {getPaymentMethodLabel(item.payment_method)}
                           </p>
                         </div>
                       </div>
@@ -356,8 +412,8 @@ const AdminRevenue = () => {
                         <p className="font-bold">{formatCurrency(item.total_amount)}</p>
                         <div className="flex gap-2 text-xs text-muted-foreground">
                           <span>Platform: {formatCurrency(item.platform_revenue)}</span>
-                          {parseFloat(item.photographer_share) > 0 && (
-                            <span>| Photographer: {formatCurrency(item.photographer_share)}</span>
+                          {parseNumber(item.photographer_share) > 0 && (
+                            <span>| Fotografer: {formatCurrency(item.photographer_share)}</span>
                           )}
                         </div>
                       </div>
@@ -385,17 +441,17 @@ const AdminRevenue = () => {
               {topPhotos.length > 0 ? (
                 <div className="space-y-3">
                   {topPhotos.map((photo: any, index: number) => (
-                    <div key={photo.photo_id || index} className="flex items-center gap-4 p-3 rounded-lg border">
+                    <div key={photo.id || index} className="flex items-center gap-4 p-3 rounded-lg border">
                       <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
                         {index + 1}
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{photo.filename || 'Unknown'}</p>
-                        <p className="text-sm text-muted-foreground">{photo.event_name}</p>
+                        <p className="text-sm text-muted-foreground truncate">{photo.event_name}</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold">{formatCurrency(photo.total_revenue)}</p>
-                        <Badge variant="secondary">{photo.sales_count} sales</Badge>
+                        <p className="font-bold">{formatCurrency(photo.gross_revenue)}</p>
+                        <Badge variant="secondary">{photo.sales_in_period} penjualan</Badge>
                       </div>
                     </div>
                   ))}
@@ -428,7 +484,7 @@ const AdminRevenue = () => {
                         tick={{ fontSize: 12 }}
                       />
                       <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                      <Bar dataKey="total_revenue" name="Revenue" fill="hsl(var(--primary))" />
+                      <Bar dataKey="gross_revenue" name="Pendapatan" fill="hsl(var(--primary))" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

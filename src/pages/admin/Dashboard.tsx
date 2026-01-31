@@ -109,14 +109,14 @@ const AdminDashboard = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+            <h1 className="text-3xl font-bold">Dasbor Admin</h1>
             <p className="text-muted-foreground">
               Kelola dan monitor sistem AmbilFoto
             </p>
           </div>
           <Button onClick={fetchStats} variant="outline" size="sm">
             <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
+            Perbarui
           </Button>
         </div>
 
@@ -124,13 +124,13 @@ const AdminDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Database</CardTitle>
+              <CardTitle className="text-sm font-medium">Basis Data</CardTitle>
               <Database className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <Badge variant={stats?.system_health.database === 'OK' ? 'default' : 'destructive'}>
                 {stats?.system_health.database === 'OK' ? (
-                  <><CheckCircle className="w-3 h-3 mr-1" /> Connected</>
+                  <><CheckCircle className="w-3 h-3 mr-1" /> Terhubung</>
                 ) : (
                   <><AlertCircle className="w-3 h-3 mr-1" /> Error</>
                 )}
@@ -139,13 +139,13 @@ const AdminDashboard = () => {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">AI Server</CardTitle>
+              <CardTitle className="text-sm font-medium">Server AI</CardTitle>
               <Server className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <Badge variant={stats?.system_health.ai_server === 'OK' ? 'default' : 'destructive'}>
                 {stats?.system_health.ai_server === 'OK' ? (
-                  <><CheckCircle className="w-3 h-3 mr-1" /> Connected</>
+                  <><CheckCircle className="w-3 h-3 mr-1" /> Terhubung</>
                 ) : (
                   <><AlertCircle className="w-3 h-3 mr-1" /> {stats?.system_health.ai_server}</>
                 )}
@@ -158,7 +158,7 @@ const AdminDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Pengguna</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -167,7 +167,7 @@ const AdminDashboard = () => {
                 +{stats?.users.today_registrations || 0} hari ini
               </p>
               <div className="mt-2 flex gap-2 text-xs">
-                <Badge variant="outline">{stats?.users.regular_users} User</Badge>
+                <Badge variant="outline">{stats?.users.regular_users} Pengguna</Badge>
                 <Badge variant="outline">{stats?.users.photographers} Fotografer</Badge>
               </div>
             </CardContent>
@@ -175,7 +175,7 @@ const AdminDashboard = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Events</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Acara</CardTitle>
               <Camera className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -192,7 +192,7 @@ const AdminDashboard = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Photos</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Foto</CardTitle>
               <Image className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -208,7 +208,7 @@ const AdminDashboard = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Revenue (30d)</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Pendapatan (30 hari)</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -219,7 +219,7 @@ const AdminDashboard = () => {
                 {revenueData?.summary.total_transactions || 0} transaksi
               </p>
               <div className="mt-2 text-xs text-muted-foreground">
-                {revenueData?.summary.unique_buyers || 0} unique buyers
+                {revenueData?.summary.unique_buyers || 0} pembeli unik
               </div>
             </CardContent>
           </Card>
@@ -231,12 +231,12 @@ const AdminDashboard = () => {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-blue-600" />
-                Revenue Breakdown (30 Hari)
+                Rincian Pendapatan (30 Hari)
               </CardTitle>
               <Link to="/admin/revenue">
                 <Button variant="outline" size="sm" className="gap-1">
                   <DollarSign className="h-4 w-4" />
-                  Detail Revenue
+                  Detail Pendapatan
                 </Button>
               </Link>
             </div>
@@ -246,7 +246,7 @@ const AdminDashboard = () => {
               <div className="p-4 bg-background/80 rounded-lg">
                 <div className="flex items-center gap-2 mb-1">
                   <Coins className="h-4 w-4 text-green-600" />
-                  <p className="text-sm text-muted-foreground">Top-up Points</p>
+                  <p className="text-sm text-muted-foreground">Isi Ulang Poin</p>
                 </div>
                 <p className="text-xl font-bold text-green-600">
                   {formatCurrency(parseFloat(revenueData?.summary.point_topup_revenue || '0'))}
@@ -258,19 +258,19 @@ const AdminDashboard = () => {
               <div className="p-4 bg-background/80 rounded-lg">
                 <div className="flex items-center gap-2 mb-1">
                   <ShoppingCart className="h-4 w-4 text-purple-600" />
-                  <p className="text-sm text-muted-foreground">Photo Sales</p>
+                  <p className="text-sm text-muted-foreground">Penjualan Foto</p>
                 </div>
                 <p className="text-xl font-bold text-purple-600">
                   {formatCurrency(revenueData?.summary.photo_gross_sales || 0)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Platform fee: {formatCurrency(revenueData?.summary.photo_platform_fee || 0)}
+                  Biaya platform: {formatCurrency(revenueData?.summary.photo_platform_fee || 0)}
                 </p>
               </div>
               <div className="p-4 bg-background/80 rounded-lg">
                 <div className="flex items-center gap-2 mb-1">
                   <CreditCard className="h-4 w-4 text-orange-600" />
-                  <p className="text-sm text-muted-foreground">API Token</p>
+                  <p className="text-sm text-muted-foreground">Token API</p>
                 </div>
                 <p className="text-xl font-bold text-orange-600">
                   {formatCurrency(revenueData?.summary.api_token_revenue || 0)}
@@ -282,13 +282,13 @@ const AdminDashboard = () => {
               <div className="p-4 bg-background/80 rounded-lg">
                 <div className="flex items-center gap-2 mb-1">
                   <Percent className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">Avg Transaction</p>
+                  <p className="text-sm text-muted-foreground">Rata-rata Transaksi</p>
                 </div>
                 <p className="text-xl font-bold">
                   {formatCurrency(revenueData?.summary.avg_transaction || 0)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Photographer: {formatCurrency(revenueData?.summary.photographer_earnings_total || 0)}
+                  Fotografer: {formatCurrency(revenueData?.summary.photographer_earnings_total || 0)}
                 </p>
               </div>
             </div>
@@ -299,23 +299,23 @@ const AdminDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Face Matches</CardTitle>
+              <CardTitle className="text-sm font-medium">Pencocokan Wajah</CardTitle>
               <Eye className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{formatNumber(stats?.matches.total_matches || 0)}</div>
               <p className="text-xs text-muted-foreground">
-                {stats?.matches.unique_users_matched || 0} unique users
+                {stats?.matches.unique_users_matched || 0} pengguna unik
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Avg confidence: {((stats?.matches.avg_confidence || 0) * 100).toFixed(1)}%
+                Rata-rata akurasi: {((stats?.matches.avg_confidence || 0) * 100).toFixed(1)}%
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">API Keys</CardTitle>
+              <CardTitle className="text-sm font-medium">Kunci API</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -324,14 +324,14 @@ const AdminDashboard = () => {
                 {stats?.api_keys.active_keys || 0} aktif
               </p>
               <div className="mt-2 text-xs text-muted-foreground">
-                {formatNumber(stats?.api_keys.total_tokens_used || 0)} tokens used
+                {formatNumber(stats?.api_keys.total_tokens_used || 0)} token terpakai
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Token Revenue</CardTitle>
+              <CardTitle className="text-sm font-medium">Pendapatan Token</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -340,8 +340,8 @@ const AdminDashboard = () => {
                 {stats?.tokens.total_transactions || 0} transaksi
               </p>
               <div className="mt-2 flex gap-2 text-xs">
-                <Badge variant="outline">{stats?.tokens.purchases} Purchase</Badge>
-                <Badge variant="outline">{stats?.tokens.renewals} Renewal</Badge>
+                <Badge variant="outline">{stats?.tokens.purchases} Pembelian</Badge>
+                <Badge variant="outline">{stats?.tokens.renewals} Perpanjangan</Badge>
               </div>
             </CardContent>
           </Card>
@@ -353,19 +353,19 @@ const AdminDashboard = () => {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Wallet className="h-5 w-5 text-green-600" />
-                Wallet & Withdrawal Statistics
+                Statistik Dompet & Penarikan
               </CardTitle>
               <div className="flex gap-2">
                 <Link to="/admin/withdrawals">
                   <Button variant="outline" size="sm" className="gap-1">
                     <Banknote className="h-4 w-4" />
-                    Manage Withdrawals
+                    Kelola Penarikan
                   </Button>
                 </Link>
                 <Link to="/admin/settings">
                   <Button variant="outline" size="sm" className="gap-1">
                     <Settings className="h-4 w-4" />
-                    Settings
+                    Pengaturan
                   </Button>
                 </Link>
               </div>
@@ -374,39 +374,39 @@ const AdminDashboard = () => {
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <div className="p-4 bg-background/80 rounded-lg">
-                <p className="text-sm text-muted-foreground">User Points in System</p>
+                <p className="text-sm text-muted-foreground">Poin Pengguna di Sistem</p>
                 <p className="text-xl font-bold text-primary">
                   {walletStats?.user_wallets?.total_points_in_system?.toLocaleString('id-ID') || '0'}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {walletStats?.user_wallets?.total_wallets || 0} wallets
+                  {walletStats?.user_wallets?.total_wallets || 0} dompet
                 </p>
               </div>
               <div className="p-4 bg-background/80 rounded-lg">
-                <p className="text-sm text-muted-foreground">Photographer Balance</p>
+                <p className="text-sm text-muted-foreground">Saldo Fotografer</p>
                 <p className="text-xl font-bold text-green-600">
                   {formatCurrency(walletStats?.photographer_wallets?.total_balance || 0)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {walletStats?.photographer_wallets?.total_wallets || 0} photographers
+                  {walletStats?.photographer_wallets?.total_wallets || 0} fotografer
                 </p>
               </div>
               <div className="p-4 bg-background/80 rounded-lg">
-                <p className="text-sm text-muted-foreground">Pending Withdrawals</p>
+                <p className="text-sm text-muted-foreground">Penarikan Tertunda</p>
                 <p className="text-xl font-bold text-yellow-600">
                   {formatCurrency(withdrawalStats?.summary?.pending_amount || 0)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {withdrawalStats?.summary?.pending_count || 0} requests
+                  {withdrawalStats?.summary?.pending_count || 0} permintaan
                 </p>
               </div>
               <div className="p-4 bg-background/80 rounded-lg">
-                <p className="text-sm text-muted-foreground">Total Withdrawn</p>
+                <p className="text-sm text-muted-foreground">Total Ditarik</p>
                 <p className="text-xl font-bold">
                   {formatCurrency(walletStats?.photographer_wallets?.all_time_withdrawn || 0)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {withdrawalStats?.summary?.paid_count || 0} paid
+                  {withdrawalStats?.summary?.paid_count || 0} dibayar
                 </p>
               </div>
             </div>
@@ -415,12 +415,12 @@ const AdminDashboard = () => {
                 <div className="flex items-center gap-2">
                   <AlertCircle className="h-5 w-5 text-yellow-600" />
                   <span className="text-sm font-medium">
-                    {withdrawalStats?.summary?.pending_count} withdrawal requests pending approval
+                    {withdrawalStats?.summary?.pending_count} permintaan penarikan menunggu persetujuan
                   </span>
                 </div>
                 <Link to="/admin/withdrawals">
                   <Button size="sm" variant="outline" className="gap-1">
-                    Review Now <ArrowRight className="h-4 w-4" />
+                    Tinjau Sekarang <ArrowRight className="h-4 w-4" />
                   </Button>
                 </Link>
               </div>
@@ -436,19 +436,19 @@ const AdminDashboard = () => {
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Database className="h-5 w-5 text-blue-600" />
-                    Dropbox Import B2B
+                    Import Dropbox B2B
                   </CardTitle>
                   <Badge variant="secondary" className="bg-blue-100 text-blue-700">
                     Enterprise
                   </Badge>
                 </div>
                 <CardDescription>
-                  Import photos dari Dropbox untuk klien korporat
+                  Import foto dari Dropbox untuk klien korporat
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Bulk photo management</span>
+                  <span className="text-muted-foreground">Manajemen foto massal</span>
                   <ArrowRight className="h-4 w-4 text-blue-600" />
                 </div>
               </CardContent>
@@ -461,7 +461,7 @@ const AdminDashboard = () => {
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <TrendingUp className="h-5 w-5 text-purple-600" />
-                    HiRes Analytics
+                    Analitik HiRes
                   </CardTitle>
                   <Badge variant="secondary" className="bg-purple-100 text-purple-700">
                     Premium
@@ -473,7 +473,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Sales performance tracking</span>
+                  <span className="text-muted-foreground">Pelacakan performa penjualan</span>
                   <ArrowRight className="h-4 w-4 text-purple-600" />
                 </div>
               </CardContent>
@@ -487,7 +487,7 @@ const AdminDashboard = () => {
             <Card className="hover:bg-accent cursor-pointer transition-colors">
               <CardContent className="flex flex-col items-center justify-center py-6">
                 <Users className="h-8 w-8 mb-2 text-primary" />
-                <span className="text-sm font-medium">Users</span>
+                <span className="text-sm font-medium">Pengguna</span>
               </CardContent>
             </Card>
           </Link>
@@ -495,7 +495,7 @@ const AdminDashboard = () => {
             <Card className="hover:bg-accent cursor-pointer transition-colors">
               <CardContent className="flex flex-col items-center justify-center py-6">
                 <Camera className="h-8 w-8 mb-2 text-primary" />
-                <span className="text-sm font-medium">Events</span>
+                <span className="text-sm font-medium">Acara</span>
               </CardContent>
             </Card>
           </Link>
@@ -503,7 +503,7 @@ const AdminDashboard = () => {
             <Card className="hover:bg-accent cursor-pointer transition-colors">
               <CardContent className="flex flex-col items-center justify-center py-6">
                 <Download className="h-8 w-8 mb-2 text-primary" />
-                <span className="text-sm font-medium">Downloads</span>
+                <span className="text-sm font-medium">Unduhan</span>
               </CardContent>
             </Card>
           </Link>
@@ -511,7 +511,7 @@ const AdminDashboard = () => {
             <Card className="hover:bg-accent cursor-pointer transition-colors">
               <CardContent className="flex flex-col items-center justify-center py-6">
                 <DollarSign className="h-8 w-8 mb-2 text-primary" />
-                <span className="text-sm font-medium">Revenue</span>
+                <span className="text-sm font-medium">Pendapatan</span>
               </CardContent>
             </Card>
           </Link>
@@ -519,7 +519,7 @@ const AdminDashboard = () => {
             <Card className="hover:bg-accent cursor-pointer transition-colors">
               <CardContent className="flex flex-col items-center justify-center py-6">
                 <Banknote className="h-8 w-8 mb-2 text-green-600" />
-                <span className="text-sm font-medium">Withdrawals</span>
+                <span className="text-sm font-medium">Penarikan</span>
               </CardContent>
             </Card>
           </Link>
@@ -527,7 +527,7 @@ const AdminDashboard = () => {
             <Card className="hover:bg-accent cursor-pointer transition-colors">
               <CardContent className="flex flex-col items-center justify-center py-6">
                 <Settings className="h-8 w-8 mb-2 text-primary" />
-                <span className="text-sm font-medium">Settings</span>
+                <span className="text-sm font-medium">Pengaturan</span>
               </CardContent>
             </Card>
           </Link>
@@ -535,7 +535,7 @@ const AdminDashboard = () => {
             <Card className="hover:bg-accent cursor-pointer transition-colors">
               <CardContent className="flex flex-col items-center justify-center py-6">
                 <Activity className="h-8 w-8 mb-2 text-primary" />
-                <span className="text-sm font-medium">Logs</span>
+                <span className="text-sm font-medium">Log</span>
               </CardContent>
             </Card>
           </Link>
@@ -543,7 +543,7 @@ const AdminDashboard = () => {
             <Card className="hover:bg-accent cursor-pointer transition-colors">
               <CardContent className="flex flex-col items-center justify-center py-6">
                 <Database className="h-8 w-8 mb-2 text-primary" />
-                <span className="text-sm font-medium">Storage</span>
+                <span className="text-sm font-medium">Penyimpanan</span>
               </CardContent>
             </Card>
           </Link>
@@ -553,7 +553,7 @@ const AdminDashboard = () => {
         <Card>
           <CardHeader>
             <CardTitle>Aktivitas Terbaru (24 Jam)</CardTitle>
-            <CardDescription>Top aktivitas dalam 24 jam terakhir</CardDescription>
+            <CardDescription>Aktivitas teratas dalam 24 jam terakhir</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">

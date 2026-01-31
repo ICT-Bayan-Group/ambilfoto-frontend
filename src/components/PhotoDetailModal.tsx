@@ -1,19 +1,20 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, X, ChevronLeft, ChevronRight, Calendar, MapPin, Camera, Sparkles, Eye, ShoppingCart, Coins, FileImage, Tag, Clock, CheckCircle } from "lucide-react";
-import { Photo } from "@/services/api/ai.service";
+import { Download, X, ChevronLeft, ChevronRight, Calendar, MapPin, Camera, Sparkles, Eye, ShoppingCart, Coins, FileImage, Tag, Clock, CheckCircle, Heart } from "lucide-react";
 import { UserPhoto } from "@/services/api/user.service";
 import { aiService } from "@/services/api/ai.service";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface PhotoDetailModalProps {
-  photo: Photo | UserPhoto | null;
+  photo: UserPhoto | null;
   isOpen: boolean;
   onClose: () => void;
   onDownload: (photoId: string) => void;
   onBuy?: (photoId: string) => void;
+  onToggleFavorite?: () => void;  // ← NEW: Added favorite toggle
   onView: () => void;
   onNext?: () => void;
   onPrevious?: () => void;
@@ -28,6 +29,7 @@ export const PhotoDetailModal = ({
   onClose,
   onDownload,
   onBuy,
+  onToggleFavorite,  // ← NEW
   onView,
   onNext,
   onPrevious,
@@ -37,63 +39,27 @@ export const PhotoDetailModal = ({
 }: PhotoDetailModalProps) => {
   if (!photo) return null;
 
-  const isUserPhoto = (p: Photo | UserPhoto): p is UserPhoto => {
-    return 'event_photo_id' in p;
-  };
+  const matchPercentage = photo.similarity ? Math.round(photo.similarity * 100) : 0;
+  
+  const previewUrl = photo.preview_url;
+  const photoId = photo.event_photo_id || photo.photo_id;
+  const eventName = photo.event_name || 'Untitled Photo';
+  const eventDate = photo.event_date;
+  const location = photo.event_location;
+  const photographer = photo.photographer_name;
 
-  const getMatchPercentage = () => {
-    if (isUserPhoto(photo)) {
-      return Math.round(photo.similarity * 100);
-    }
-    if (!photo.distance) return 0;
-    return Math.max(0, Math.min(100, Math.round((1 - photo.distance) * 100)));
-  };
+  // Get price
+  const isPurchased = photo.is_purchased;
+  const isForSale = photo.is_for_sale !== false;
+  const priceCash = photo.price_cash || photo.price || photo.purchase_price || 0;
+  const pricePoints = photo.price_points || photo.price_in_points || Math.ceil(priceCash / 5000);
 
-  const matchPercentage = getMatchPercentage();
-  
-  const previewUrl = isUserPhoto(photo) 
-    ? photo.preview_url 
-    : aiService.getPreviewUrl(photo.photo_id);
-  
-  const photoId = isUserPhoto(photo) ? photo.event_photo_id : photo.photo_id;
-  
-  const eventName = isUserPhoto(photo) 
-    ? photo.event_name 
-    : photo.metadata?.event_name || 'Untitled Photo';
-  
-  const eventDate = isUserPhoto(photo) 
-    ? photo.event_date 
-    : photo.metadata?.date;
-  
-  const location = isUserPhoto(photo) 
-    ? photo.event_location 
-    : photo.metadata?.location;
-  
-  const photographer = isUserPhoto(photo) 
-    ? photo.photographer_name 
-    : photo.metadata?.photographer;
-
-  // Get price - check multiple possible fields from API
-  const isPurchased = isUserPhoto(photo) ? photo.is_purchased : true;
-  const isForSale = isUserPhoto(photo) ? (photo.is_for_sale !== false) : false;
-  
-  // Get cash price from price_cash or fallback to price
-  const priceCash = isUserPhoto(photo) 
-    ? (photo.price_cash || photo.price || photo.purchase_price || 0) 
-    : 0;
-  
-  // Get points price from price_points or fallback to price_in_points
-  const pricePoints = isUserPhoto(photo) 
-    ? (photo.price_points || photo.price_in_points || Math.ceil(priceCash / 5000)) 
-    : 0;
-
-  // Get additional metadata for UserPhoto
-  const eventId = isUserPhoto(photo) ? photo.event_id : null;
-  const eventType = isUserPhoto(photo) ? photo.event_type : null;
-  const eventDescription = isUserPhoto(photo) ? photo.event_description : null;
-  const matchDate = isUserPhoto(photo) ? photo.match_date : null;
-  const uploadTimestamp = isUserPhoto(photo) ? photo.upload_timestamp : null;
-  const photographerId = isUserPhoto(photo) ? photo.photographer_id : null;
+  // Get additional metadata
+  const eventId = photo.event_id;
+  const eventType = photo.event_type;
+  const eventDescription = photo.event_description;
+  const matchDate = photo.match_date;
+  const uploadTimestamp = photo.upload_timestamp;
 
   const getMatchColor = (percentage: number) => {
     if (percentage >= 90) return "bg-green-500/20 text-green-400 border-green-500/30";
@@ -165,21 +131,50 @@ export const PhotoDetailModal = ({
               </Button>
             )}
 
-            {/* Match Badge - Floating */}
-            <div className="absolute top-3 left-3">
-              <Badge 
-                variant="outline" 
-                className={`${getMatchColor(matchPercentage)} border backdrop-blur-sm px-3 py-1.5 text-sm font-semibold`}
-              >
-                <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-                {matchPercentage}% Match
-              </Badge>
+            {/* Badges Row */}
+            <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
+              {/* Match Badge */}
+              {matchPercentage > 0 && (
+                <Badge 
+                  variant="outline" 
+                  className={`${getMatchColor(matchPercentage)} border backdrop-blur-sm px-3 py-1.5 text-sm font-semibold`}
+                >
+                  <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                  {matchPercentage}% Match
+                </Badge>
+              )}
+
+              {/* Favorite Button - NEW */}
+              {onToggleFavorite && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleFavorite();
+                  }}
+                  className={cn(
+                    "h-9 px-3 rounded-full backdrop-blur-sm transition-all",
+                    photo.is_favorited 
+                      ? "bg-red-500 hover:bg-red-600 text-white" 
+                      : "bg-black/40 hover:bg-black/60 text-white"
+                  )}
+                >
+                  <Heart 
+                    className={cn(
+                      "h-4 w-4 mr-1.5",
+                      photo.is_favorited && "fill-current"
+                    )} 
+                  />
+                  {photo.is_favorited ? 'Favorit' : 'Suka'}
+                </Button>
+              )}
             </div>
 
             {/* Purchase Badge */}
             {isPurchased && (
-              <div className="absolute top-3 left-32">
-                <Badge className="bg-green-500/90 text-white border-green-400/50">
+              <div className="absolute top-14 left-3">
+                <Badge className="bg-green-500/90 text-white border-green-400/50 backdrop-blur-sm">
                   ✓ Sudah Dibeli
                 </Badge>
               </div>
@@ -234,24 +229,26 @@ export const PhotoDetailModal = ({
           </div>
 
           {/* Match Stats */}
-          <div className="p-4 rounded-xl bg-gradient-to-r from-primary/5 via-primary/10 to-secondary/5 border border-primary/20">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-muted-foreground">Tingkat Kecocokan Wajah</span>
-              <span className="text-2xl font-bold text-primary">{matchPercentage}%</span>
+          {matchPercentage > 0 && (
+            <div className="p-4 rounded-xl bg-gradient-to-r from-primary/5 via-primary/10 to-secondary/5 border border-primary/20">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-muted-foreground">Tingkat Kecocokan Wajah</span>
+                <span className="text-2xl font-bold text-primary">{matchPercentage}%</span>
+              </div>
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all duration-500"
+                  style={{ width: `${matchPercentage}%` }}
+                />
+              </div>
+              {matchDate && (
+                <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  Ditemukan pada: {format(new Date(matchDate), "d MMM yyyy, HH:mm", { locale: idLocale })}
+                </p>
+              )}
             </div>
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all duration-500"
-                style={{ width: `${matchPercentage}%` }}
-              />
-            </div>
-            {matchDate && (
-              <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                Ditemukan pada: {format(new Date(matchDate), "d MMM yyyy, HH:mm", { locale: idLocale })}
-              </p>
-            )}
-          </div>
+          )}
 
           {/* Additional Metadata */}
           <div className="grid grid-cols-2 gap-2 text-xs">

@@ -25,6 +25,7 @@ import {
   BarChart3
 } from "lucide-react";
 import { format } from "date-fns";
+import { id } from "date-fns/locale";
 
 const PhotographerDashboard = () => {
   const { user } = useAuth();
@@ -81,16 +82,16 @@ const PhotographerDashboard = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold">
-              Welcome back, {user?.full_name?.split(' ')[0]}! 📸
+              Selamat datang kembali, {user?.full_name?.split(' ')[0]}! 📸
             </h1>
             <p className="text-muted-foreground mt-1">
-              Manage your events and photos from your dashboard
+              Kelola acara dan foto Anda dari dasbor
             </p>
           </div>
           <Link to="/photographer/events/new">
             <Button className="gap-2">
               <Plus className="h-4 w-4" />
-              Create Event
+              Buat Acara
             </Button>
           </Link>
         </div>
@@ -118,7 +119,7 @@ const PhotographerDashboard = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{stats?.events.total_events || 0}</p>
-                      <p className="text-sm text-muted-foreground">Total Events</p>
+                      <p className="text-sm text-muted-foreground">Total Acara</p>
                     </div>
                   </div>
                 </CardContent>
@@ -132,7 +133,7 @@ const PhotographerDashboard = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{stats?.photos.total_photos || 0}</p>
-                      <p className="text-sm text-muted-foreground">Photos Uploaded</p>
+                      <p className="text-sm text-muted-foreground">Foto Diunggah</p>
                     </div>
                   </div>
                 </CardContent>
@@ -146,7 +147,7 @@ const PhotographerDashboard = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{stats?.photos.total_faces_detected || 0}</p>
-                      <p className="text-sm text-muted-foreground">Faces Detected</p>
+                      <p className="text-sm text-muted-foreground">Wajah Terdeteksi</p>
                     </div>
                   </div>
                 </CardContent>
@@ -160,7 +161,7 @@ const PhotographerDashboard = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold">{wallet?.total_sales || 0}</p>
-                      <p className="text-sm text-muted-foreground">Photo Sales</p>
+                      <p className="text-sm text-muted-foreground">Penjualan Foto</p>
                     </div>
                   </div>
                 </CardContent>
@@ -175,11 +176,11 @@ const PhotographerDashboard = () => {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Wallet className="h-5 w-5 text-green-600" />
-                Photographer Wallet
+                Dompet Fotografer
               </CardTitle>
               <Link to="/photographer/wallet">
                 <Button variant="ghost" size="sm" className="gap-1">
-                  View Details <ArrowRight className="h-4 w-4" />
+                  Lihat Detail <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
             </div>
@@ -187,25 +188,25 @@ const PhotographerDashboard = () => {
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-4 bg-background/80 rounded-lg">
-                <p className="text-sm text-muted-foreground">Total Balance</p>
+                <p className="text-sm text-muted-foreground">Total Saldo</p>
                 <p className="text-xl font-bold text-green-600">
                   {formatCurrency(wallet?.balance || 0)}
                 </p>
               </div>
               <div className="p-4 bg-background/80 rounded-lg">
-                <p className="text-sm text-muted-foreground">Available</p>
+                <p className="text-sm text-muted-foreground">Dapat Ditarik</p>
                 <p className="text-xl font-bold">
                   {formatCurrency(wallet?.available_for_withdrawal || 0)}
                 </p>
               </div>
               <div className="p-4 bg-background/80 rounded-lg">
-                <p className="text-sm text-muted-foreground">Total Earned</p>
+                <p className="text-sm text-muted-foreground">Total Pendapatan</p>
                 <p className="text-xl font-bold text-primary">
                   {formatCurrency(wallet?.total_earned || 0)}
                 </p>
               </div>
               <div className="p-4 bg-background/80 rounded-lg">
-                <p className="text-sm text-muted-foreground">Pending</p>
+                <p className="text-sm text-muted-foreground">Tertunda</p>
                 <p className="text-xl font-bold text-yellow-600">
                   {formatCurrency(wallet?.pending_withdrawal || 0)}
                 </p>
@@ -215,7 +216,7 @@ const PhotographerDashboard = () => {
               <Link to="/photographer/wallet">
                 <Button className="gap-2 bg-green-600 hover:bg-green-700">
                   <Banknote className="h-4 w-4" />
-                  Request Withdrawal
+                  Ajukan Penarikan
                 </Button>
               </Link>
             </div>
@@ -229,26 +230,26 @@ const PhotographerDashboard = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
-                Quick Actions
+                Aksi Cepat
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <Link to="/photographer/events/new" className="block">
                 <Button variant="outline" className="w-full justify-start gap-3">
                   <Plus className="h-4 w-4" />
-                  Create New Event
+                  Buat Acara Baru
                 </Button>
               </Link>
               <Link to="/photographer/events" className="block">
                 <Button variant="outline" className="w-full justify-start gap-3">
                   <Calendar className="h-4 w-4" />
-                  View All Events
+                  Lihat Semua Acara
                 </Button>
               </Link>
               <Link to="/photographer/profile" className="block">
                 <Button variant="outline" className="w-full justify-start gap-3">
                   <Camera className="h-4 w-4" />
-                  Edit Business Profile
+                  Edit Profil Bisnis
                 </Button>
               </Link>
               <Link to="/photographer/photo-sales" className="block">
@@ -266,13 +267,13 @@ const PhotographerDashboard = () => {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Clock className="h-5 w-5" />
-                  Recent Events
+                  Acara Terbaru
                 </CardTitle>
-                <CardDescription>Your latest event activities</CardDescription>
+                <CardDescription>Aktivitas acara terbaru Anda</CardDescription>
               </div>
               <Link to="/photographer/events">
                 <Button variant="ghost" size="sm" className="gap-1">
-                  View All <ArrowRight className="h-4 w-4" />
+                  Lihat Semua <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
             </CardHeader>
@@ -292,10 +293,10 @@ const PhotographerDashboard = () => {
               ) : recentEvents.length === 0 ? (
                 <div className="text-center py-8">
                   <Camera className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                  <p className="text-muted-foreground">No events yet</p>
+                  <p className="text-muted-foreground">Belum ada acara</p>
                   <Link to="/photographer/events/new">
                     <Button variant="link" className="mt-2">
-                      Create your first event
+                      Buat acara pertama Anda
                     </Button>
                   </Link>
                 </div>
@@ -310,11 +311,11 @@ const PhotographerDashboard = () => {
                       <div>
                         <p className="font-medium">{event.event_name}</p>
                         <p className="text-sm text-muted-foreground">
-                          {format(new Date(event.event_date), 'MMM dd, yyyy')} • {event.photo_count || 0} photos
+                          {format(new Date(event.event_date), 'dd MMM yyyy', { locale: id })} • {event.photo_count || 0} foto
                         </p>
                       </div>
                       <Badge variant={event.status === 'active' ? 'default' : 'secondary'}>
-                        {event.status}
+                        {event.status === 'active' ? 'Aktif' : event.status === 'completed' ? 'Selesai' : event.status}
                       </Badge>
                     </Link>
                   ))}
@@ -330,18 +331,18 @@ const PhotographerDashboard = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                User Engagement
+                Keterlibatan Pengguna
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-3xl font-bold">{stats?.users.unique_users || 0}</p>
-                  <p className="text-sm text-muted-foreground">Unique users matched</p>
+                  <p className="text-sm text-muted-foreground">Pengguna unik tercocokkan</p>
                 </div>
                 <div className="text-right">
                   <p className="text-3xl font-bold">{stats?.events.active_events || 0}</p>
-                  <p className="text-sm text-muted-foreground">Active events</p>
+                  <p className="text-sm text-muted-foreground">Acara aktif</p>
                 </div>
               </div>
             </CardContent>
@@ -351,7 +352,7 @@ const PhotographerDashboard = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <DollarSign className="h-5 w-5" />
-                Revenue Overview
+                Ringkasan Pendapatan
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -360,11 +361,11 @@ const PhotographerDashboard = () => {
                   <p className="text-3xl font-bold">
                     {formatCurrency(wallet?.total_earned || 0)}
                   </p>
-                  <p className="text-sm text-muted-foreground">Total earned</p>
+                  <p className="text-sm text-muted-foreground">Total pendapatan</p>
                 </div>
                 <div className="text-right">
                   <p className="text-3xl font-bold">{stats?.events.completed_events || 0}</p>
-                  <p className="text-sm text-muted-foreground">Completed events</p>
+                  <p className="text-sm text-muted-foreground">Acara selesai</p>
                 </div>
               </div>
             </CardContent>

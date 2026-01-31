@@ -166,7 +166,7 @@ const UserDashboard = () => {
     },
     {
       icon: Grid3x3,
-      label: "Lihat Galeri",
+      label: "Ambil Foto",
       description: `${stats.totalPhotos} foto`,
       href: "/user/photos",
       color: "bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border-yellow-200"
@@ -229,33 +229,6 @@ const UserDashboard = () => {
               </Card>
             )}
           </div>
-
-          {/* ✅ PHOTOGRAPHER UPGRADE CTA - NEW SECTION */}
-          {!upgradeStatus?.has_request && !isLoading && (
-            <Card className="mb-8 border-2 border-purple-200 shadow-lg bg-gradient-to-br from-purple-500 to-indigo-500 text-white overflow-hidden relative">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-              <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
-              <CardContent className="pt-8 pb-8 relative z-10">
-                <div className="flex flex-col md:flex-row items-center gap-6">
-                  <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
-                    <Briefcase className="h-10 w-10" />
-                  </div>
-                  <div className="flex-1 text-center md:text-left">
-                    <h2 className="text-2xl font-bold mb-2">Ingin Jadi Photographer?</h2>
-                    <p className="text-white/90">
-                      Upgrade akun Anda dan mulai upload foto, buat event, dan hasilkan pendapatan dari foto Anda!
-                    </p>
-                  </div>
-                  <Link to="/user/upgrade-to-photographer">
-                    <Button size="lg" className="bg-white text-purple-600 hover:bg-gray-100 shadow-lg hover:shadow-xl transition-shadow">
-                      <Camera className="mr-2 h-5 w-5" />
-                      Upgrade Sekarang
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* ✅ UPGRADE STATUS ALERT - Jika ada request */}
           {upgradeStatus?.has_request && upgradeStatus.current_request && (

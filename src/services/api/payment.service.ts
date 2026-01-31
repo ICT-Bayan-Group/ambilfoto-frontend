@@ -22,7 +22,7 @@ paymentApi.interceptors.request.use((config) => {
 paymentApi.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 || error.response?.status === 403) {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user_data');
       window.location.href = '/login';
@@ -168,26 +168,34 @@ export interface WithdrawalRequest {
   photographer_id?: string;
   business_name?: string;
   photographer_name?: string;
+  photographer_full_name?: string;
   photographer_email?: string;
   photographer_phone?: string;
   amount: number;
   bank_name: string;
   bank_account: string;
+  account_holder?: string;
   status: 'pending' | 'approved' | 'paid' | 'rejected';
+  photographer_note?: string;
   admin_name?: string;
   admin_note?: string;
   transfer_proof_url?: string;
-  requested_at: string;
+  requested_at?: string;
+  created_at?: string;
   processed_at?: string;
   paid_at?: string;
 }
 
 export interface WithdrawalSummary {
   total_requests: number;
-  pending_amount: number;
   pending_count: number;
-  paid_amount: number;
+  pending_amount: number;
+  approved_count?: number;
+  approved_amount?: number;
   paid_count: number;
+  paid_amount: number;
+  rejected_count?: number;
+  rejected_amount?: number;
 }
 
 export interface PlatformSetting {
@@ -313,25 +321,57 @@ export const paymentService = {
   // ============ PUBLIC ============
   
   async getPointPackages(): Promise<{ success: boolean; data?: PointPackage[]; error?: string }> {
-    const response = await paymentApi.get('/payment/packages');
-    return response.data;
+    try {
+      const response = await paymentApi.get('/payment/packages');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching point packages:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message || 'Gagal mengambil paket poin'
+      };
+    }
   },
 
   // ============ USER WALLET ============
 
   async createTopUp(packageId: string): Promise<{ success: boolean; message?: string; data?: TopUpResponse; error?: string }> {
-    const response = await paymentApi.post('/payment/topup', { package_id: packageId });
-    return response.data;
+    try {
+      const response = await paymentApi.post('/payment/topup', { package_id: packageId });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error creating top-up:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message || 'Gagal membuat top-up'
+      };
+    }
   },
 
   async purchasePhoto(photoId: string, paymentMethod: 'cash' | 'points'): Promise<{ success: boolean; message?: string; data?: PhotoPurchaseResponse; error?: string }> {
-    const response = await paymentApi.post('/payment/purchase', { photo_id: photoId, payment_method: paymentMethod });
-    return response.data;
+    try {
+      const response = await paymentApi.post('/payment/purchase', { photo_id: photoId, payment_method: paymentMethod });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error purchasing photo:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message || 'Gagal membeli foto'
+      };
+    }
   },
 
   async getTransactionStatus(transactionId: string): Promise<{ success: boolean; data?: Transaction; error?: string }> {
-    const response = await paymentApi.get(`/payment/transaction/${transactionId}`);
-    return response.data;
+    try {
+      const response = await paymentApi.get(`/payment/transaction/${transactionId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching transaction status:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message || 'Gagal mengambil status transaksi'
+      };
+    }
   },
 
   async getUserWallet(): Promise<{ 
@@ -343,8 +383,16 @@ export const paymentService = {
     }; 
     error?: string 
   }> {
-    const response = await paymentApi.get('/payment/wallet');
-    return response.data;
+    try {
+      const response = await paymentApi.get('/payment/wallet');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching user wallet:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message || 'Gagal mengambil data wallet'
+      };
+    }
   },
 
   async getWalletHistory(params?: { 
@@ -357,8 +405,17 @@ export const paymentService = {
     pagination?: PaginationInfo; 
     error?: string 
   }> {
-    const response = await paymentApi.get('/payment/wallet/history', { params });
-    return response.data;
+    try {
+      const response = await paymentApi.get('/payment/wallet/history', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching wallet history:', error);
+      return {
+        success: false,
+        data: [],
+        error: error.response?.data?.error || error.message || 'Gagal mengambil riwayat wallet'
+      };
+    }
   },
 
   async getPurchasedPhotos(params?: { 
@@ -370,8 +427,17 @@ export const paymentService = {
     pagination?: PaginationInfo; 
     error?: string 
   }> {
-    const response = await paymentApi.get('/payment/purchased', { params });
-    return response.data;
+    try {
+      const response = await paymentApi.get('/payment/purchased', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching purchased photos:', error);
+      return {
+        success: false,
+        data: [],
+        error: error.response?.data?.error || error.message || 'Gagal mengambil foto yang dibeli'
+      };
+    }
   },
 
   // ============ PHOTOGRAPHER WALLET ============
@@ -385,25 +451,40 @@ export const paymentService = {
     }; 
     error?: string 
   }> {
-    const response = await paymentApi.get('/payment/photographer/wallet');
-    return response.data;
+    try {
+      const response = await paymentApi.get('/payment/photographer/wallet');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching photographer wallet:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message || 'Gagal mengambil wallet fotografer'
+      };
+    }
   },
 
-  async requestWithdrawal(amount: number): Promise<{ 
+  async requestWithdrawal(data: {
+    amount: number;
+    bank_name: string;
+    bank_account: string;
+    account_holder?: string;
+    photographer_note?: string;
+  }): Promise<{ 
     success: boolean; 
     message?: string; 
-    data?: { 
-      request_id: string; 
-      amount: number; 
-      status: string; 
-      bank_name: string; 
-      bank_account: string; 
-      note: string 
-    }; 
+    data?: WithdrawalRequest;
     error?: string 
   }> {
-    const response = await paymentApi.post('/payment/photographer/withdraw', { amount });
-    return response.data;
+    try {
+      const response = await paymentApi.post('/payment/photographer/withdraw', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error requesting withdrawal:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message || 'Gagal mengajukan penarikan'
+      };
+    }
   },
 
   async getMyWithdrawals(params?: { 
@@ -413,16 +494,34 @@ export const paymentService = {
   }): Promise<{ 
     success: boolean; 
     data?: WithdrawalRequest[]; 
+    summary?: WithdrawalSummary;
     pagination?: PaginationInfo; 
     error?: string 
   }> {
-    const response = await paymentApi.get('/payment/photographer/withdrawals', { params });
-    return response.data;
+    try {
+      const response = await paymentApi.get('/payment/photographer/withdrawals', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching my withdrawals:', error);
+      return {
+        success: false,
+        data: [],
+        error: error.response?.data?.error || error.message || 'Gagal mengambil riwayat penarikan'
+      };
+    }
   },
 
   async cancelWithdrawal(requestId: string): Promise<{ success: boolean; message?: string; error?: string }> {
-    const response = await paymentApi.delete(`/payment/photographer/withdrawals/${requestId}`);
-    return response.data;
+    try {
+      const response = await paymentApi.delete(`/payment/photographer/withdrawals/${requestId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error canceling withdrawal:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message || 'Gagal membatalkan penarikan'
+      };
+    }
   },
 
   // ============ ADMIN WITHDRAWAL MANAGEMENT ============
@@ -438,8 +537,49 @@ export const paymentService = {
     pagination?: PaginationInfo; 
     error?: string 
   }> {
-    const response = await paymentApi.get('/payment/admin/withdrawals', { params });
-    return response.data;
+    try {
+      const response = await paymentApi.get('/payment/admin/withdrawals', { params });
+      
+      // Pastikan summary ada dengan nilai default
+      const defaultSummary: WithdrawalSummary = {
+        total_requests: 0,
+        pending_count: 0,
+        pending_amount: 0,
+        approved_count: 0,
+        approved_amount: 0,
+        paid_count: 0,
+        paid_amount: 0,
+        rejected_count: 0,
+        rejected_amount: 0,
+      };
+
+      return {
+        success: true,
+        data: response.data.data || [],
+        summary: response.data.summary || defaultSummary,
+        pagination: response.data.pagination,
+      };
+    } catch (error: any) {
+      console.error('Error fetching all withdrawals:', error);
+      
+      // Return default values on error
+      return {
+        success: false,
+        data: [],
+        summary: {
+          total_requests: 0,
+          pending_count: 0,
+          pending_amount: 0,
+          approved_count: 0,
+          approved_amount: 0,
+          paid_count: 0,
+          paid_amount: 0,
+          rejected_count: 0,
+          rejected_amount: 0,
+        },
+        error: error.response?.data?.error || error.message || 'Gagal mengambil data penarikan',
+      };
+    }
   },
 
   async processWithdrawal(requestId: string, data: { 
@@ -447,8 +587,16 @@ export const paymentService = {
     admin_note?: string; 
     transfer_proof_url?: string 
   }): Promise<{ success: boolean; message?: string; error?: string }> {
-    const response = await paymentApi.post(`/payment/admin/withdrawals/${requestId}`, data);
-    return response.data;
+    try {
+      const response = await paymentApi.post(`/payment/admin/withdrawals/${requestId}`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error processing withdrawal:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message || 'Gagal memproses penarikan'
+      };
+    }
   },
 
   // ============ ADMIN ANALYTICS ============
@@ -457,30 +605,70 @@ export const paymentService = {
     period?: '7d' | '30d' | '90d' | '1y'; 
     photographer_id?: string 
   }): Promise<{ success: boolean; data?: MarketplaceRevenue; error?: string }> {
-    const response = await paymentApi.get('/admin/revenue', { params });
-    return response.data;
+    try {
+      const response = await paymentApi.get('/admin/revenue', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching marketplace revenue:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message || 'Gagal mengambil data pendapatan'
+      };
+    }
   },
 
   async getWalletStatistics(): Promise<{ success: boolean; data?: WalletStatistics; error?: string }> {
-    const response = await paymentApi.get('/admin/wallets');
-    return response.data;
+    try {
+      const response = await paymentApi.get('/admin/wallets');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching wallet statistics:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message || 'Gagal mengambil statistik wallet'
+      };
+    }
   },
 
   async getWithdrawalAnalytics(params?: { 
     period?: '7d' | '30d' | '90d'; 
     status?: 'pending' | 'approved' | 'paid' | 'rejected' 
   }): Promise<{ success: boolean; data?: WithdrawalAnalytics; error?: string }> {
-    const response = await paymentApi.get('/admin/withdrawals/analytics', { params });
-    return response.data;
+    try {
+      const response = await paymentApi.get('/admin/withdrawals/analytics', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching withdrawal analytics:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message || 'Gagal mengambil analitik penarikan'
+      };
+    }
   },
 
   async getPlatformSettings(): Promise<{ success: boolean; data?: PlatformSettings; error?: string }> {
-    const response = await paymentApi.get('/admin/settings');
-    return response.data;
+    try {
+      const response = await paymentApi.get('/admin/settings');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching platform settings:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message || 'Gagal mengambil pengaturan platform'
+      };
+    }
   },
 
   async updatePlatformSetting(settingKey: string, settingValue: string): Promise<{ success: boolean; message?: string; error?: string }> {
-    const response = await paymentApi.put('/admin/settings', { setting_key: settingKey, setting_value: settingValue });
-    return response.data;
+    try {
+      const response = await paymentApi.put('/admin/settings', { setting_key: settingKey, setting_value: settingValue });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error updating platform setting:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message || 'Gagal mengupdate pengaturan'
+      };
+    }
   },
 };

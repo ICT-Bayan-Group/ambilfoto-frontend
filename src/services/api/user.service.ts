@@ -39,6 +39,7 @@ export interface UserPhoto {
   photo_id: string;
   filename: string;
   faces_count?: number;
+  favorite_count?: number;
   
   // Event info
   event_id: string;
@@ -54,23 +55,31 @@ export interface UserPhoto {
   photographer_name: string;
   
   // Face match info
-  similarity: number;
+  similarity?: number;
   confidence?: number;
-  match_date: string;
+  match_date?: string;
   
   // Pricing
   price_cash?: number;
   price_points?: number;
   price?: number;
   price_in_points?: number;
-  is_for_sale?: boolean;
+  is_for_sale?: boolean | 0 | 1;  // ✅ FIX: Allow boolean OR number
   sold_count?: number;
   
   // Purchase status
-  is_purchased: boolean;
+  // ✅ FIX: Backend sends 0/1 (number), frontend uses boolean
+  // Accept both to avoid TypeScript errors
+  is_purchased: boolean | 0 | 1;
   purchased_at?: string;
   purchase_price?: number;
   payment_method?: 'cash' | 'points';
+  
+  // Favorite status
+  // ✅ FIX: Backend sends 0/1 (number), frontend uses boolean
+  is_favorited?: boolean | 0 | 1;
+  favorited_at?: string;
+  favorite_id?: string;
   
   // URLs
   preview_url: string;
@@ -109,8 +118,9 @@ export interface PhotoDetail {
   photographer_name: string;
   price_cash: number;
   price_points: number;
-  is_for_sale: boolean;
-  is_purchased: boolean;
+  is_for_sale: boolean | 0 | 1;  // ✅ FIX
+  is_purchased: boolean | 0 | 1;  // ✅ FIX
+  is_favorited?: boolean | 0 | 1;  // ✅ FIX
 }
 
 export interface UserBalance {
@@ -180,6 +190,17 @@ export interface MyPhotosResponse {
   error?: string;
 }
 
+export interface FavoriteResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    favorite_id?: string;
+    is_favorited?: boolean;
+  };
+  error?: string;
+  error_code?: string;
+}
+
 // ============ SERVICE ============
 
 export const userService = {
@@ -194,6 +215,35 @@ export const userService = {
 
   async getMyPhotos(params?: { page?: number; limit?: number }): Promise<MyPhotosResponse> {
     const response = await userApi.get('/user/my-photos', { params });
+    return response.data;
+  },
+
+  // ============ PURCHASED PHOTOS ============
+
+  async getPurchasedPhotos(params?: { page?: number; limit?: number }): Promise<MyPhotosResponse> {
+    const response = await userApi.get('/user/purchased', { params });
+    return response.data;
+  },
+
+  // ============ FAVORITE PHOTOS ============
+
+  async getFavoritePhotos(params?: { page?: number; limit?: number }): Promise<MyPhotosResponse> {
+    const response = await userApi.get('/user/favorites', { params });
+    return response.data;
+  },
+
+  async addToFavorites(photoId: string): Promise<FavoriteResponse> {
+    const response = await userApi.post(`/user/photos/${photoId}/favorite`);
+    return response.data;
+  },
+
+  async removeFromFavorites(photoId: string): Promise<FavoriteResponse> {
+    const response = await userApi.delete(`/user/photos/${photoId}/favorite`);
+    return response.data;
+  },
+
+  async checkFavoriteStatus(photoId: string): Promise<FavoriteResponse> {
+    const response = await userApi.get(`/user/photos/${photoId}/favorite/status`);
     return response.data;
   },
 
@@ -231,7 +281,7 @@ export const userService = {
 
   // ============ FACE MATCHING ============
 
-    async matchPhotos(data: MatchPhotosData): Promise<MyPhotosResponse> {
+  async matchPhotos(data: MatchPhotosData): Promise<MyPhotosResponse> {
     const response = await userApi.post('/user/match-face', data);
     return response.data;
   },
@@ -260,7 +310,9 @@ export const userService = {
     data?: { 
       total_matched_photos: number;
       total_downloads: number;
+      total_favorites?: number;
       total_spent: number;
+      total_points_spent?: number;
       recent_matches: number;
     }; 
     error?: string 
