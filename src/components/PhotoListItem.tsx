@@ -3,67 +3,54 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Download, Calendar, MapPin, Loader2, AlertCircle, Eye, Sparkles, ShoppingCart, Coins } from "lucide-react";
-import { Photo } from "@/services/api/ai.service";
+import { Download, Calendar, MapPin, Loader2, AlertCircle, Eye, Sparkles, ShoppingCart, Coins, Heart } from "lucide-react";
 import { UserPhoto } from "@/services/api/user.service";
 import { aiService } from "@/services/api/ai.service";
+import { cn } from "@/lib/utils";
 
 interface PhotoListItemProps {
-  photo: Photo | UserPhoto;
+  photo: UserPhoto;
   onDownload: (photoId: string) => void;
-  onBuy?: (photoId: string) => void;
+  onBuy?: () => void;
+  onToggleFavorite?: () => void;
   isDownloading: boolean;
   onClick: () => void;
 }
 
-export const PhotoListItem = ({ photo, onDownload, onBuy, isDownloading, onClick }: PhotoListItemProps) => {
+export const PhotoListItem = ({ 
+  photo, 
+  onDownload, 
+  onBuy, 
+  onToggleFavorite,
+  isDownloading, 
+  onClick 
+}: PhotoListItemProps) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  const isUserPhoto = (p: Photo | UserPhoto): p is UserPhoto => {
-    return 'event_photo_id' in p;
-  };
+  const matchScore = photo.similarity ? Math.round(photo.similarity * 100) : 0;
+  
+  const previewUrl = photo.preview_url;
+  const photoId = photo.event_photo_id || photo.photo_id;
+  const eventName = photo.event_name || 'Unknown Event';
+  const eventDate = photo.event_date;
+  const location = photo.event_location;
 
-  const getMatchPercentage = () => {
-    if (isUserPhoto(photo)) {
-      return Math.round(photo.similarity * 100);
-    }
-    if (!photo.distance) return 0;
-    return Math.max(0, Math.min(100, Math.round((1 - photo.distance) * 100)));
-  };
-
-  const matchScore = getMatchPercentage();
+  // ✅ FIX: Determine CTA - ALWAYS check is_purchased FIRST
+  const isPurchased = photo.is_purchased === true || photo.is_purchased === 1;
+  const isFree = photo.is_for_sale === false || (photo.price_cash === 0 && photo.price_points === 0);
   
-  const previewUrl = isUserPhoto(photo) 
-    ? photo.preview_url 
-    : aiService.getPreviewUrl(photo.photo_id);
+  // Priority order:
+  // 1. If purchased -> DOWNLOAD
+  // 2. If free -> FREE_DOWNLOAD  
+  // 3. Otherwise -> BUY
+  const cta = isPurchased 
+    ? 'DOWNLOAD' as const
+    : isFree 
+    ? 'FREE_DOWNLOAD' as const
+    : photo.cta || 'BUY' as const;
   
-  const photoId = isUserPhoto(photo) ? photo.event_photo_id : photo.photo_id;
-  
-  const eventName = isUserPhoto(photo) 
-    ? photo.event_name 
-    : photo.metadata?.event_name || 'Unknown Event';
-  
-  const eventDate = isUserPhoto(photo) 
-    ? photo.event_date 
-    : photo.metadata?.date;
-  
-  const location = isUserPhoto(photo) 
-    ? photo.event_location 
-    : photo.metadata?.location;
-
-  // Get purchase and pricing info using CTA logic from backend
-  const isPurchased = isUserPhoto(photo) ? photo.is_purchased : true;
-  const isForSale = isUserPhoto(photo) ? (photo.is_for_sale !== false) : false;
-  const priceCash = isUserPhoto(photo) ? (photo.price_cash || photo.price || photo.purchase_price || 0) : 0;
-  const pricePoints = isUserPhoto(photo) ? (photo.price_points || photo.price_in_points || 0) : 0;
-  
-  // Get CTA from backend or calculate it
-  const cta = isUserPhoto(photo) 
-    ? (photo.cta || (isPurchased ? 'DOWNLOAD' : (isForSale && priceCash > 0 ? 'BUY' : 'FREE_DOWNLOAD')))
-    : 'DOWNLOAD';
-  
-  const priceDisplay = isUserPhoto(photo) ? photo.price_display : '';
+  const priceDisplay = photo.price_display || '';
 
   const getMatchColor = (percentage: number) => {
     if (percentage >= 90) return "bg-green-500/10 text-green-500 border-green-500/30";
@@ -72,10 +59,10 @@ export const PhotoListItem = ({ photo, onDownload, onBuy, isDownloading, onClick
   };
 
   return (
-    <Card className="border-border/50 shadow-soft hover:shadow-strong transition-smooth rounded-xl overflow-hidden">
+    <Card className="border-2 border-gray-200 shadow-md hover:shadow-xl transition-all duration-300 rounded-xl overflow-hidden bg-white">
       <div className="p-4 flex items-center gap-4">
         <div 
-          className="h-20 w-20 rounded-xl bg-muted flex items-center justify-center shrink-0 relative overflow-hidden cursor-pointer group" 
+          className="h-20 w-20 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shrink-0 relative overflow-hidden cursor-pointer group" 
           onClick={onClick}
         >
           {!imageLoaded && !imageError && (
@@ -103,10 +90,10 @@ export const PhotoListItem = ({ photo, onDownload, onBuy, isDownloading, onClick
         </div>
         
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold mb-1.5 truncate text-base">
+          <h3 className="font-semibold mb-1.5 truncate text-base text-gray-800">
             {eventName}
           </h3>
-          <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
             {eventDate && (
               <div className="flex items-center gap-1.5">
                 <Calendar className="h-3.5 w-3.5" />
@@ -131,58 +118,83 @@ export const PhotoListItem = ({ photo, onDownload, onBuy, isDownloading, onClick
         <div className="flex gap-2 shrink-0 items-center">
           {/* Price/Status badge */}
           {cta === 'BUY' && (
-            <Badge variant="secondary" className="gap-1 hidden sm:flex">
+            <Badge variant="secondary" className="gap-1 hidden sm:flex bg-yellow-100 text-yellow-700">
               <Coins className="h-3 w-3" />
-              {priceDisplay || `${pricePoints} FOTOPOIN`}
+              {priceDisplay || `${photo.price_points || 5} FOTOPOIN`}
             </Badge>
           )}
           {cta === 'FREE_DOWNLOAD' && (
-            <Badge variant="outline" className="gap-1 hidden sm:flex text-green-600 border-green-500/30">
+            <Badge variant="outline" className="gap-1 hidden sm:flex text-green-600 border-green-500/30 bg-green-50">
               GRATIS
             </Badge>
           )}
           {cta === 'DOWNLOAD' && isPurchased && (
-            <Badge className="gap-1 hidden sm:flex bg-green-500/20 text-green-600 border-green-500/30">
+            <Badge className="gap-1 hidden sm:flex bg-blue-100 text-blue-700 border-blue-200">
               ✓ Dibeli
             </Badge>
+          )}
+          
+          {/* Favorite Button */}
+          {onToggleFavorite && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFavorite();
+              }}
+              className={cn(
+                "h-9 w-9 p-0 rounded-lg transition-all",
+                photo.is_favorited 
+                  ? "text-red-500 hover:text-red-600 hover:bg-red-50" 
+                  : "text-gray-400 hover:text-red-500 hover:bg-red-50"
+              )}
+            >
+              <Heart 
+                className={cn(
+                  "h-4 w-4 transition-all",
+                  photo.is_favorited && "fill-current"
+                )} 
+              />
+            </Button>
           )}
           
           <Button 
             size="sm"
             variant="outline"
-            className="rounded-lg"
+            className="rounded-lg border-2 hover:border-blue-400 hover:bg-blue-50"
             onClick={onClick}
           >
             <Eye className="mr-1.5 h-4 w-4" />
-            View
+            <span className="hidden sm:inline">View</span>
           </Button>
           
           {cta === 'BUY' ? (
             <Button 
               size="sm"
-              className="rounded-lg bg-gradient-to-r from-primary to-primary/80"
+              className="rounded-lg bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 shadow-md"
               onClick={(e) => {
                 e.stopPropagation();
-                onBuy?.(photoId);
+                onBuy?.();
               }}
               disabled={isDownloading}
             >
               {isDownloading ? (
                 <>
                   <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                  ...
+                  <span className="hidden sm:inline">...</span>
                 </>
               ) : (
                 <>
                   <ShoppingCart className="mr-1.5 h-4 w-4" />
-                  Beli
+                  <span className="hidden sm:inline">Beli</span>
                 </>
               )}
             </Button>
           ) : cta === 'FREE_DOWNLOAD' ? (
             <Button 
               size="sm"
-              className="rounded-lg bg-green-600 hover:bg-green-500"
+              className="rounded-lg bg-green-600 hover:bg-green-500 shadow-md"
               onClick={(e) => {
                 e.stopPropagation();
                 onDownload(photoId);
@@ -192,19 +204,19 @@ export const PhotoListItem = ({ photo, onDownload, onBuy, isDownloading, onClick
               {isDownloading ? (
                 <>
                   <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                  ...
+                  <span className="hidden sm:inline">...</span>
                 </>
               ) : (
                 <>
                   <Download className="mr-1.5 h-4 w-4" />
-                  Free
+                  <span className="hidden sm:inline">Free</span>
                 </>
               )}
             </Button>
           ) : (
             <Button 
               size="sm"
-              className="rounded-lg"
+              className="rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md"
               onClick={(e) => {
                 e.stopPropagation();
                 onDownload(photoId);
@@ -214,12 +226,12 @@ export const PhotoListItem = ({ photo, onDownload, onBuy, isDownloading, onClick
               {isDownloading ? (
                 <>
                   <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                  ...
+                  <span className="hidden sm:inline">...</span>
                 </>
               ) : (
                 <>
                   <Download className="mr-1.5 h-4 w-4" />
-                  Download
+                  <span className="hidden sm:inline">Download</span>
                 </>
               )}
             </Button>

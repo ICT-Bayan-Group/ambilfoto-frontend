@@ -13,9 +13,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Download, Search, Filter, Grid3x3, List, Camera } from "lucide-react";
+import { 
+  ArrowLeft, 
+  Download, 
+  Search, 
+  Filter, 
+  Grid3x3, 
+  List, 
+  Camera, 
+  Eye, 
+  Heart, 
+  ShoppingBag,
+  Sparkles,
+  TrendingUp
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { aiService, Photo } from "@/services/api/ai.service";
+import { aiService } from "@/services/api/ai.service";
 import { userService, UserPhoto } from "@/services/api/user.service";
 import { paymentService } from "@/services/api/payment.service";
 import { PhotoCard } from "@/components/PhotoCard";
@@ -25,10 +38,17 @@ import { PhotoLightbox } from "@/components/PhotoLightbox";
 import { PhotoPurchaseModal } from "@/components/PhotoPurchaseModal";
 import { toast as sonnerToast } from "sonner";
 
+type TabType = 'temuan' | 'favorite' | 'koleksi';
+
 const PhotoGallery = () => {
   const [photos, setPhotos] = useState<UserPhoto[]>([]);
+  const [favoritePhotos, setFavoritePhotos] = useState<UserPhoto[]>([]);
+  const [purchasedPhotos, setPurchasedPhotos] = useState<UserPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingFavorites, setIsLoadingFavorites] = useState(false);
+  const [isLoadingPurchased, setIsLoadingPurchased] = useState(false);
   const [error, setError] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<TabType>('temuan');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedEvent, setSelectedEvent] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('newest');
@@ -44,18 +64,34 @@ const PhotoGallery = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadPhotos();
-    loadUserBalance();
+    loadData();
   }, []);
+
+  useEffect(() => {
+    // Load data based on active tab
+    if (activeTab === 'favorite' && favoritePhotos.length === 0) {
+      loadFavoritePhotos();
+    } else if (activeTab === 'koleksi' && purchasedPhotos.length === 0) {
+      loadPurchasedPhotos();
+    }
+  }, [activeTab]);
+
+  const loadData = async () => {
+    setIsLoading(true);
+    await Promise.all([
+      loadPhotos(),
+      loadUserBalance()
+    ]);
+    setIsLoading(false);
+  };
 
   const loadPhotos = async () => {
     try {
-      setIsLoading(true);
-      
-      // Ambil dari API - /user/my-photos
       const response = await userService.getMyPhotos();
       
       if (response.success && response.data) {
+        console.log('✅ Loaded photos:', response.data.length, 'photos');
+        console.log('Sample photo:', response.data[0]); // Debug first photo
         setPhotos(response.data);
         setError("");
       } else {
@@ -66,21 +102,57 @@ const PhotoGallery = () => {
       console.error('Error loading photos:', err);
       setError("Gagal memuat foto");
       setPhotos([]);
+    }
+  };
+
+  const loadFavoritePhotos = async () => {
+    try {
+      setIsLoadingFavorites(true);
+      const response = await userService.getFavoritePhotos();
+      
+      if (response.success && response.data) {
+        console.log('❤️ Loaded favorite photos:', response.data.length, 'photos');
+        console.log('Sample favorite:', response.data[0]); // Debug first photo
+        setFavoritePhotos(response.data);
+      } else {
+        setFavoritePhotos([]);
+      }
+    } catch (err) {
+      console.error('Error loading favorite photos:', err);
+      setFavoritePhotos([]);
     } finally {
-      setIsLoading(false);
+      setIsLoadingFavorites(false);
+    }
+  };
+
+  const loadPurchasedPhotos = async () => {
+    try {
+      setIsLoadingPurchased(true);
+      const response = await userService.getPurchasedPhotos();
+      
+      if (response.success && response.data) {
+        console.log('🛍️ Loaded purchased photos:', response.data.length, 'photos');
+        console.log('Sample purchased:', response.data[0]); // Debug first photo
+        setPurchasedPhotos(response.data);
+      } else {
+        setPurchasedPhotos([]);
+      }
+    } catch (err) {
+      console.error('Error loading purchased photos:', err);
+      setPurchasedPhotos([]);
+    } finally {
+      setIsLoadingPurchased(false);
     }
   };
 
   const loadUserBalance = async () => {
     try {
-      // Gunakan endpoint balance yang baru
       const response = await userService.getBalance();
       if (response.success && response.data) {
         setUserPointBalance(response.data.balance);
       }
     } catch (err) {
       console.error('Error loading balance:', err);
-      // Fallback ke endpoint wallet
       try {
         const walletRes = await paymentService.getUserWallet();
         if (walletRes.success && walletRes.data) {
@@ -92,10 +164,25 @@ const PhotoGallery = () => {
     }
   };
 
-  // Ekstrak event unik dari foto
+  // Get current photos based on active tab
+  const currentPhotos = useMemo(() => {
+    switch (activeTab) {
+      case 'temuan':
+        // Filter out purchased photos from temuan
+        return photos.filter(p => !p.is_purchased);
+      case 'favorite':
+        return favoritePhotos;
+      case 'koleksi':
+        return purchasedPhotos;
+      default:
+        return photos;
+    }
+  }, [activeTab, photos, favoritePhotos, purchasedPhotos]);
+
+  // Extract unique events from current photos
   const events = useMemo(() => {
     const uniqueEvents = new Set<string>();
-    photos.forEach(photo => {
+    currentPhotos.forEach(photo => {
       if (photo.event_name) {
         uniqueEvents.add(photo.event_name);
       }
@@ -108,20 +195,20 @@ const PhotoGallery = () => {
         label: event
       }))
     ];
-  }, [photos]);
+  }, [currentPhotos]);
 
-  // Filter dan urutkan foto
+  // Filter and sort photos
   const filteredPhotos = useMemo(() => {
-    let result = [...photos];
+    let result = [...currentPhotos];
 
-    // Filter berdasarkan acara
+    // Filter by event
     if (selectedEvent !== 'all') {
       result = result.filter(photo => 
         photo.event_name?.toLowerCase().replace(/\s+/g, '-') === selectedEvent
       );
     }
 
-    // Filter berdasarkan pencarian
+    // Filter by search
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(photo => 
@@ -132,7 +219,7 @@ const PhotoGallery = () => {
       );
     }
 
-    // Urutkan foto
+    // Sort photos
     switch (sortBy) {
       case 'newest':
         result.sort((a, b) => 
@@ -157,12 +244,74 @@ const PhotoGallery = () => {
     }
 
     return result;
-  }, [photos, selectedEvent, searchQuery, sortBy]);
+  }, [currentPhotos, selectedEvent, searchQuery, sortBy]);
 
-  // Download foto - menggunakan logika CTA dari backend
+  // Handle tab change
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    setSelectedEvent('all');
+    setSearchQuery('');
+  };
+
+  // Toggle favorite
+  const handleToggleFavorite = async (photo: UserPhoto) => {
+    try {
+      // Get the correct photo ID - prioritize event_photo_id, fallback to photo_id
+      const photoId = photo.event_photo_id || photo.photo_id;
+      
+      if (!photoId) {
+        console.error('No valid photo ID found:', photo);
+        sonnerToast.error("ID foto tidak valid");
+        return;
+      }
+
+      console.log('Toggle favorite for photo:', photoId, photo);
+      
+      if (photo.is_favorited) {
+        // Remove from favorites
+        await userService.removeFromFavorites(photoId);
+        
+        // Update local state
+        setPhotos(prev => prev.map(p => 
+          (p.event_photo_id === photoId || p.photo_id === photoId)
+            ? { ...p, is_favorited: false }
+            : p
+        ));
+        setFavoritePhotos(prev => prev.filter(p => 
+          p.event_photo_id !== photoId && p.photo_id !== photoId
+        ));
+        
+        sonnerToast.success("Foto dihapus dari favorit");
+      } else {
+        // Add to favorites
+        await userService.addToFavorites(photoId);
+        
+        // Update local state
+        setPhotos(prev => prev.map(p => 
+          (p.event_photo_id === photoId || p.photo_id === photoId)
+            ? { ...p, is_favorited: true }
+            : p
+        ));
+        
+        sonnerToast.success("Foto ditambahkan ke favorit");
+        
+        // Reload favorites if on favorite tab
+        if (activeTab === 'favorite') {
+          loadFavoritePhotos();
+        }
+      }
+    } catch (err) {
+      console.error('Error toggling favorite:', err);
+      sonnerToast.error("Gagal mengubah status favorit");
+    }
+  };
+
+  // Download photo
   const handleDownloadPhoto = async (photoId: string) => {
     try {
-      const photo = photos.find(p => p.event_photo_id === photoId || p.photo_id === photoId);
+      const photo = [...photos, ...favoritePhotos, ...purchasedPhotos].find(
+        p => p.event_photo_id === photoId || p.photo_id === photoId
+      );
       
       if (!photo) {
         toast({
@@ -173,11 +322,9 @@ const PhotoGallery = () => {
         return;
       }
 
-      // Cek status CTA
       const cta = photo.cta || (photo.is_purchased ? 'DOWNLOAD' : (photo.is_for_sale === false ? 'FREE_DOWNLOAD' : 'BUY'));
       
       if (cta === 'BUY') {
-        // Foto perlu dibeli terlebih dahulu
         toast({
           title: "Foto belum dibeli",
           description: "Silakan beli foto terlebih dahulu untuk mengunduh.",
@@ -189,14 +336,11 @@ const PhotoGallery = () => {
 
       setDownloadingIds(prev => new Set(prev).add(photoId));
       
-      // Gunakan download_url dari API jika tersedia, jika tidak konstruksi sendiri
       const filename = photo.filename || `foto-${photoId}.jpg`;
       
       try {
-        // Coba gunakan endpoint download API
         const blob = await userService.downloadPhotoBlob(photo.event_photo_id);
         
-        // Buat link download
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -211,7 +355,6 @@ const PhotoGallery = () => {
           description: `${filename} telah diunduh`,
         });
       } catch (downloadErr: any) {
-        // Cek jika error 403 (belum dibeli)
         if (downloadErr.response?.status === 403) {
           toast({
             title: "Foto belum dibeli",
@@ -222,7 +365,6 @@ const PhotoGallery = () => {
           return;
         }
         
-        // Fallback ke download URL preview
         const downloadUrl = photo.download_url || photo.preview_url || aiService.getDownloadUrl(photo.photo_id);
         const response = await fetch(downloadUrl);
         if (!response.ok) throw new Error('Download gagal');
@@ -264,10 +406,8 @@ const PhotoGallery = () => {
       description: `Mengunduh ${filteredPhotos.length} foto...`,
     });
     
-    // Download setiap foto secara berurutan
     for (const photo of filteredPhotos) {
       await handleDownloadPhoto(photo.photo_id);
-      // Jeda kecil antar unduhan
       await new Promise(resolve => setTimeout(resolve, 300));
     }
   };
@@ -297,18 +437,27 @@ const PhotoGallery = () => {
   };
 
   const handlePurchaseSuccess = (downloadUrl?: string) => {
-    // Tandai foto sebagai dibeli secara lokal dan perbarui CTA
     if (photoToPurchase) {
+      // Update photos
       setPhotos(prev => prev.map(p => 
         p.event_photo_id === photoToPurchase.event_photo_id 
           ? { ...p, is_purchased: true, cta: 'DOWNLOAD' as const, download_url: downloadUrl }
           : p
       ));
+      
+      // Update favorites if favorited
+      setFavoritePhotos(prev => prev.map(p => 
+        p.event_photo_id === photoToPurchase.event_photo_id 
+          ? { ...p, is_purchased: true, cta: 'DOWNLOAD' as const, download_url: downloadUrl }
+          : p
+      ));
+      
+      // Reload purchased photos
+      loadPurchasedPhotos();
     }
     setIsPurchaseModalOpen(false);
     setPhotoToPurchase(null);
     
-    // Perbarui saldo pengguna
     loadUserBalance();
     
     sonnerToast.success("Foto berhasil dibeli! Anda sekarang bisa mengunduh foto ini.");
@@ -334,10 +483,41 @@ const PhotoGallery = () => {
     ? filteredPhotos.findIndex(p => p.event_photo_id === selectedPhoto.event_photo_id)
     : -1;
 
-  // Status loading
+  // Tab configuration
+  const tabs = [
+    {
+      id: 'temuan' as TabType,
+      label: 'Temuan',
+      icon: Eye,
+      count: photos.filter(p => !p.is_purchased).length,
+      color: 'from-blue-500 to-blue-600',
+      bgColor: 'bg-blue-500',
+      description: 'Foto yang cocok dengan wajah Anda'
+    },
+    {
+      id: 'favorite' as TabType,
+      label: 'Favorit',
+      icon: Heart,
+      count: favoritePhotos.length,
+      color: 'from-pink-500 to-red-500',
+      bgColor: 'bg-pink-500',
+      description: 'Foto yang Anda sukai'
+    },
+    {
+      id: 'koleksi' as TabType,
+      label: 'Koleksi',
+      icon: ShoppingBag,
+      count: purchasedPhotos.length,
+      color: 'from-lime-400 to-green-500',
+      bgColor: 'bg-lime-400',
+      description: 'Foto yang sudah Anda beli'
+    }
+  ];
+
+  // Loading state
   if (isLoading) {
     return (
-      <div className="flex min-h-screen flex-col">
+      <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 to-blue-50">
         <Header />
         <main className="flex-1 py-8">
           <div className="container max-w-7xl">
@@ -360,31 +540,39 @@ const PhotoGallery = () => {
     );
   }
 
-  // Status kosong
-  if (!isLoading && photos.length === 0) {
+  // Empty state for no photos at all
+  if (!isLoading && photos.length === 0 && favoritePhotos.length === 0 && purchasedPhotos.length === 0) {
     return (
-      <div className="flex min-h-screen flex-col">
+      <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 to-blue-50">
         <Header />
         <main className="flex-1 py-8">
           <div className="container max-w-7xl">
             <Link 
               to="/user/dashboard" 
-              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-smooth"
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-all"
             >
               <ArrowLeft className="h-4 w-4" />
               Kembali ke Dashboard
             </Link>
             
-            <Card className="border-border/50 shadow-soft">
+            <Card className="border-2 border-blue-200 shadow-xl bg-white/80 backdrop-blur-sm">
               <div className="p-12 text-center">
-                <Camera className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-2">Foto Tidak Ditemukan</h2>
-                <p className="text-muted-foreground mb-6">
-                  {error || "Kami tidak menemukan foto yang cocok dengan wajah Anda. Coba pindai wajah Anda untuk menemukan foto Anda."}
+                <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-blue-500 to-yellow-500 rounded-full flex items-center justify-center">
+                  <Camera className="h-10 w-10 text-white" />
+                </div>
+                <h2 className="text-3xl font-bold mb-3 bg-gradient-to-r from-blue-600 to-yellow-600 bg-clip-text text-transparent">
+                  Mulai Petualangan Foto Anda
+                </h2>
+                <p className="text-muted-foreground mb-8 text-lg max-w-md mx-auto">
+                  {error || "Temukan foto-foto Anda dengan teknologi pengenalan wajah AI. Pindai wajah Anda untuk memulai!"}
                 </p>
-                <Button onClick={() => navigate('/user/scan-face')}>
-                  <Camera className="mr-2 h-4 w-4" />
-                  Pindai Wajah Anda
+                <Button 
+                  onClick={() => navigate('/user/scan-face')}
+                  size="lg"
+                  className="bg-gradient-to-r from-blue-600 to-yellow-600 hover:from-blue-700 hover:to-yellow-700 shadow-lg"
+                >
+                  <Camera className="mr-2 h-5 w-5" />
+                  Pindai Wajah Sekarang
                 </Button>
               </div>
             </Card>
@@ -395,42 +583,52 @@ const PhotoGallery = () => {
     );
   }
 
+  const currentTabLoading = 
+    (activeTab === 'favorite' && isLoadingFavorites) ||
+    (activeTab === 'koleksi' && isLoadingPurchased);
+
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 to-blue-50">
       <Header />
       
-      <main className="flex-1 py-8">
+      <main className="flex-1 py-6">
         <div className="container max-w-7xl">
-          {/* Header */}
+          {/* Header - More Compact & Modern */}
           <div className="mb-6">
             <Link 
               to="/user/dashboard" 
-              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4 transition-smooth"
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-3 transition-all group"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
               Kembali ke Dashboard
             </Link>
             
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold mb-2">Foto Anda ({filteredPhotos.length})</h1>
+                <h1 className="text-3xl md:text-4xl font-black mb-1 bg-blue-900 bg-clip-text text-transparent">
+                  Ambil Foto {activeTab === 'temuan' ? 'Temuan' : activeTab === 'favorite' ? 'Favorit' : 'Koleksi'}
+                </h1>
                 <p className="text-muted-foreground">
-                  {filteredPhotos.length === photos.length 
-                    ? "Semua foto ditemukan dari pengenalan wajah"
-                    : `Menampilkan ${filteredPhotos.length} dari ${photos.length} foto`
+                  {filteredPhotos.length === 0
+                    ? "Tidak ada foto di tab ini"
+                    : `${filteredPhotos.length} foto ditemukan`
                   }
                 </p>
               </div>
               
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Link to="/user/scan-face">
-                  <Button variant="outline">
+                  <Button variant="outline" size="sm" className="border-2 hover:border-blue-400 hover:bg-blue-50 rounded-xl">
                     <Camera className="mr-2 h-4 w-4" />
                     Pindai Lagi
                   </Button>
                 </Link>
-                {filteredPhotos.length > 0 && (
-                  <Button onClick={handleDownloadAll}>
+                {filteredPhotos.length > 0 && activeTab === 'koleksi' && (
+                  <Button 
+                    onClick={handleDownloadAll}
+                    size="sm"
+                    className="bg-gradient-to-r from-blue-600 to-yellow-500 hover:from-blue-700 hover:to-yellow-600 rounded-xl shadow-lg"
+                  >
                     <Download className="mr-2 h-4 w-4" />
                     Unduh Semua ({filteredPhotos.length})
                   </Button>
@@ -439,111 +637,211 @@ const PhotoGallery = () => {
             </div>
           </div>
 
-          {/* Filter & Kontrol */}
-          <Card className="mb-6 border-border/50 shadow-soft">
-            <div className="p-4">
-              <div className="flex flex-col md:flex-row gap-4">
-                {/* Pencarian */}
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Cari berdasarkan acara, tanggal, atau lokasi..." 
-                    className="pl-9"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
+          {/* Tabs - Compact Pill Style */}
+          <div className="mb-5">
+            <div className="inline-flex gap-1.5 p-1.5 bg-white/70 backdrop-blur-xl rounded-2xl border border-gray-200/50 shadow-lg">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
                 
-                {/* Filter Acara */}
-                <Select value={selectedEvent} onValueChange={setSelectedEvent}>
-                  <SelectTrigger className="w-full md:w-[200px]">
-                    <Filter className="mr-2 h-4 w-4" />
-                    <SelectValue placeholder="Filter berdasarkan acara" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {events.map((event) => (
-                      <SelectItem key={event.value} value={event.value}>
-                        {event.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                {/* Urutkan */}
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-full md:w-[180px]">
-                    <SelectValue placeholder="Urutkan berdasarkan" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="newest">Terbaru</SelectItem>
-                    <SelectItem value="oldest">Terlama</SelectItem>
-                    <SelectItem value="match">Kecocokan Terbaik</SelectItem>
-                    <SelectItem value="event">Berdasarkan Acara</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                {/* Toggle Mode Tampilan */}
-                <div className="flex gap-1 border border-border rounded-md p-1">
-                  <Button
-                    variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    onClick={() => setViewMode('grid')}
-                    className="h-8 w-8 p-0"
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleTabChange(tab.id)}
+                    className={`relative group transition-all duration-200 ${
+                      isActive ? '' : 'hover:scale-[1.02]'
+                    }`}
                   >
-                    <Grid3x3 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    onClick={() => setViewMode('list')}
-                    className="h-8 w-8 p-0"
-                  >
-                    <List className="h-4 w-4" />
-                  </Button>
+                    <div className={`relative px-4 py-2.5 rounded-xl transition-all duration-200 ${
+                      isActive 
+                        ? `bg-gradient-to-br ${tab.color} shadow-md` 
+                        : 'bg-transparent hover:bg-gray-50'
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        <div className={`p-1 rounded-lg ${
+                          isActive 
+                            ? 'bg-white/20' 
+                            : 'bg-gray-100'
+                        } transition-all`}>
+                          <Icon className={`h-3.5 w-3.5 ${
+                            isActive ? 'text-white' : 'text-gray-600'
+                          }`} />
+                        </div>
+                        
+                        <span className={`text-sm font-bold whitespace-nowrap ${
+                          isActive ? 'text-white' : 'text-gray-700'
+                        }`}>
+                          {tab.label}
+                        </span>
+                        
+                        <div className={`px-2 py-0.5 rounded-full text-xs font-bold min-w-[24px] text-center ${
+                          isActive 
+                            ? 'bg-white/30 text-white' 
+                            : 'bg-gray-200 text-gray-600'
+                        }`}>
+                          {tab.count}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Filter & Controls - More Modern */}
+          {filteredPhotos.length > 0 && (
+            <Card className="mb-5 border-2 border-gray-100 shadow-md bg-white/70 backdrop-blur-sm rounded-2xl overflow-hidden">
+              <div className="p-3">
+                <div className="flex flex-col md:flex-row gap-2">
+                  {/* Search */}
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="Cari foto..." 
+                      className="pl-9 border-2 focus:border-blue-400 rounded-xl bg-white"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  
+                  {/* Event Filter */}
+                  <Select value={selectedEvent} onValueChange={setSelectedEvent}>
+                    <SelectTrigger className="w-full md:w-[180px] border-2 rounded-xl bg-white">
+                      <Filter className="mr-2 h-4 w-4" />
+                      <SelectValue placeholder="Acara" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {events.map((event) => (
+                        <SelectItem key={event.value} value={event.value}>
+                          {event.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  {/* Sort */}
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-full md:w-[160px] border-2 rounded-xl bg-white">
+                      <SelectValue placeholder="Urutkan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Terbaru</SelectItem>
+                      <SelectItem value="oldest">Terlama</SelectItem>
+                      {activeTab === 'temuan' && <SelectItem value="match">Terbaik</SelectItem>}
+                      <SelectItem value="event">Acara</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  {/* View Mode Toggle */}
+                  <div className="flex gap-1 border-2 border-gray-200 rounded-xl p-1 bg-white">
+                    <Button
+                      variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      onClick={() => setViewMode('grid')}
+                      className="h-8 w-8 p-0 rounded-lg"
+                    >
+                      <Grid3x3 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      onClick={() => setViewMode('list')}
+                      className="h-8 w-8 p-0 rounded-lg"
+                    >
+                      <List className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          )}
 
-          {/* Grid/List Foto */}
-          {filteredPhotos.length === 0 ? (
-            <Card className="border-border/50 shadow-soft p-12 text-center">
-              <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Tidak ada foto yang cocok dengan filter Anda</h3>
-              <p className="text-muted-foreground mb-4">
-                Coba sesuaikan pencarian atau kriteria filter Anda
-              </p>
+          {/* Photo Grid/List */}
+          {currentTabLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Card key={i} className="overflow-hidden border-2 rounded-2xl">
+                  <Skeleton className="aspect-square w-full" />
+                  <div className="p-3">
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : filteredPhotos.length === 0 ? (
+            <Card className="border-2 border-gray-200 shadow-xl p-12 text-center bg-white/80 backdrop-blur-sm rounded-2xl">
+              {activeTab === 'temuan' && (
+                <>
+                  <div className="relative w-20 h-20 mx-auto mb-4">
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-yellow-400 rounded-full animate-pulse" />
+                    <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
+                      <Sparkles className="h-10 w-10 text-blue-500" />
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-black mb-2 bg-gradient-to-r from-blue-600 to-yellow-600 bg-clip-text text-transparent">
+                    Semua Foto Sudah Dibeli!
+                  </h3>
+                  <p className="text-muted-foreground mb-6">
+                    Luar biasa! Coba pindai wajah lagi untuk menemukan foto baru.
+                  </p>
+                </>
+              )}
+              {activeTab === 'favorite' && (
+                <>
+                  <Heart className="h-16 w-16 text-pink-400 mx-auto mb-4" />
+                  <h3 className="text-2xl font-black mb-2">Belum Ada Foto Favorit</h3>
+                  <p className="text-muted-foreground mb-6">
+                    Tandai foto favorit dengan tekan tombol hati ❤️
+                  </p>
+                </>
+              )}
+              {activeTab === 'koleksi' && (
+                <>
+                  <ShoppingBag className="h-16 w-16 text-lime-400 mx-auto mb-4" />
+                  <h3 className="text-2xl font-black mb-2">Koleksi Masih Kosong</h3>
+                  <p className="text-muted-foreground mb-6">
+                    Mulai beli foto favorit untuk membangun koleksi! 🛍️
+                  </p>
+                </>
+              )}
               <Button 
                 variant="outline" 
                 onClick={() => {
                   setSelectedEvent('all');
                   setSearchQuery('');
+                  if (activeTab !== 'temuan') {
+                    handleTabChange('temuan');
+                  }
                 }}
+                className="border-2 rounded-xl"
               >
-                Hapus Filter
+                {activeTab === 'temuan' ? 'Hapus Filter' : 'Lihat Temuan'}
               </Button>
             </Card>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {filteredPhotos.map((photo) => (
                 <PhotoCard
                   key={photo.photo_id}
                   photo={photo}
                   onDownload={handleDownloadPhoto}
                   onBuy={() => handleBuyPhoto(photo)}
+                  onToggleFavorite={() => handleToggleFavorite(photo)}
                   isDownloading={downloadingIds.has(photo.photo_id)}
                   onClick={() => handlePhotoClick(photo)}
                 />
               ))}
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {filteredPhotos.map((photo) => (
                 <PhotoListItem
                   key={photo.photo_id}
                   photo={photo}
                   onDownload={handleDownloadPhoto}
                   onBuy={() => handleBuyPhoto(photo)}
+                  onToggleFavorite={() => handleToggleFavorite(photo)}
                   isDownloading={downloadingIds.has(photo.photo_id)}
                   onClick={() => handlePhotoClick(photo)}
                 />
@@ -555,13 +853,14 @@ const PhotoGallery = () => {
       
       <Footer />
 
-      {/* Modal Detail Foto */}
+      {/* Photo Detail Modal */}
       <PhotoDetailModal
         photo={selectedPhoto as any}
         isOpen={isModalOpen}
         onClose={handleModalClose}
         onDownload={() => selectedPhoto && handleDownloadPhoto(selectedPhoto.event_photo_id)}
         onBuy={() => selectedPhoto && handleBuyPhoto(selectedPhoto)}
+        onToggleFavorite={() => selectedPhoto && handleToggleFavorite(selectedPhoto)}
         onView={handleViewFullscreen}
         onNext={handleNext}
         onPrevious={handlePrevious}
@@ -570,7 +869,7 @@ const PhotoGallery = () => {
         hasPrevious={selectedPhotoIndex > 0}
       />
 
-      {/* Lightbox Fullscreen */}
+      {/* Photo Lightbox */}
       <PhotoLightbox
         photo={selectedPhoto as any}
         isOpen={isLightboxOpen}
@@ -583,7 +882,7 @@ const PhotoGallery = () => {
         hasPrevious={selectedPhotoIndex > 0}
       />
 
-      {/* Modal Pembelian */}
+      {/* Purchase Modal */}
       {photoToPurchase && (
         <PhotoPurchaseModal
           isOpen={isPurchaseModalOpen}

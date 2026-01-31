@@ -1,214 +1,189 @@
-import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Download, Calendar, Loader2, AlertCircle, Eye, Lock, ShoppingCart, Coins } from "lucide-react";
-import { Photo } from "@/services/api/ai.service";
+import { Download, ShoppingCart, Heart, Eye, MapPin, Calendar, Loader2 } from "lucide-react";
 import { UserPhoto } from "@/services/api/user.service";
 import { aiService } from "@/services/api/ai.service";
+import { cn } from "@/lib/utils";
 
 interface PhotoCardProps {
-  photo: Photo | UserPhoto;
+  photo: UserPhoto;
   onDownload: (photoId: string) => void;
-  onBuy?: (photoId: string) => void;
+  onBuy?: () => void;
+  onToggleFavorite?: () => void;
   isDownloading: boolean;
   onClick: () => void;
 }
 
-export const PhotoCard = ({ photo, onDownload, onBuy, isDownloading, onClick }: PhotoCardProps) => {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
+export const PhotoCard = ({ 
+  photo, 
+  onDownload, 
+  onBuy, 
+  onToggleFavorite,
+  isDownloading, 
+  onClick 
+}: PhotoCardProps) => {
+  // ✅ FIX: Determine CTA - ALWAYS check is_purchased FIRST
+  const isPurchased = photo.is_purchased === true || photo.is_purchased === 1;
+  const isFree = photo.is_for_sale === false || (photo.price_cash === 0 && photo.price_points === 0);
+  
+  // Priority order:
+  // 1. If purchased -> DOWNLOAD
+  // 2. If free -> FREE_DOWNLOAD  
+  // 3. Otherwise -> BUY
+  const cta = isPurchased 
+    ? 'DOWNLOAD' as const
+    : isFree 
+    ? 'FREE_DOWNLOAD' as const
+    : photo.cta || 'BUY' as const;
 
-  const isUserPhoto = (p: Photo | UserPhoto): p is UserPhoto => {
-    return 'event_photo_id' in p;
-  };
-
-  const getMatchPercentage = () => {
-    if (isUserPhoto(photo)) {
-      return Math.round(photo.similarity * 100);
+  const handleAction = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (cta === 'BUY') {
+      onBuy?.();
+    } else {
+      onDownload(photo.event_photo_id || photo.photo_id);
     }
-    if (!photo.distance) return 0;
-    return Math.max(0, Math.min(100, Math.round((1 - photo.distance) * 100)));
   };
 
-  const matchScore = getMatchPercentage();
-  
-  const previewUrl = isUserPhoto(photo) 
-    ? photo.preview_url 
-    : aiService.getPreviewUrl(photo.photo_id);
-  
-  const photoId = isUserPhoto(photo) ? photo.event_photo_id : photo.photo_id;
-  
-  const eventName = isUserPhoto(photo) 
-    ? photo.event_name 
-    : photo.metadata?.event_name || 'Unknown Event';
-  
-  const eventDate = isUserPhoto(photo) 
-    ? photo.event_date 
-    : photo.metadata?.date;
-
-  // Get purchase and pricing info using CTA logic from backend
-  const isPurchased = isUserPhoto(photo) ? photo.is_purchased : true;
-  const isForSale = isUserPhoto(photo) ? (photo.is_for_sale !== false) : false;
-  const priceCash = isUserPhoto(photo) ? (photo.price_cash || photo.price || photo.purchase_price || 0) : 0;
-  const pricePoints = isUserPhoto(photo) ? (photo.price_points || photo.price_in_points || 0) : 0;
-  
-  // Get CTA from backend or calculate it
-  const cta = isUserPhoto(photo) 
-    ? (photo.cta || (isPurchased ? 'DOWNLOAD' : (isForSale && priceCash > 0 ? 'BUY' : 'FREE_DOWNLOAD')))
-    : 'DOWNLOAD';
-  
-  const priceDisplay = isUserPhoto(photo) ? photo.price_display : '';
-
-  const getMatchColor = (percentage: number) => {
-    if (percentage >= 90) return "bg-green-500 text-white";
-    if (percentage >= 70) return "bg-yellow-500 text-white";
-    return "bg-orange-500 text-white";
+  const handleFavoriteToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggleFavorite?.();
   };
+    
+  const priceDisplay = photo.price_display || (
+    (photo.price_cash && photo.price_cash > 0)
+      ? `Rp ${photo.price_cash.toLocaleString('id-ID')}`
+      : (photo.price_points && photo.price_points > 0)
+      ? `${photo.price_points} FotoPoin`
+      : 'GRATIS'
+  );
 
   return (
-    <Card className="overflow-hidden border-border/50 shadow-soft hover:shadow-strong transition-smooth group rounded-xl">
-      <div className="aspect-square bg-muted relative cursor-pointer" onClick={onClick}>
-        {!imageLoaded && !imageError && (
-          <Skeleton className="absolute inset-0" />
-        )}
+    <Card 
+      className="group overflow-hidden border-2 border-gray-200 shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 cursor-pointer bg-white"
+      onClick={onClick}
+    >
+      {/* Image Container */}
+      <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
+        <img
+          src={photo.preview_url || aiService.getPreviewUrl(photo.photo_id)}
+          alt={photo.filename}
+          className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          loading="lazy"
+        />
         
-        {imageError ? (
-          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-            <AlertCircle className="h-12 w-12" />
-          </div>
-        ) : (
-          <img
-            src={previewUrl}
-            alt={photo.filename}
-            className={`absolute inset-0 w-full h-full object-cover transition-all duration-300 group-hover:scale-105 ${
-              imageLoaded ? 'opacity-100' : 'opacity-0'
-            }`}
-            onLoad={() => setImageLoaded(true)}
-            onError={() => setImageError(true)}
-          />
-        )}
+        {/* Overlay Gradient */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         
-        {/* Match score badge */}
-        {matchScore > 0 && (
-          <div className={`absolute top-2 right-2 ${getMatchColor(matchScore)} text-xs font-bold px-2.5 py-1 rounded-full shadow-lg`}>
-            {matchScore}%
-          </div>
-        )}
-        
-        {/* Hover overlay with view icon */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <div className="h-12 w-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <Eye className="h-6 w-6 text-white" />
-            </div>
-          </div>
+        {/* Top Badges */}
+        <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-2">
+          {/* Match Score */}
+          {photo.similarity && photo.similarity > 0 && (
+            <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold shadow-lg">
+              {Math.round((photo.similarity || 0) * 100)}% Match
+            </Badge>
+          )}
+          
+          {/* Favorite Button */}
+          {onToggleFavorite && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleFavoriteToggle}
+              className={cn(
+                "h-8 w-8 p-0 rounded-full shadow-lg backdrop-blur-sm transition-all duration-300",
+                photo.is_favorited 
+                  ? "bg-red-500 hover:bg-red-600 text-white" 
+                  : "bg-white/90 hover:bg-white text-gray-700"
+              )}
+            >
+              <Heart 
+                className={cn(
+                  "h-4 w-4 transition-all",
+                  photo.is_favorited && "fill-current"
+                )} 
+              />
+            </Button>
+          )}
         </div>
         
-        {/* Info overlay */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 translate-y-2 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
-          <p className="text-white text-sm font-semibold mb-1 line-clamp-1">
-            {eventName}
-          </p>
-          <div className="flex items-center gap-2 text-xs text-white/80">
-            <Calendar className="h-3 w-3" />
-            <span>{eventDate ? new Date(eventDate).toLocaleDateString('id-ID') : 'No date'}</span>
+        {/* Purchase Status Badge */}
+        {isPurchased && (
+          <div className="absolute top-2 left-2">
+            <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold shadow-lg">
+              <Download className="h-3 w-3 mr-1" />
+              Dimiliki
+            </Badge>
+          </div>
+        )}
+        
+        {/* Bottom Info */}
+        <div className="absolute bottom-0 left-0 right-0 p-3 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+          <div className="space-y-2">
+            <p className="text-xs text-white/90 font-semibold truncate flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {photo.event_name || 'Event Tidak Diketahui'}
+            </p>
+            {photo.event_location && (
+              <p className="text-xs text-white/80 truncate flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                {photo.event_location}
+              </p>
+            )}
+            {photo.event_date && (
+              <p className="text-xs text-white/80">
+                {new Date(photo.event_date).toLocaleDateString('id-ID', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric'
+                })}
+              </p>
+            )}
           </div>
         </div>
       </div>
       
-      {/* Price badge for unpurchased photos */}
-      {cta === 'BUY' && (priceCash > 0 || pricePoints > 0) && (
-        <div className="px-3 pt-2 bg-card">
-          <Badge variant="secondary" className="w-full justify-center gap-1.5 py-1.5">
-            <Coins className="h-3.5 w-3.5" />
-            {priceDisplay || `${pricePoints} FOTOPOIN`}
-          </Badge>
-        </div>
-      )}
-
-      {/* Free badge */}
-      {cta === 'FREE_DOWNLOAD' && (
-        <div className="px-3 pt-2 bg-card">
-          <Badge variant="outline" className="w-full justify-center gap-1.5 py-1.5 text-green-600 border-green-500/30">
-            GRATIS
-          </Badge>
-        </div>
-      )}
-
-      {/* Purchased badge */}
-      {cta === 'DOWNLOAD' && isPurchased && (
-        <div className="px-3 pt-2 bg-card">
-          <Badge className="w-full justify-center gap-1.5 py-1.5 bg-green-500/20 text-green-600 border-green-500/30">
-            ✓ Sudah Dibeli
-          </Badge>
-        </div>
-      )}
-
-      {/* Action buttons */}
-      <div className="p-3 flex gap-2 bg-card">
+      {/* Action Section */}
+      <div className="p-3 bg-white border-t-2 border-gray-100">
         <Button 
-          size="sm" 
-          variant="outline" 
-          className="flex-1 h-9 text-xs font-medium rounded-lg"
-          onClick={onClick}
+          onClick={handleAction}
+          disabled={isDownloading}
+          className={cn(
+            "w-full font-bold shadow-md hover:shadow-lg transition-all",
+            cta === 'BUY' && "bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600",
+            (cta === 'DOWNLOAD' || cta === 'FREE_DOWNLOAD') && "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+          )}
         >
-          <Eye className="mr-1.5 h-3.5 w-3.5" />
-          View
+          {isDownloading ? (
+            <span className="flex items-center gap-2">
+              <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Mengunduh...
+            </span>
+          ) : (
+            <span className="flex items-center gap-2">
+              {cta === 'BUY' && (
+                <>
+                  <ShoppingCart className="h-4 w-4" />
+                  {priceDisplay}
+                </>
+              )}
+              {(cta === 'DOWNLOAD' || cta === 'FREE_DOWNLOAD') && (
+                <>
+                  <Download className="h-4 w-4" />
+                  {cta === 'FREE_DOWNLOAD' ? 'Unduh Gratis' : 'Unduh'}
+                </>
+              )}
+              {cta === 'VIEW' && (
+                <>
+                  <Eye className="h-4 w-4" />
+                  Lihat
+                </>
+              )}
+            </span>
+          )}
         </Button>
-        {cta === 'BUY' ? (
-          <Button 
-            size="sm" 
-            className="flex-1 h-9 text-xs font-medium rounded-lg bg-gradient-to-r from-primary to-primary/80"
-            onClick={(e) => {
-              e.stopPropagation();
-              onBuy?.(photoId);
-            }}
-            disabled={isDownloading}
-          >
-            {isDownloading ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <ShoppingCart className="mr-1.5 h-3.5 w-3.5" />
-            )}
-            {isDownloading ? "..." : "Beli"}
-          </Button>
-        ) : cta === 'FREE_DOWNLOAD' ? (
-          <Button 
-            size="sm" 
-            className="flex-1 h-9 text-xs font-medium rounded-lg bg-green-600 hover:bg-green-500"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDownload(photoId);
-            }}
-            disabled={isDownloading}
-          >
-            {isDownloading ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Download className="mr-1.5 h-3.5 w-3.5" />
-            )}
-            {isDownloading ? "..." : "Free"}
-          </Button>
-        ) : (
-          <Button 
-            size="sm" 
-            className="flex-1 h-9 text-xs font-medium rounded-lg"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDownload(photoId);
-            }}
-            disabled={isDownloading}
-          >
-            {isDownloading ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Download className="mr-1.5 h-3.5 w-3.5" />
-            )}
-            {isDownloading ? "..." : "Download"}
-          </Button>
-        )}
       </div>
     </Card>
   );
