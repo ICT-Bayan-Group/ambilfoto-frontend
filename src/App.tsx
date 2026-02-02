@@ -50,6 +50,8 @@ import PhotographerPhotoLocations from "./pages/photographer/PhotoLocations";
 import UserFotoMap from "./pages/user/FotoMap";
 import GlobalEventsMap from "./pages/user/GlobalEventMap";
 import AdminDropboxImport from "./pages/admin/DropboxImport";
+import ForgotPassword from "./pages/ForgorPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 // ✅ NEW IMPORTS - Photographer Upgrade Feature
 import PhotographerUpgradeRequest from "./pages/user/PhotographerUpgradeRequest";
@@ -118,6 +120,9 @@ const App = () => (
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/contact" element={<ContactUs />} />
             <Route path="/register/face" element={<RegisterFace />} />
             <Route path="/login/face" element={<FaceLogin />} />
             
