@@ -22,7 +22,9 @@ import {
   Clock,
   Wallet,
   Banknote,
-  BarChart3
+  BarChart3,
+  UserPlus,
+  MapPin
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -230,7 +232,7 @@ const PhotographerDashboard = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
-                Aksi Cepat
+                Menu Photographer
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -246,18 +248,34 @@ const PhotographerDashboard = () => {
                   Lihat Semua Acara
                 </Button>
               </Link>
+              <Link to="/photographer/fotomap" className="block">
+                <Button variant="outline" className="w-full justify-start gap-3">
+                  <MapPin className="h-4 w-4" />
+                  Fotomap
+                </Button>
+              </Link>
               <Link to="/photographer/profile" className="block">
                 <Button variant="outline" className="w-full justify-start gap-3">
                   <Camera className="h-4 w-4" />
                   Edit Profil Bisnis
                 </Button>
               </Link>
-              <Link to="/photographer/photo-sales" className="block">
+              <Link to="/photographer/photosales" className="block">
                 <Button variant="outline" className="w-full justify-start gap-3 text-primary border-primary/30 hover:bg-primary/10">
                   <BarChart3 className="h-4 w-4" />
                   Statistik Penjualan
                 </Button>
               </Link>
+              
+              {/* Show upgrade option only for regular users */}
+              {user?.role === 'user' && (
+                <Link to="/user/upgrade-to-photographer" className="block">
+                  <Button variant="outline" className="w-full justify-start gap-3 text-blue-600 border-blue-500/30 hover:bg-blue-500/10">
+                    <UserPlus className="h-4 w-4" />
+                    Upgrade ke Fotografer
+                  </Button>
+                </Link>
+              )}
             </CardContent>
           </Card>
 

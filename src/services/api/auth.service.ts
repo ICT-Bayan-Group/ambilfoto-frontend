@@ -3,7 +3,8 @@ import axios from 'axios';
 const AUTH_API_URL =
   import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5000/api';
 
-const authApi = axios.create({
+// ✅ EXPORT authApi agar bisa dipakai di puzzle-captcha.service.ts
+export const authApi = axios.create({
   baseURL: AUTH_API_URL,
   headers: {
     'Content-Type': 'application/json',
@@ -38,10 +39,11 @@ authApi.interceptors.response.use(
 // =====================
 export interface RegisterData {
   email: string;
-  phone?: string;
+  phone_number?: string;  // ✅ Fixed: backend expects phone_number
   password: string;
   full_name: string;
   role?: 'user' | 'photographer';
+  captcha_token?: string | null;  // ✅ Added: for CAPTCHA support
 }
 
 export interface RegisterFaceData {
@@ -51,16 +53,18 @@ export interface RegisterFaceData {
 export interface LoginData {
   email: string;
   password: string;
+  captcha_token?: string | null;  // ✅ Added: for CAPTCHA support
 }
 
 export interface FaceLoginData {
   face_image: string;
+  captcha_token?: string | null;  // ✅ Added: for CAPTCHA support
 }
 
 export interface UserProfile {
   id: string;
   email: string;
-  phone?: string;
+  phone_number?: string;  // ✅ Fixed: backend uses phone_number
   full_name: string;
   role: 'user' | 'photographer' | 'admin';
   profile_photo?: string;
@@ -79,6 +83,9 @@ export interface AuthResponse {
     similarity?: number;
   };
   error?: string;
+  code?: string;  // ✅ Added: for error codes like CAPTCHA_REQUIRED
+  remainingAttempts?: number;  // ✅ Added: for login attempt tracking
+  failedAttempts?: number;  // ✅ Added: for login attempt tracking
 }
 
 // =====================
@@ -134,7 +141,7 @@ export const authService = {
 
   async updateProfile(data: {
     full_name?: string;
-    phone?: string;
+    phone_number?: string;  // ✅ Fixed: backend expects phone_number
     profile_photo?: string;
   }): Promise<{ success: boolean; data?: UserProfile; error?: string }> {
     const response = await authApi.put('/auth/profile', data);
@@ -181,3 +188,6 @@ export const authService = {
     localStorage.removeItem('user_data');
   },
 };
+
+// ✅ Default export for backward compatibility
+export default authService;
