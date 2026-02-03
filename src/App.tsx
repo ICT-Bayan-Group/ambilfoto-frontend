@@ -24,6 +24,7 @@ import PhotographerDashboard from "./pages/photographer/Dashboard";
 import PhotographerEvents from "./pages/photographer/Events";
 import PhotographerEventDetail from "./pages/photographer/EventDetail";
 import PhotographerCreateEvent from "./pages/photographer/CreateEvent";
+import EditEvent from "./pages/photographer/EditEvent";
 import PhotographerProfile from "./pages/photographer/Profile";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminUsers from "./pages/admin/Users";
@@ -46,10 +47,11 @@ import PhotoSales from "./pages/photographer/PhotoSales";
 import AdminHiResAnalytics from "./pages/admin/HiResAnalytics";
 import HiResQueue from "./pages/photographer/HiResQueue";
 import UserHiResPhotos from "./pages/user/HiResPhotos";
-import PhotographerPhotoLocations from "./pages/photographer/PhotoLocations";
 import UserFotoMap from "./pages/user/FotoMap";
 import GlobalEventsMap from "./pages/user/GlobalEventMap";
 import AdminDropboxImport from "./pages/admin/DropboxImport";
+import PhotographerGlobalEventsMap from "./pages/photographer/GlobalEventsMap";
+import PhotographerEventPublicView from "./pages/photographer/PhotographerEventPublicView";
 import ForgotPassword from "./pages/ForgorPassword";
 import ResetPassword from "./pages/ResetPassword";
 
@@ -126,6 +128,9 @@ const App = () => (
             <Route path="/register/face" element={<RegisterFace />} />
             <Route path="/login/face" element={<FaceLogin />} />
             
+            {/* ✅ PUBLIC EVENT VIEW - Must be BEFORE other routes to avoid conflicts */}
+            <Route path="/event/:eventSlug" element={<PhotographerEventPublicView />} />
+            
             {/* User Routes */}
             <Route 
               path="/user/dashboard" 
@@ -183,6 +188,8 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            
+            {/* User FotoMap Routes */}
             <Route 
               path="/user/fotomap" 
               element={
@@ -200,8 +207,7 @@ const App = () => (
               } 
             />
 
-            {/* ✅ NEW ROUTES - Photographer Upgrade Feature */}
-            {/* User can request to upgrade to photographer */}
+            {/* Photographer Upgrade Feature */}
             <Route 
               path="/user/upgrade-to-photographer" 
               element={
@@ -210,7 +216,6 @@ const App = () => (
                 </UserOnlyRoute>
               } 
             />
-            {/* User can check their upgrade request status */}
             <Route 
               path="/user/upgrade-status" 
               element={
@@ -261,13 +266,13 @@ const App = () => (
                 </PhotographerRoute>
               } 
             />
-            <Route 
-              path="/photographer/events/:eventId/locations" 
+            <Route
+              path="/photographer/events/:eventId/edit"
               element={
                 <PhotographerRoute>
-                  <PhotographerPhotoLocations />
+                  <EditEvent />
                 </PhotographerRoute>
-              } 
+              }
             />
             <Route 
               path="/photographer/profile" 
@@ -291,6 +296,25 @@ const App = () => (
                 <PhotographerRoute>
                   <HiResQueue />
                 </PhotographerRoute>
+              } 
+            />
+
+            {/* ✅ FIXED: Photographer FotoMap Routes - menggunakan eventId bukan eventSlug */}
+            <Route 
+              path="/photographer/fotomap" 
+              element={
+                <PhotographerRoute>
+                  <PhotographerGlobalEventsMap />
+                </PhotographerRoute>
+              } 
+            />
+            {/* ✅ FotoMap detail menggunakan eventId untuk photographer management */}
+            <Route 
+              path="/photographer/fotomap/:eventId" 
+              element={
+                <ProtectedRoute>
+                  <UserFotoMap />
+                </ProtectedRoute>
               } 
             />
             
@@ -383,8 +407,6 @@ const App = () => (
                 </AdminRoute>
               } 
             />
-
-            {/* ✅ NEW ROUTE - Admin Photographer Requests Management */}
             <Route 
               path="/admin/photographer-requests" 
               element={

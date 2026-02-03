@@ -89,6 +89,7 @@ export interface Photographer {
 }
 
 export interface GlobalEvent {
+  event_slug: any;
   event_id: string;
   event_name: string;
   event_date: string;

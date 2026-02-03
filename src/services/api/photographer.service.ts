@@ -63,6 +63,8 @@ export interface EventPhoto {
   price?: number;
   price_in_points?: number;
   created_at: string;
+  event_latitude: number | null;
+  event_longitude: number | null;
 }
 
 export interface CreateEventData {
@@ -75,6 +77,8 @@ export interface CreateEventData {
   access_code?: string;
   watermark_enabled?: boolean;
   price_per_photo?: number;
+  event_latitude: number | null;
+  event_longitude: number | null;
 }
 
 export interface UpdateEventData {
@@ -88,6 +92,8 @@ export interface UpdateEventData {
   watermark_enabled?: boolean;
   price_per_photo?: number;
   status?: 'active' | 'completed' | 'archived';
+  event_latitude?: number | null;
+  event_longitude?: number | null;
 }
 
 export interface PhotographerProfile {
@@ -154,6 +160,41 @@ export interface PhotoSalesData {
   top_performers: PhotoSaleRecord[];
 }
 
+// 🆕 NEW TYPES for Public Event View
+export interface EventDetail {
+  geo_percentage: number;
+  id: string;
+  event_name: string;
+  event_slug: string;
+  event_date: string;
+  location: string | null;
+  description: string | null;
+  event_latitude: number | null;
+  event_longitude: number | null;
+  total_photos: number;
+  geo_enabled_photos: number;
+  is_public: boolean;
+  created_at: string;
+  photographer: {
+    id: string;
+    name: string;
+    photo: string | null;
+  };
+}
+
+export interface PublicEventPhoto {
+  id: string;
+  filename: string;
+  preview_url: string;
+  download_url: string;
+  price_points: number;
+  is_for_sale: boolean;
+  faces_count: number;
+  matched_users: number;
+  created_at: string;
+  has_location: boolean;
+}
+
 export const photographerService = {
   // Profile
   async getProfile(): Promise<{ success: boolean; data?: PhotographerProfile; error?: string }> {
@@ -201,6 +242,31 @@ export const photographerService = {
 
   async deleteEvent(eventId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     const response = await photographerApi.delete(`/photographer/events/${eventId}`);
+    return response.data;
+  },
+
+  // 🆕 NEW: Public Event View Methods
+  /**
+   * Get event by slug for public view
+   */
+  async getEventBySlug(eventSlug: string): Promise<{
+    data: {
+      event: EventDetail;
+    };
+  }> {
+    const response = await photographerApi.get(`/photographer/events/slug/${eventSlug}`);
+    return response.data;
+  },
+
+  /**
+   * Get event photos for public view
+   */
+  async getEventPhotos(eventId: string): Promise<{
+    data: {
+      photos: PublicEventPhoto[];
+    };
+  }> {
+    const response = await photographerApi.get(`/photographer/events/${eventId}/photos/public`);
     return response.data;
   },
 
