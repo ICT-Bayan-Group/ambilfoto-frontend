@@ -7,7 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Eye, EyeOff, Scan, Loader2, AlertCircle, Shield } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { captchaService } from "@/services/api/captcha.service";
 import { recaptchaService } from "@/services/api/recaptcha.service";
+import { PuzzleCaptcha } from "@/components/PuzzleCaptcha";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -17,8 +19,15 @@ const Login = () => {
   const [captchaLoading, setCaptchaLoading] = useState(false);
   const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
   const [requiresCaptcha, setRequiresCaptcha] = useState(false);
+  const [captchaProvider, setCaptchaProvider] = useState<'puzzle' | 'recaptcha' | 'none'>('none');
+  const [puzzleCaptchaToken, setPuzzleCaptchaToken] = useState<string | null>(null);
   const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
+
+  // Load CAPTCHA configuration on mount
+  useEffect(() => {
+    loadCaptchaConfig();
+  }, []);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -27,7 +36,20 @@ const Login = () => {
     }
   }, [isAuthenticated, user, navigate]);
 
-  // Helper function to redirect based on role
+  /**
+   * Load CAPTCHA configuration
+   */
+  const loadCaptchaConfig = async () => {
+    try {
+      const provider = await captchaService.getProvider();
+      setCaptchaProvider(provider);  
+    } catch (error) {   
+    }
+  };
+
+  /**
+   * Helper function to redirect based on role
+   */
   const redirectBasedOnRole = (role: string) => {
     switch (role) {
       case 'photographer':
@@ -43,31 +65,69 @@ const Login = () => {
     }
   };
 
+  /**
+   * Handle puzzle CAPTCHA completion
+   */
+  const handlePuzzleComplete = (token: string) => {
+    setPuzzleCaptchaToken(token);
+    console.log('✅ Puzzle CAPTCHA completed');
+  };
+
+  /**
+   * Handle puzzle CAPTCHA error
+   */
+  const handlePuzzleError = (error: string) => {
+    console.error('❌ Puzzle CAPTCHA error:', error);
+    setPuzzleCaptchaToken(null);
+  };
+
+  /**
+   * Handle login form submission
+   */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setRemainingAttempts(null);
     
     try {
-      // Get reCAPTCHA token if enabled and required
       let captchaToken: string | null = null;
-      if (recaptchaService.isEnabled() && (requiresCaptcha || remainingAttempts !== null && remainingAttempts < 3)) {
-        setCaptchaLoading(true);
-        captchaToken = await recaptchaService.executeRecaptcha('login');
-        setCaptchaLoading(false);
-        
-        if (!captchaToken && requiresCaptcha) {
-          throw new Error('Failed to verify reCAPTCHA');
+
+      // Get CAPTCHA token based on provider
+      if (requiresCaptcha) {
+        if (captchaProvider === 'puzzle') {
+          // For puzzle CAPTCHA, use token from component
+          if (!puzzleCaptchaToken) {
+            throw new Error('Please complete the security verification');
+          }
+          captchaToken = puzzleCaptchaToken;
+          
+        } else if (captchaProvider === 'recaptcha') {
+          // For reCAPTCHA, execute it
+          setCaptchaLoading(true);
+          captchaToken = await recaptchaService.executeRecaptcha('login');
+          setCaptchaLoading(false);
+          
+          if (!captchaToken) {
+            throw new Error('Failed to verify reCAPTCHA');
+          }
         }
       }
 
+      // Attempt login
       const result = await login(email, password, captchaToken);
+      
+      // Reset puzzle token after use
+      setPuzzleCaptchaToken(null);
       
       // Redirect based on user role
       if (result && result.user) {
         redirectBasedOnRole(result.user.role);
       }
+      
     } catch (error: any) {
+      // Reset puzzle token on error
+      setPuzzleCaptchaToken(null);
+      
       // Check if error response contains remaining attempts
       if (error.response?.data?.remainingAttempts !== undefined) {
         setRemainingAttempts(error.response.data.remainingAttempts);
@@ -87,6 +147,7 @@ const Login = () => {
       // Check if CAPTCHA failed
       if (error.response?.data?.code === 'CAPTCHA_INVALID') {
         console.log('CAPTCHA verification failed');
+        setRequiresCaptcha(true); // Keep CAPTCHA required
       }
       
       // Check if account is locked
@@ -146,13 +207,16 @@ const Login = () => {
             )}
 
             {/* CAPTCHA Required Warning */}
-            {requiresCaptcha && recaptchaService.isEnabled() && (
+            {requiresCaptcha && captchaProvider !== 'none' && (
               <Alert className="bg-blue-50 border-blue-200">
                 <Shield className="h-4 w-4 text-blue-600" />
                 <AlertDescription className="text-blue-900">
                   <strong>Verifikasi keamanan diperlukan</strong>
                   <br />
-                  Login Anda akan diverifikasi dengan reCAPTCHA untuk keamanan.
+                  {captchaProvider === 'puzzle' 
+                    ? 'Selesaikan puzzle di bawah untuk melanjutkan.'
+                    : 'Login Anda akan diverifikasi dengan reCAPTCHA untuk keamanan.'
+                  }
                 </AlertDescription>
               </Alert>
             )}
@@ -208,8 +272,17 @@ const Login = () => {
                 </Link>
               </div>
 
+              {/* Puzzle CAPTCHA Component */}
+              {requiresCaptcha && captchaProvider === 'puzzle' && (
+                <PuzzleCaptcha
+                  action="login"
+                  onComplete={handlePuzzleComplete}
+                  onError={handlePuzzleError}
+                />
+              )}
+
               {/* reCAPTCHA Badge Info */}
-              {recaptchaService.isEnabled() && requiresCaptcha && (
+              {requiresCaptcha && captchaProvider === 'recaptcha' && (
                 <Alert className="bg-slate-50 border-slate-200">
                   <Shield className="h-4 w-4 text-slate-600" />
                   <AlertDescription className="text-slate-900 text-xs">
@@ -239,7 +312,7 @@ const Login = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={loading || captchaLoading}
+                disabled={loading || captchaLoading || (requiresCaptcha && captchaProvider === 'puzzle' && !puzzleCaptchaToken)}
                 size="lg"
               >
                 {captchaLoading ? (
@@ -288,18 +361,18 @@ const Login = () => {
           </CardContent>
         </Card>
 
-        {/* Security Notice */}
+        {/* Security Notice 
         <Card className="mt-4 bg-muted/50">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
               <AlertCircle className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground">
                 Untuk keamanan akun Anda, kami membatasi percobaan login. Setelah 5 kali percobaan gagal, akun akan dikunci sementara selama 15 menit.
-                {recaptchaService.isEnabled() && " Setelah 3 kali percobaan gagal, verifikasi reCAPTCHA akan diperlukan."}
+                {captchaProvider !== 'none' && " Setelah 3 kali percobaan gagal, verifikasi CAPTCHA akan diperlukan."}
               </p>
             </div>
           </CardContent>
-        </Card>
+        </Card>*/}
       </div>
     </div>
   );

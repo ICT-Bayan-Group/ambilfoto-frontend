@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,15 +9,20 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { photographerService } from "@/services/api/photographer.service";
+import { photographerService, Event } from "@/services/api/photographer.service";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Calendar, Loader2, MapPin, Locate } from "lucide-react";
+import { ArrowLeft, Calendar, Loader2, MapPin, Locate, Save, AlertCircle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const CreateEvent = () => {
+const EditEvent = () => {
+  const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [event, setEvent] = useState<Event | null>(null);
   
   const [formData, setFormData] = useState({
     event_name: "",
@@ -29,16 +34,60 @@ const CreateEvent = () => {
     access_code: "",
     watermark_enabled: true,
     price_per_photo: 0,
-    // NEW: Event GPS coordinates
+    status: "active" as "active" | "completed" | "archived",
     event_latitude: null as number | null,
     event_longitude: null as number | null,
   });
+
+  useEffect(() => {
+    if (eventId) {
+      fetchEventData();
+    }
+  }, [eventId]);
+
+  const fetchEventData = async () => {
+    try {
+      setIsLoading(true);
+      const response = await photographerService.getEventDetails(eventId!);
+      
+      if (response.success && response.data) {
+        const eventData = response.data.event;
+        setEvent(eventData);
+        
+        // Populate form with existing data
+        setFormData({
+          event_name: eventData.event_name || "",
+          event_type: eventData.event_type || "",
+          event_date: eventData.event_date ? eventData.event_date.split('T')[0] : "",
+          location: eventData.location || "",
+          description: eventData.description || "",
+          is_public: eventData.is_public,
+          access_code: eventData.access_code || "",
+          watermark_enabled: eventData.watermark_enabled,
+          price_per_photo: eventData.price_per_photo || 0,
+          status: eventData.status,
+          event_latitude: (eventData as any).event_latitude || null,
+          event_longitude: (eventData as any).event_longitude || null,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch event:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load event details",
+        variant: "destructive",
+      });
+      navigate('/photographer/events');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // NEW: Get current location
+  // Get current location
   const handleGetCurrentLocation = () => {
     if (!navigator.geolocation) {
       toast({
@@ -79,6 +128,15 @@ const CreateEvent = () => {
     );
   };
 
+  const handleRemoveLocation = () => {
+    handleChange('event_latitude', null);
+    handleChange('event_longitude', null);
+    toast({
+      title: "GPS Location Removed",
+      description: "Event location has been removed from map",
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -91,10 +149,10 @@ const CreateEvent = () => {
       return;
     }
 
-    setIsLoading(true);
+    setIsSaving(true);
 
     try {
-      const response = await photographerService.createEvent({
+      const updateData: any = {
         event_name: formData.event_name,
         event_type: formData.event_type || undefined,
         event_date: formData.event_date,
@@ -104,31 +162,70 @@ const CreateEvent = () => {
         access_code: formData.access_code || undefined,
         watermark_enabled: formData.watermark_enabled,
         price_per_photo: formData.price_per_photo,
-        event_latitude: formData.event_latitude || undefined,
-        event_longitude: formData.event_longitude || undefined,
-      });
+        status: formData.status,
+        event_latitude: formData.event_latitude,
+        event_longitude: formData.event_longitude,
+      };
 
-      if (response.success && response.data) {
+      const response = await photographerService.updateEvent(eventId!, updateData);
+
+      if (response.success) {
         toast({
           title: "Success!",
-          description: formData.event_latitude && formData.event_longitude
-            ? "Event created with location mapping!"
-            : "Event created successfully",
+          description: "Event updated successfully",
         });
-        navigate(`/photographer/events/${response.data.event_id}`);
+        navigate(`/photographer/events/${eventId}`);
       } else {
-        throw new Error(response.error || 'Failed to create event');
+        throw new Error(response.error || 'Failed to update event');
       }
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to create event",
+        description: error.message || "Failed to update event",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-8 max-w-2xl">
+          <Skeleton className="h-10 w-32 mb-6" />
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-64 mt-2" />
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
+  if (!event) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-8 text-center">
+          <AlertCircle className="h-16 w-16 mx-auto text-destructive mb-4" />
+          <h1 className="text-2xl font-bold mb-4">Event not found</h1>
+          <Button onClick={() => navigate('/photographer/events')}>
+            Back to Events
+          </Button>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -137,21 +234,21 @@ const CreateEvent = () => {
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         <Button
           variant="ghost"
-          onClick={() => navigate('/photographer/events')}
+          onClick={() => navigate(`/photographer/events/${eventId}`)}
           className="mb-6"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Events
+          Back to Event
         </Button>
 
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              Create New Event
+              Edit Event
             </CardTitle>
             <CardDescription>
-              Set up a new photography event with location mapping
+              Update event details and settings
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -167,6 +264,9 @@ const CreateEvent = () => {
                     onChange={(e) => handleChange('event_name', e.target.value)}
                     required
                   />
+                  <p className="text-xs text-muted-foreground">
+                    ⚠️ Mengubah nama akan mengubah URL publik event
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -204,6 +304,26 @@ const CreateEvent = () => {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="status">Event Status</Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value) => handleChange('status', value as any)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Status event (Active: sedang berlangsung, Completed: selesai, Archived: diarsipkan)
+                  </p>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="location">Location Name</Label>
                   <Input
                     id="location"
@@ -213,32 +333,45 @@ const CreateEvent = () => {
                   />
                 </div>
 
-                {/* NEW: GPS Coordinates Section */}
+                {/* GPS Coordinates Section */}
                 <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
                   <div className="flex items-center justify-between">
                     <div>
                       <Label className="flex items-center gap-2">
                         <MapPin className="h-4 w-4" />
-                        Event GPS Location (Optional)
+                        Event GPS Location
                       </Label>
                       <p className="text-xs text-muted-foreground mt-1">
                         Set koordinat untuk menampilkan lokasi event di FotoMap
                       </p>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleGetCurrentLocation}
-                      disabled={isLocating}
-                    >
-                      {isLocating ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Locate className="h-4 w-4 mr-2" />
+                    <div className="flex gap-2">
+                      {formData.event_latitude && formData.event_longitude && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleRemoveLocation}
+                        >
+                          <MapPin className="h-4 w-4 mr-2" />
+                          Remove Location
+                        </Button>
                       )}
-                      {isLocating ? 'Detecting...' : 'Use Current Location'}
-                    </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleGetCurrentLocation}
+                        disabled={isLocating}
+                      >
+                        {isLocating ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Locate className="h-4 w-4 mr-2" />
+                        )}
+                        {isLocating ? 'Detecting...' : 'Use Current Location'}
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -266,12 +399,17 @@ const CreateEvent = () => {
                     </div>
                   </div>
 
-                  {formData.event_latitude && formData.event_longitude && (
+                  {formData.event_latitude && formData.event_longitude ? (
                     <div className="flex items-center gap-2 text-xs text-green-600">
                       <MapPin className="h-3 w-3" />
                       <span>
-                        Event location will appear on FotoMap: {formData.event_latitude.toFixed(6)}, {formData.event_longitude.toFixed(6)}
+                        Event location will appear on FotoMap: {Number(formData.event_latitude).toFixed(6)}, {Number(formData.event_longitude).toFixed(6)}
                       </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <AlertCircle className="h-3 w-3" />
+                      <span>No GPS location set - event won't appear on FotoMap</span>
                     </div>
                   )}
                 </div>
@@ -344,18 +482,8 @@ const CreateEvent = () => {
                     onChange={(e) => handleChange('price_per_photo', parseInt(e.target.value) || 0)}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Set ke 0 untuk download gratis
+                    Harga default untuk foto-foto di event ini. Set ke 0 untuk download gratis.
                   </p>
-                  
-                  {/* Syarat & Ketentuan FOTOPOIN */}
-                  <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-lg">
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      <strong className="text-foreground">Syarat & Ketentuan FOTOPOIN:</strong><br />
-                      Ketika foto ini diupload, foto tersebut juga akan terset harga menggunakan FOTOPOIN. 
-                      Pemasukan anda akan muncul ketika minimal 5 foto terdownload, 
-                      maka anda akan mendapat pendapatan dari FOTOPOIN.
-                    </p>
-                  </div>
                 </div>
               </div>
 
@@ -364,19 +492,23 @@ const CreateEvent = () => {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate('/photographer/events')}
+                  onClick={() => navigate(`/photographer/events/${eventId}`)}
                   className="flex-1"
+                  disabled={isSaving}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isLoading} className="flex-1">
-                  {isLoading ? (
+                <Button type="submit" disabled={isSaving} className="flex-1">
+                  {isSaving ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Creating...
+                      Saving...
                     </>
                   ) : (
-                    'Create Event'
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Save Changes
+                    </>
                   )}
                 </Button>
               </div>
@@ -390,4 +522,4 @@ const CreateEvent = () => {
   );
 };
 
-export default CreateEvent;
+export default EditEvent;
