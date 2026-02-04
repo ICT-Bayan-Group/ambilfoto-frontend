@@ -30,7 +30,10 @@ import {
   AlertCircle,
   Loader2,
   History,
-  Banknote
+  Banknote,
+  Building2,
+  CreditCard,
+  User
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -41,7 +44,14 @@ const PhotographerWalletPage = () => {
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
+  
+  // ✅ Withdrawal form state
   const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [bankAccount, setBankAccount] = useState("");
+  const [accountHolder, setAccountHolder] = useState("");
+  const [photographerNote, setPhotographerNote] = useState("");
+  
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -60,11 +70,24 @@ const PhotographerWalletPage = () => {
         setWithdrawals(response.data.withdrawal_requests || []);
       }
     } catch (error) {
-      toast.error('Gagal memuat data FOTOPOIN');
+      toast.error('Gagal memuat data wallet');
     } finally {
       setIsLoading(false);
     }
   };
+
+  // ✅ Pre-fill bank info when wallet loads
+  useEffect(() => {
+    if (wallet && dialogOpen) {
+      // Pre-fill bank info dari wallet/profile jika ada
+      if (wallet.bank_name) {
+        setBankName(wallet.bank_name);
+      }
+      if (wallet.bank_account) {
+        setBankAccount(wallet.bank_account);
+      }
+    }
+  }, [wallet, dialogOpen]);
 
   const toNumber = (value: string | number | undefined | null): number => {
     if (value === undefined || value === null) return 0;
@@ -82,10 +105,24 @@ const PhotographerWalletPage = () => {
     }).format(numAmount);
   };
 
+  // ✅ Reset form when dialog closes
+  const handleDialogChange = (open: boolean) => {
+    setDialogOpen(open);
+    if (!open) {
+      // Reset form
+      setWithdrawAmount("");
+      setBankName(wallet?.bank_name || "");
+      setBankAccount(wallet?.bank_account || "");
+      setAccountHolder("");
+      setPhotographerNote("");
+    }
+  };
+
   const handleWithdraw = async () => {
     const amount = parseInt(withdrawAmount);
     const availableBalance = toNumber(wallet?.available_for_withdrawal);
     
+    // ✅ Validation
     if (!amount || amount < 100000) {
       toast.error('Penarikan minimum adalah Rp 100.000');
       return;
@@ -96,19 +133,38 @@ const PhotographerWalletPage = () => {
       return;
     }
 
+    // ✅ Validate bank info
+    if (!bankName.trim()) {
+      toast.error('Nama bank harus diisi');
+      return;
+    }
+
+    if (!bankAccount.trim()) {
+      toast.error('Nomor rekening harus diisi');
+      return;
+    }
+
     try {
       setIsWithdrawing(true);
-      const response = await paymentService.requestWithdrawal(amount);
+      
+      // ✅ Send as proper object
+      const response = await paymentService.requestWithdrawal({
+        amount: amount,
+        bank_name: bankName.trim(),
+        bank_account: bankAccount.trim(),
+        account_holder: accountHolder.trim() || undefined,
+        photographer_note: photographerNote.trim() || undefined,
+      });
       
       if (response.success) {
         toast.success('Permintaan penarikan berhasil diajukan!');
-        setDialogOpen(false);
-        setWithdrawAmount("");
-        await fetchWalletData(); // Refresh data after withdrawal
+        handleDialogChange(false);
+        await fetchWalletData(); // Refresh data
       } else {
         toast.error(response.error || 'Gagal mengajukan penarikan');
       }
     } catch (error) {
+      console.error('Withdrawal error:', error);
       toast.error('Terjadi kesalahan');
     } finally {
       setIsWithdrawing(false);
@@ -120,7 +176,7 @@ const PhotographerWalletPage = () => {
       const response = await paymentService.cancelWithdrawal(requestId);
       if (response.success) {
         toast.success('Penarikan dibatalkan');
-        await fetchWalletData(); // Refresh to update pending_withdrawal
+        await fetchWalletData();
       } else {
         toast.error(response.error || 'Gagal membatalkan');
       }
@@ -168,54 +224,160 @@ const PhotographerWalletPage = () => {
             </p>
           </div>
           
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          {/* ✅ UPDATED DIALOG */}
+          <Dialog open={dialogOpen} onOpenChange={handleDialogChange}>
             <DialogTrigger asChild>
               <Button className="gap-2" disabled={!isWithdrawEnabled}>
                 <Send className="h-4 w-4" />
                 Ajukan Penarikan
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Ajukan Penarikan</DialogTitle>
                 <DialogDescription>
                   Transfer saldo ke rekening bank Anda. Minimum Rp 100.000.
                 </DialogDescription>
               </DialogHeader>
+              
               <div className="space-y-4 py-4">
-                <div className="p-4 bg-muted/50 rounded-lg">
-                  <p className="text-sm text-muted-foreground">Saldo Tersedia</p>
-                  <p className="text-2xl font-bold">{formatCurrency(availableBalance)}</p>
+                {/* Saldo Tersedia */}
+                <div className="p-4 bg-gradient-to-br from-green-500/10 to-green-500/5 border border-green-500/20 rounded-lg">
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Wallet className="h-4 w-4" />
+                    Saldo Tersedia
+                  </p>
+                  <p className="text-3xl font-bold mt-1">{formatCurrency(availableBalance)}</p>
                 </div>
+
+                {/* Jumlah Penarikan */}
                 <div className="space-y-2">
-                  <Label htmlFor="amount">Jumlah Penarikan</Label>
+                  <Label htmlFor="amount" className="flex items-center gap-2">
+                    <Banknote className="h-4 w-4" />
+                    Jumlah Penarikan (Rp)
+                  </Label>
                   <Input
                     id="amount"
                     type="number"
-                    placeholder="Minimal 100000"
+                    placeholder="100000"
                     value={withdrawAmount}
                     onChange={(e) => setWithdrawAmount(e.target.value)}
                     min={100000}
                     max={availableBalance}
+                    className="text-lg"
+                  />
+                  {withdrawAmount && parseInt(withdrawAmount) >= 100000 && (
+                    <p className="text-sm font-medium text-green-600">
+                      ≈ {formatCurrency(parseInt(withdrawAmount))}
+                    </p>
+                  )}
+                  {withdrawAmount && parseInt(withdrawAmount) < 100000 && (
+                    <p className="text-sm text-red-500">
+                      Minimum penarikan Rp 100.000
+                    </p>
+                  )}
+                </div>
+
+                <div className="border-t pt-4">
+                  <p className="text-sm font-medium mb-3 flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Informasi Rekening Bank
+                  </p>
+
+                  {/* Bank Name */}
+                  <div className="space-y-2 mb-3">
+                    <Label htmlFor="bank_name">
+                      Nama Bank <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="bank_name"
+                      placeholder="BCA, Mandiri, BNI, BRI, dll"
+                      value={bankName}
+                      onChange={(e) => setBankName(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  {/* Bank Account */}
+                  <div className="space-y-2 mb-3">
+                    <Label htmlFor="bank_account" className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4" />
+                      Nomor Rekening <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="bank_account"
+                      placeholder="1234567890"
+                      value={bankAccount}
+                      onChange={(e) => setBankAccount(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  {/* Account Holder (Optional) */}
+                  <div className="space-y-2">
+                    <Label htmlFor="account_holder" className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Nama Pemilik Rekening (Opsional)
+                    </Label>
+                    <Input
+                      id="account_holder"
+                      placeholder="Nama sesuai buku rekening"
+                      value={accountHolder}
+                      onChange={(e) => setAccountHolder(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Kosongkan jika sama dengan nama di profil
+                    </p>
+                  </div>
+                </div>
+
+                {/* Note (Optional) */}
+                <div className="space-y-2">
+                  <Label htmlFor="photographer_note">
+                    Catatan untuk Admin (Opsional)
+                  </Label>
+                  <Input
+                    id="photographer_note"
+                    placeholder="Tambahkan catatan jika diperlukan"
+                    value={photographerNote}
+                    onChange={(e) => setPhotographerNote(e.target.value)}
                   />
                 </div>
+
+                {/* Warning */}
                 <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-sm">
                   <div className="flex items-start gap-2">
-                    <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                    <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="font-medium text-yellow-600">Catatan</p>
-                      <p className="text-muted-foreground">
-                        Proses penarikan akan diverifikasi oleh admin dalam 1-3 hari kerja.
-                      </p>
+                      <p className="font-medium text-yellow-600">Catatan Penting</p>
+                      <ul className="text-muted-foreground mt-1 space-y-1 list-disc list-inside">
+                        <li>Proses verifikasi 1-3 hari kerja</li>
+                        <li>Pastikan data rekening benar</li>
+                        <li>Transfer dilakukan setelah disetujui admin</li>
+                      </ul>
                     </div>
                   </div>
                 </div>
               </div>
+
               <DialogFooter>
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => handleDialogChange(false)}
+                  disabled={isWithdrawing}
+                >
                   Batal
                 </Button>
-                <Button onClick={handleWithdraw} disabled={isWithdrawing}>
+                <Button 
+                  onClick={handleWithdraw} 
+                  disabled={
+                    isWithdrawing || 
+                    !bankName.trim() || 
+                    !bankAccount.trim() ||
+                    !withdrawAmount ||
+                    parseInt(withdrawAmount) < 100000
+                  }
+                >
                   {isWithdrawing ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -430,13 +592,18 @@ const PhotographerWalletPage = () => {
                             <p className="text-sm text-muted-foreground">
                               {wd.bank_name} - {wd.bank_account}
                             </p>
+                            {wd.account_holder && (
+                              <p className="text-xs text-muted-foreground">
+                                a.n. {wd.account_holder}
+                              </p>
+                            )}
                           </div>
                           {getStatusBadge(wd.status)}
                         </div>
                         
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">
-                            Diajukan: {format(new Date(wd.requested_at), 'dd MMM yyyy HH:mm')}
+                            Diajukan: {wd.requested_at ? format(new Date(wd.requested_at), 'dd MMM yyyy HH:mm') : '-'}
                           </span>
                           
                           {wd.status === 'pending' && (
@@ -451,6 +618,13 @@ const PhotographerWalletPage = () => {
                             </Button>
                           )}
                         </div>
+
+                        {wd.photographer_note && (
+                          <div className="mt-3 p-2 bg-blue-500/10 rounded text-sm">
+                            <p className="font-medium">Catatan Anda:</p>
+                            <p className="text-muted-foreground">{wd.photographer_note}</p>
+                          </div>
+                        )}
 
                         {wd.admin_note && (
                           <div className="mt-3 p-2 bg-muted/50 rounded text-sm">
