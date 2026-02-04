@@ -1,3 +1,5 @@
+// src/services/api/payment.service.ts
+
 import axios from 'axios';
 
 const AUTH_API_URL = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5000/api';
@@ -151,6 +153,8 @@ export interface PhotographerWallet {
   pending_withdrawal: string | number;
   available_for_withdrawal: string | number;
   total_sales: string | number;
+  bank_name?: string;  // ✅ ADDED: Bank info dari profile
+  bank_account?: string; // ✅ ADDED: Bank info dari profile
 }
 
 export interface EarningRecord {
@@ -184,6 +188,15 @@ export interface WithdrawalRequest {
   created_at?: string;
   processed_at?: string;
   paid_at?: string;
+}
+
+// ✅ ADDED: Interface untuk withdrawal request
+export interface WithdrawalRequestData {
+  amount: number;
+  bank_name: string;
+  bank_account: string;
+  account_holder?: string;
+  photographer_note?: string;
 }
 
 export interface WithdrawalSummary {
@@ -463,20 +476,19 @@ export const paymentService = {
     }
   },
 
-  async requestWithdrawal(data: {
-    amount: number;
-    bank_name: string;
-    bank_account: string;
-    account_holder?: string;
-    photographer_note?: string;
-  }): Promise<{ 
+  // ✅ FIXED: Request withdrawal dengan proper type
+  async requestWithdrawal(data: WithdrawalRequestData): Promise<{ 
     success: boolean; 
     message?: string; 
     data?: WithdrawalRequest;
     error?: string 
   }> {
     try {
+      console.log('💸 Requesting withdrawal:', data);
+      
+      // ✅ Axios automatically serializes object to JSON
       const response = await paymentApi.post('/payment/photographer/withdraw', data);
+      
       return response.data;
     } catch (error: any) {
       console.error('Error requesting withdrawal:', error);
