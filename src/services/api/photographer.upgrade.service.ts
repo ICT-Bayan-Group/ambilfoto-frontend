@@ -37,6 +37,11 @@ export interface PhotographerUpgradeRequest {
   business_address: string;
   business_phone: string;
   portfolio_url: string | null;
+  // 🆕 NEW: Location fields
+  province_id: string | null;
+  province_name: string | null;
+  city_id: string | null;
+  city_name: string | null;
   ktp_verification_status: 'valid' | 'invalid' | 'pending' | null;
   ktp_verified_at: string | null;
   face_match_score: number | null;
@@ -65,6 +70,9 @@ export interface UpgradeStatus {
     submitted_at: string;
     reviewed_at: string | null;
     updated_at: string;
+    // 🆕 NEW: Location in status
+    province_name: string | null;
+    city_name: string | null;
   };
   rejection_history: any[];
   can_submit: boolean;
@@ -109,6 +117,11 @@ export interface SubmitUpgradeData {
   business_address: string;
   business_phone: string;
   portfolio_url?: string;
+  // 🆕 NEW: Location fields (optional)
+  province_id?: string;
+  province_name?: string;
+  city_id?: string;
+  city_name?: string;
 }
 
 export interface ApiResponse<T> {
@@ -124,7 +137,7 @@ export interface ApiResponse<T> {
 
 export const photographerUpgradeService = {
   /**
-   * USER: Submit photographer upgrade request
+   * USER: Submit photographer upgrade request (with location support)
    */
   async submitUpgradeRequest(data: SubmitUpgradeData): Promise<ApiResponse<{
     request_id: string;

@@ -9,10 +9,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { 
   Camera, Upload, AlertCircle, CheckCircle, ArrowLeft, 
-  FileText, User, Building, Phone, Link2, CreditCard, Image as ImageIcon 
+  FileText, User, Building, Phone, Link2, CreditCard, Image as ImageIcon,
+  MapPin
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { photographerUpgradeService } from "@/services/api/photographer.upgrade.service";
+import { LocationSelector } from "@/components/LocationSelector";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 
@@ -26,12 +28,20 @@ const PhotographerUpgradeRequest = () => {
     portfolio_url: "",
   });
   
+  // 🆕 NEW: Location state
+  const [locationData, setLocationData] = useState<{
+    province_id: string;
+    province_name: string;
+    city_id: string;
+    city_name: string;
+  } | null>(null);
+  
   const [ktpImage, setKtpImage] = useState<string>("");
   const [ktpPreview, setKtpPreview] = useState<string>("");
   const [faceImage, setFaceImage] = useState<string>("");
   const [facePreview, setFacePreview] = useState<string>("");
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<'form' | 'ktp' | 'face' | 'review'>('form');
+  const [step, setStep] = useState<'form' | 'location' | 'ktp' | 'face' | 'review'>('form');
   
   const ktpInputRef = useRef<HTMLInputElement>(null);
   const faceInputRef = useRef<HTMLInputElement>(null);
@@ -91,7 +101,6 @@ const PhotographerUpgradeRequest = () => {
   };
 
   const validateKtpNumber = (ktp: string): boolean => {
-    // KTP Indonesia: 16 digits
     const ktpRegex = /^\d{16}$/;
     return ktpRegex.test(ktp);
   };
@@ -139,6 +148,7 @@ const PhotographerUpgradeRequest = () => {
     setLoading(true);
 
     try {
+      // 🆕 NEW: Include location in submission
       const response = await photographerUpgradeService.submitUpgradeRequest({
         ktp_number: formData.ktp_number,
         ktp_name: formData.ktp_name,
@@ -148,6 +158,13 @@ const PhotographerUpgradeRequest = () => {
         business_address: formData.business_address,
         business_phone: formData.business_phone,
         portfolio_url: formData.portfolio_url || undefined,
+        // Add location data if available
+        ...(locationData && {
+          province_id: locationData.province_id,
+          province_name: locationData.province_name,
+          city_id: locationData.city_id,
+          city_name: locationData.city_name,
+        }),
       });
 
       if (response.success) {
@@ -190,10 +207,11 @@ const PhotographerUpgradeRequest = () => {
           </p>
         </div>
 
-        {/* Progress Steps */}
-        <div className="flex items-center justify-between mb-8">
+        {/* Progress Steps - 🆕 Added location step */}
+        <div className="flex items-center justify-between mb-8 overflow-x-auto">
           {[
             { id: 'form', label: 'Data Bisnis', icon: Building },
+            { id: 'location', label: 'Lokasi', icon: MapPin },
             { id: 'ktp', label: 'Upload KTP', icon: CreditCard },
             { id: 'face', label: 'Selfie KTP', icon: Camera },
             { id: 'review', label: 'Review', icon: CheckCircle }
@@ -209,9 +227,9 @@ const PhotographerUpgradeRequest = () => {
                 </div>
                 <span className="text-xs font-medium hidden md:block">{s.label}</span>
               </div>
-              {idx < 3 && (
+              {idx < 4 && (
                 <div className={`h-0.5 flex-1 mx-2 ${
-                  ['ktp', 'face', 'review'].indexOf(step) > idx - 1 ? 'bg-primary' : 'bg-muted'
+                  ['location', 'ktp', 'face', 'review'].indexOf(step) > idx - 1 ? 'bg-primary' : 'bg-muted'
                 }`} />
               )}
             </div>
@@ -326,16 +344,69 @@ const PhotographerUpgradeRequest = () => {
                 <Button 
                   type="button" 
                   className="w-full" 
-                  onClick={() => setStep('ktp')}
+                  onClick={() => setStep('location')}
                   disabled={!formData.ktp_number || !formData.ktp_name || !formData.business_name}
                 >
-                  Lanjut ke Upload KTP
+                  Lanjut ke Lokasi
                 </Button>
               </CardContent>
             </Card>
           )}
 
-          {/* Step 2: Upload KTP */}
+          {/* 🆕 NEW: Step 2 - Location Selection */}
+          {step === 'location' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Lokasi Domisili
+                </CardTitle>
+                <CardDescription>
+                  Pilih provinsi dan kota tempat bisnis Anda beroperasi
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Opsional namun disarankan:</strong>
+                    <p className="mt-1 text-sm">
+                      Data lokasi membantu admin melihat sebaran photographer di Indonesia dan mempermudah user mencari photographer di area mereka.
+                    </p>
+                  </AlertDescription>
+                </Alert>
+
+                <LocationSelector
+                  onLocationChange={setLocationData}
+                  required={false}
+                />
+
+                {locationData && (
+                  <Alert className="bg-green-50 border-green-200">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <AlertDescription className="text-green-900">
+                      Lokasi terpilih: <strong>{locationData.city_name}, {locationData.province_name}</strong>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={() => setStep('form')} className="flex-1">
+                    Kembali
+                  </Button>
+                  <Button 
+                    type="button" 
+                    onClick={() => setStep('ktp')} 
+                    className="flex-1"
+                  >
+                    {locationData ? 'Lanjut ke Upload KTP' : 'Lewati & Lanjut'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 3: Upload KTP */}
           {step === 'ktp' && (
             <Card>
               <CardHeader>
@@ -393,7 +464,7 @@ const PhotographerUpgradeRequest = () => {
                 />
 
                 <div className="flex gap-2">
-                  <Button type="button" variant="outline" onClick={() => setStep('form')} className="flex-1">
+                  <Button type="button" variant="outline" onClick={() => setStep('location')} className="flex-1">
                     Kembali
                   </Button>
                   <Button 
@@ -409,7 +480,7 @@ const PhotographerUpgradeRequest = () => {
             </Card>
           )}
 
-          {/* Step 3: Upload Face/Selfie */}
+          {/* Step 4: Upload Face/Selfie */}
           {step === 'face' && (
             <Card>
               <CardHeader>
@@ -484,7 +555,7 @@ const PhotographerUpgradeRequest = () => {
             </Card>
           )}
 
-          {/* Step 4: Review */}
+          {/* Step 5: Review */}
           {step === 'review' && (
             <Card>
               <CardHeader>
@@ -531,6 +602,26 @@ const PhotographerUpgradeRequest = () => {
                     )}
                   </div>
                 </div>
+
+                {/* 🆕 NEW: Location Info */}
+                {locationData && (
+                  <div>
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Lokasi Domisili
+                    </h3>
+                    <div className="grid md:grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Provinsi</p>
+                        <p className="font-medium">{locationData.province_name}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Kota/Kabupaten</p>
+                        <p className="font-medium">{locationData.city_name}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Uploaded Images */}
                 <div>
