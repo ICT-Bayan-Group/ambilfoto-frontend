@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { 
   Search, Filter, Eye, CheckCircle, XCircle, Clock, 
   User, Building, Phone, FileText, Calendar, TrendingUp,
-  AlertCircle, RefreshCw, Download
+  AlertCircle, RefreshCw, Download, MapPin
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { photographerUpgradeService, PhotographerUpgradeRequest, UpgradeStatistics } from "@/services/api/photographer.upgrade.service";
@@ -184,7 +184,9 @@ const AdminPhotographerRequests = () => {
     req.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     req.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     req.business_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    req.ktp_number.includes(searchQuery)
+    req.ktp_number.includes(searchQuery) ||
+    (req.province_name && req.province_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (req.city_name && req.city_name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const getStatusBadge = (status: string) => {
@@ -269,7 +271,7 @@ const AdminPhotographerRequests = () => {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Cari berdasarkan email, nama, bisnis, atau KTP..."
+              placeholder="Cari berdasarkan email, nama, bisnis, KTP, provinsi, atau kota..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -353,6 +355,21 @@ const AdminPhotographerRequests = () => {
                           <span className="capitalize">KTP: {request.ktp_verification_status || 'pending'}</span>
                         </div>
                       </div>
+                      
+                      {/* 🆕 Location Display */}
+                      {(request.province_name || request.city_name) && (
+                        <div className="mt-3 flex items-center gap-2 text-sm">
+                          <MapPin className="h-4 w-4 text-primary" />
+                          <span className="font-medium text-primary">
+                            {request.city_name && request.province_name
+                              ? `${request.city_name}, ${request.province_name}`
+                              : request.province_name || request.city_name}
+                          </span>
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            Location Provided
+                          </Badge>
+                        </div>
+                      )}
 
                       {request.face_match_score && (
                         <div className="mt-2 text-sm text-muted-foreground">
@@ -457,6 +474,49 @@ const AdminPhotographerRequests = () => {
                     )}
                   </div>
                 </div>
+
+                {/* 🆕 Location Info */}
+                {(selectedRequest?.province_name || selectedRequest?.city_name) && (
+                  <div>
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                      <MapPin className="h-5 w-5 text-primary" />
+                      Lokasi Fotografer
+                    </h3>
+                    <div className="grid md:grid-cols-2 gap-3 text-sm">
+                      {selectedRequest.province_name && (
+                        <div>
+                          <p className="text-muted-foreground">Provinsi</p>
+                          <p className="font-medium flex items-center gap-2">
+                            {selectedRequest.province_name}
+                            <Badge variant="outline" className="text-xs">
+                              ID: {selectedRequest.province_id}
+                            </Badge>
+                          </p>
+                        </div>
+                      )}
+                      {selectedRequest.city_name && (
+                        <div>
+                          <p className="text-muted-foreground">Kota/Kabupaten</p>
+                          <p className="font-medium flex items-center gap-2">
+                            {selectedRequest.city_name}
+                            <Badge variant="outline" className="text-xs">
+                              ID: {selectedRequest.city_id}
+                            </Badge>
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <p className="text-sm text-blue-900 flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4" />
+                        <strong>Fotografer telah menyertakan data lokasi</strong>
+                      </p>
+                      <p className="text-xs text-blue-700 mt-1">
+                        Data ini akan membantu meningkatkan visibilitas fotografer di pencarian berdasarkan lokasi
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* KTP Info */}
                 <div>

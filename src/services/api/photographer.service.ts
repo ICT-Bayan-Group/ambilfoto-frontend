@@ -108,6 +108,11 @@ export interface PhotographerProfile {
   email: string;
   phone?: string;
   profile_photo?: string;
+  province_id?: string | null;
+  province_name?: string | null;
+  city_id?: string | null;
+  city_name?: string | null;
+  location_updated_at?: string | null;
   created_at: string;
 }
 
@@ -160,7 +165,6 @@ export interface PhotoSalesData {
   top_performers: PhotoSaleRecord[];
 }
 
-// 🆕 NEW TYPES for Public Event View
 export interface EventDetail {
   geo_percentage: number;
   id: string;
@@ -195,6 +199,38 @@ export interface PublicEventPhoto {
   has_location: boolean;
 }
 
+// 🆕 Location Interfaces
+export interface Province {
+  id: string;
+  name: string;
+}
+
+export interface City {
+  id: string;
+  name: string;
+  province_id: string;
+}
+
+export interface LocationUpdateResponse {
+  province_id: string;
+  province_name: string;
+  city_id: string;
+  city_name: string;
+}
+
+export interface ProfileCompletion {
+  is_complete: boolean;
+  missing_fields: string[];
+  current_data: {
+    province_id: string | null;
+    province_name: string | null;
+    city_id: string | null;
+    city_name: string | null;
+    business_name?: string;
+    full_name?: string;
+  };
+}
+
 export const photographerService = {
   // Profile
   async getProfile(): Promise<{ success: boolean; data?: PhotographerProfile; error?: string }> {
@@ -210,6 +246,38 @@ export const photographerService = {
     bank_name?: string;
   }): Promise<{ success: boolean; message?: string; error?: string }> {
     const response = await photographerApi.put('/photographer/profile', data);
+    return response.data;
+  },
+
+  // 🆕 Location Methods
+  async getProvinces(): Promise<{ success: boolean; data?: Province[]; error?: string }> {
+    const response = await photographerApi.get('/photographer/locations/provinces');
+    return response.data;
+  },
+
+  async getCities(provinceId: string): Promise<{ success: boolean; data?: City[]; error?: string }> {
+    const response = await photographerApi.get(`/photographer/locations/cities/${provinceId}`);
+    return response.data;
+  },
+
+  async updateLocation(data: {
+    province_id: string;
+    city_id: string;
+  }): Promise<{ success: boolean; data?: LocationUpdateResponse; error?: string }> {
+    const response = await photographerApi.put('/photographer/profile/location', data);
+    return response.data;
+  },
+
+  async checkProfileCompletion(): Promise<{ success: boolean; data?: ProfileCompletion; error?: string }> {
+    const response = await photographerApi.get('/photographer/profile/check-completion', {
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      },
+      params: {
+        _t: new Date().getTime()
+      }
+    });
     return response.data;
   },
 
@@ -245,10 +313,6 @@ export const photographerService = {
     return response.data;
   },
 
-  // 🆕 NEW: Public Event View Methods
-  /**
-   * Get event by slug for public view
-   */
   async getEventBySlug(eventSlug: string): Promise<{
     data: {
       event: EventDetail;
@@ -258,9 +322,6 @@ export const photographerService = {
     return response.data;
   },
 
-  /**
-   * Get event photos for public view
-   */
   async getEventPhotos(eventId: string): Promise<{
     data: {
       photos: PublicEventPhoto[];
@@ -290,7 +351,6 @@ export const photographerService = {
     return response.data;
   },
 
-  // Update single photo pricing
   async updatePhotoPricing(eventId: string, photoId: string, data: {
     price_cash: number;
     price_points: number;
@@ -300,7 +360,6 @@ export const photographerService = {
     return response.data;
   },
 
-  // Bulk update pricing for all photos in event
   async updateBulkPricing(eventId: string, data: {
     price_cash: number;
     price_points: number;
@@ -310,7 +369,6 @@ export const photographerService = {
     return response.data;
   },
 
-  // Photo Sales Statistics
   async getPhotoSales(): Promise<{ success: boolean; data?: PhotoSalesData; error?: string }> {
     const response = await photographerApi.get('/photographer/photo-sales');
     return response.data;
