@@ -54,7 +54,7 @@ import PhotographerGlobalEventsMap from "./pages/photographer/GlobalEventsMap";
 import PhotographerEventPublicView from "./pages/photographer/PhotographerEventPublicView";
 import ForgotPassword from "./pages/ForgorPassword";
 import ResetPassword from "./pages/ResetPassword";
-
+import AdminPhotographerStatistics from "./pages/admin/AdminPhotographerStatistics";
 // ✅ NEW IMPORTS - Photographer Upgrade Feature
 import PhotographerUpgradeRequest from "./pages/user/PhotographerUpgradeRequest";
 import PhotographerUpgradeStatus from "./pages/user/PhotographerUpgradeStatus";
@@ -414,6 +414,14 @@ const App = () => (
                   <AdminPhotographerRequests />
                 </AdminRoute>
               } 
+            />
+            <Route
+              path="/admin/photographer-statistics"
+              element={
+                <AdminRoute>
+                  <AdminPhotographerStatistics />
+                </AdminRoute>
+              }
             />
             
             {/* Payment Callback Routes */}
