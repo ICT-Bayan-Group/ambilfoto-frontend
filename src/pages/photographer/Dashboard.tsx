@@ -260,10 +260,16 @@ const PhotographerDashboard = () => {
                   Edit Profil Bisnis
                 </Button>
               </Link>
-              <Link to="/photographer/photosales" className="block">
-                <Button variant="outline" className="w-full justify-start gap-3 text-primary border-primary/30 hover:bg-primary/10">
+               {/*  <Link to="/photographer/photosales" className="block">
+                <Button variant="outline" className="w-full justify-start gap-3 text-primary border-primary/30 hover:bg-blue-500">
                   <BarChart3 className="h-4 w-4" />
                   Statistik Penjualan
+                </Button>
+              </Link>*/}
+              <Link to="/photographer/hires-queue" className="block">
+                <Button variant="outline" className="w-full justify-start gap-3 text-green-600 border-green-500/30 hover:bg-green-500">
+                  <Download className="h-4 w-4" />
+                  Antrian Photo Hi-Res 
                 </Button>
               </Link>
               
