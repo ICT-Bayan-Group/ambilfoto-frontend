@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
+// import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+// import { Label } from "@/components/ui/label";
 import { CreditCard, Coins, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { userService } from "@/services/api/user.service";
@@ -32,25 +32,26 @@ export const PhotoPurchaseModal = ({
   onPurchaseSuccess,
 }: PhotoPurchaseModalProps) => {
   const navigate = useNavigate();
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "points">("cash");
+  // const [paymentMethod, setPaymentMethod] = useState<"cash" | "points">("cash");
   const [isProcessing, setIsProcessing] = useState(false);
   const { pay, isLoaded: isSnapLoaded } = useMidtransSnap();
 
-  const canPayWithPoints = userPointBalance >= photo.price_points;
+  // const canPayWithPoints = userPointBalance >= photo.price_points;
 
   const handlePurchase = async () => {
     try {
       setIsProcessing(true);
       
-      const response = await userService.purchasePhoto(photo.id, paymentMethod);
+      // Force payment method to be "cash" only
+      const response = await userService.purchasePhoto(photo.id, "cash");
       
       if (response.success && response.data) {
-        if (paymentMethod === "points") {
-          // FOTOPOIN payment - instant success
-          toast.success("Foto berhasil dibeli dengan FOTOPOIN!");
-          onPurchaseSuccess(response.data.download_url);
-          onClose();
-        } else {
+        // FOTOPOIN payment - COMMENTED OUT
+        // if (paymentMethod === "points") {
+        //   toast.success("Foto berhasil dibeli dengan FOTOPOIN!");
+        //   onPurchaseSuccess(response.data.download_url);
+        //   onClose();
+        // } else {
           // Cash payment - TUTUP MODAL DULU sebelum buka Snap
           if (response.data.token && isSnapLoaded) {
             try {
@@ -97,7 +98,7 @@ export const PhotoPurchaseModal = ({
             toast.error('Payment URL tidak tersedia');
             setIsProcessing(false);
           }
-        }
+        // }
       } else {
         const errorMessage = response.error || "Gagal memproses pembelian";
         const details = response.details ? ` (${JSON.stringify(response.details)})` : '';
@@ -121,7 +122,7 @@ export const PhotoPurchaseModal = ({
             Beli Foto
           </DialogTitle>
           <DialogDescription>
-            Pilih metode pembayaran yang kamu inginkan
+            Lanjutkan pembayaran melalui payment gateway
           </DialogDescription>
         </DialogHeader>
 
@@ -131,25 +132,41 @@ export const PhotoPurchaseModal = ({
             <p className="font-medium text-sm truncate">{photo.filename}</p>
             <p className="text-xs text-muted-foreground">{photo.event_name}</p>
             <div className="flex items-center gap-2 mt-2">
-              <Badge variant="secondary">
+              <Badge variant="secondary" className="text-base px-3 py-1">
                 Rp {photo.price_cash.toLocaleString('id-ID')}
               </Badge>
-              <span className="text-xs text-muted-foreground">atau</span>
+              {/* FOTOPOIN badge - COMMENTED OUT */}
+              {/* <span className="text-xs text-muted-foreground">atau</span>
               <Badge variant="outline" className="gap-1">
                 <Coins className="h-3 w-3" />
                 {photo.price_points} FOTOPOIN
-              </Badge>
+              </Badge> */}
             </div>
           </div>
 
+          {/* Payment Method Info - Only Cash */}
+          <div className="flex items-center space-x-3 p-4 rounded-lg border border-primary bg-primary/5">
+            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <CreditCard className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium">Bayar Cash</p>
+              <p className="text-xs text-muted-foreground">Via Midtrans (Bank, E-Wallet, QRIS)</p>
+            </div>
+            <span className="font-semibold text-primary">
+              Rp {photo.price_cash.toLocaleString('id-ID')}
+            </span>
+          </div>
+
+          {/* FOTOPOIN Payment Option - COMPLETELY COMMENTED OUT */}
           {/* Payment Method Selection */}
-          <RadioGroup
+          {/* <RadioGroup
             value={paymentMethod}
             onValueChange={(v) => setPaymentMethod(v as "cash" | "points")}
             className="space-y-3"
-          >
+          > */}
             {/* Cash Payment */}
-            <div className={`flex items-center space-x-3 p-4 rounded-lg border transition-colors cursor-pointer ${
+            {/* <div className={`flex items-center space-x-3 p-4 rounded-lg border transition-colors cursor-pointer ${
               paymentMethod === 'cash' 
                 ? 'border-primary bg-primary/5' 
                 : 'border-border hover:border-primary/50'
@@ -171,10 +188,10 @@ export const PhotoPurchaseModal = ({
                   </span>
                 </div>
               </Label>
-            </div>
+            </div> */}
 
             {/* Points Payment */}
-            <div className={`flex items-center space-x-3 p-4 rounded-lg border transition-colors cursor-pointer ${
+            {/* <div className={`flex items-center space-x-3 p-4 rounded-lg border transition-colors cursor-pointer ${
               !canPayWithPoints 
                 ? "border-border/50 opacity-60" 
                 : paymentMethod === 'points'
@@ -202,10 +219,10 @@ export const PhotoPurchaseModal = ({
                 </div>
               </Label>
             </div>
-          </RadioGroup>
+          </RadioGroup> */}
 
-          {/* Insufficient Points Warning */}
-          {!canPayWithPoints && (
+          {/* Insufficient Points Warning - COMMENTED OUT */}
+          {/* {!canPayWithPoints && (
             <div className="flex items-start gap-2 p-3 bg-destructive/10 rounded-lg text-sm">
               <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
               <div>
@@ -215,15 +232,12 @@ export const PhotoPurchaseModal = ({
                 </p>
               </div>
             </div>
-          )}
+          )} */}
 
           {/* Selected method summary */}
           <div className="p-3 bg-muted/30 rounded-lg">
             <p className="text-sm text-muted-foreground">
-              {paymentMethod === 'cash' 
-                ? `Anda akan membayar Rp ${photo.price_cash.toLocaleString('id-ID')} via Midtrans`
-                : `Anda akan menggunakan ${photo.price_points} FOTOPOIN`
-              }
+              Anda akan membayar Rp {photo.price_cash.toLocaleString('id-ID')} via Midtrans
             </p>
           </div>
 
@@ -239,7 +253,7 @@ export const PhotoPurchaseModal = ({
             </Button>
             <Button 
               onClick={handlePurchase} 
-              disabled={isProcessing || (paymentMethod === "points" && !canPayWithPoints)}
+              disabled={isProcessing}
               className="flex-1"
             >
               {isProcessing ? (
