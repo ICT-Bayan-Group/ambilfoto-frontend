@@ -4,7 +4,8 @@ import {
   Users, Camera, Image, Download, DollarSign, Activity, 
   Server, Database, AlertCircle, CheckCircle, RefreshCw,
   TrendingUp, Calendar, Eye, Wallet, Banknote, Settings, CreditCard, ArrowRight,
-  Coins, ShoppingCart, Percent
+  Coins, ShoppingCart, Percent, Briefcase, UserCheck, BarChart3, FileText, 
+  Clock
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -491,6 +492,22 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
           </Link>
+          <Link to="/admin/photographer-requests">
+            <Card className="hover:bg-accent cursor-pointer transition-colors">
+              <CardContent className="flex flex-col items-center justify-center py-6">
+                <Briefcase className="h-8 w-8 mb-2 text-primary" />
+                <span className="text-sm font-medium">Request</span>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/admin/photographer-statistics">
+            <Card className="hover:bg-accent cursor-pointer transition-colors">
+              <CardContent className="flex flex-col items-center justify-center py-6">
+                <BarChart3 className="h-8 w-8 mb-2 text-primary" />
+                <span className="text-sm font-medium">Statistik</span>
+              </CardContent>
+            </Card>
+          </Link>
           <Link to="/admin/events">
             <Card className="hover:bg-accent cursor-pointer transition-colors">
               <CardContent className="flex flex-col items-center justify-center py-6">
@@ -528,22 +545,6 @@ const AdminDashboard = () => {
               <CardContent className="flex flex-col items-center justify-center py-6">
                 <Settings className="h-8 w-8 mb-2 text-primary" />
                 <span className="text-sm font-medium">Pengaturan</span>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link to="/admin/logs">
-            <Card className="hover:bg-accent cursor-pointer transition-colors">
-              <CardContent className="flex flex-col items-center justify-center py-6">
-                <Activity className="h-8 w-8 mb-2 text-primary" />
-                <span className="text-sm font-medium">Log</span>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link to="/admin/storage">
-            <Card className="hover:bg-accent cursor-pointer transition-colors">
-              <CardContent className="flex flex-col items-center justify-center py-6">
-                <Database className="h-8 w-8 mb-2 text-primary" />
-                <span className="text-sm font-medium">Penyimpanan</span>
               </CardContent>
             </Card>
           </Link>
