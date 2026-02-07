@@ -483,7 +483,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Quick Links */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
           <Link to="/admin/users">
             <Card className="hover:bg-accent cursor-pointer transition-colors">
               <CardContent className="flex flex-col items-center justify-center py-6">
@@ -524,6 +524,7 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
           </Link>
+           {/* 
           <Link to="/admin/revenue">
             <Card className="hover:bg-accent cursor-pointer transition-colors">
               <CardContent className="flex flex-col items-center justify-center py-6">
@@ -531,7 +532,8 @@ const AdminDashboard = () => {
                 <span className="text-sm font-medium">Pendapatan</span>
               </CardContent>
             </Card>
-          </Link>
+          </Link>*/}
+          {/* Add more quick links as needed
           <Link to="/admin/withdrawals">
             <Card className="hover:bg-accent cursor-pointer transition-colors">
               <CardContent className="flex flex-col items-center justify-center py-6">
@@ -539,7 +541,7 @@ const AdminDashboard = () => {
                 <span className="text-sm font-medium">Penarikan</span>
               </CardContent>
             </Card>
-          </Link>
+          </Link> */}
           <Link to="/admin/settings">
             <Card className="hover:bg-accent cursor-pointer transition-colors">
               <CardContent className="flex flex-col items-center justify-center py-6">
