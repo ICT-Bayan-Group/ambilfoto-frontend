@@ -207,11 +207,12 @@ const AdminPhotographerStatistics = () => {
     fullName: p.province
   }));
 
-  const topCitiesChart = filteredCities.slice(0, 10).map(c => ({
+  const topCitiesChart = filteredCities.slice(0, 10).map((c, index) => ({
     name: c.city.length > 12 ? c.city.substring(0, 12) + '...' : c.city,
     value: c.total,
     province: c.province,
-    fullName: c.city
+    fullName: c.city,
+    fill: GRADIENT_COLORS[index % GRADIENT_COLORS.length]
   }));
 
   // Data grafik pie untuk kelengkapan lokasi
@@ -436,7 +437,7 @@ const AdminPhotographerStatistics = () => {
               </CardContent>
             </Card>
 
-            {/* Grafik Pie Kelengkapan Lokasi */}
+            {/* Grafik Pie Kelengkapan Lokasi - DIPERBESAR */}
             <Card className="lg:col-span-2 border-primary/20 relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent" />
               <CardHeader className="relative">
@@ -447,7 +448,7 @@ const AdminPhotographerStatistics = () => {
                 <CardDescription>Distribusi fotografer dengan data lokasi</CardDescription>
               </CardHeader>
               <CardContent className="relative">
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={450}>
                   <PieChart>
                     <Pie
                       data={locationCompletionData}
@@ -455,7 +456,7 @@ const AdminPhotographerStatistics = () => {
                       cy="50%"
                       labelLine={false}
                       label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
-                      outerRadius={100}
+                      outerRadius={160}
                       fill="#8884d8"
                       dataKey="value"
                       animationBegin={0}
@@ -596,9 +597,9 @@ const AdminPhotographerStatistics = () => {
             </Card>
           </TabsContent>
 
-          {/* Tab Kota */}
+          {/* Tab Kota - DIGANTI JADI DONUT CHART */}
           <TabsContent value="cities" className="space-y-6">
-            {/* Grafik Area */}
+            {/* Grafik Donut Chart */}
             <Card className="border-primary/20 relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent" />
               <CardHeader className="relative">
@@ -621,36 +622,30 @@ const AdminPhotographerStatistics = () => {
               </CardHeader>
               <CardContent className="relative">
                 {loading ? (
-                  <Skeleton className="h-80 w-full" />
+                  <Skeleton className="h-96 w-full" />
                 ) : (
-                  <ResponsiveContainer width="100%" height={400}>
-                    <AreaChart data={topCitiesChart} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                      <defs>
-                        <linearGradient id="colorArea" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={CHART_COLORS.secondary} stopOpacity={0.8}/>
-                          <stop offset="95%" stopColor={CHART_COLORS.secondary} stopOpacity={0.1}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.1} />
-                      <XAxis 
-                        dataKey="name" 
-                        angle={-45}
-                        textAnchor="end"
-                        height={100}
-                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                      />
-                      <YAxis tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Area 
-                        type="monotone" 
-                        dataKey="value" 
-                        stroke={CHART_COLORS.secondary}
-                        strokeWidth={3}
-                        fill="url(#colorArea)" 
+                  <ResponsiveContainer width="100%" height={500}>
+                    <PieChart>
+                      <Pie
+                        data={topCitiesChart}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={true}
+                        label={({ name, value }) => `${name}: ${value}`}
+                        outerRadius={180}
+                        innerRadius={100}
+                        fill="#8884d8"
+                        dataKey="value"
                         animationBegin={0}
                         animationDuration={800}
-                      />
-                    </AreaChart>
+                      >
+                        {topCitiesChart.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend />
+                    </PieChart>
                   </ResponsiveContainer>
                 )}
               </CardContent>
