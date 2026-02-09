@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const AI_API_URL = import.meta.env.VITE_AI_API_URL || 'http://localhost:4000/api';
+const AI_API_URL = import.meta.env.VITE_AI_API_URL || 'https://3dc7-36-85-35-251.ngrok-free.app/api';
 
 const aiApi = axios.create({
   baseURL: AI_API_URL,
