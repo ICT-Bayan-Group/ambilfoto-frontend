@@ -83,7 +83,7 @@ const EventDetail = () => {
       console.error('Failed to fetch event:', error);
       toast({
         title: "Error",
-        description: "Failed to load event details",
+        description: "Gagal memuat detail event",
         variant: "destructive",
       });
     } finally {
@@ -169,7 +169,7 @@ const EventDetail = () => {
             )
           );
         } else {
-          throw new Error(response.error || 'Upload failed');
+          throw new Error(response.error || 'Upload gagal');
         }
       } catch (error: any) {
         setUploadingPhotos((prev) =>
@@ -191,8 +191,8 @@ const EventDetail = () => {
 
     if (successful > 0) {
       toast({
-        title: "Upload Complete",
-        description: `${successful} photo(s) uploaded successfully${failed > 0 ? `, ${failed} failed` : ''}`,
+        title: "Upload Selesai",
+        description: `${successful} foto berhasil diunggah${failed > 0 ? `, ${failed} gagal` : ''}`,
       });
     }
   };
@@ -213,8 +213,8 @@ const EventDetail = () => {
       const response = await photographerService.deletePhoto(eventId, photoToDelete.id);
       if (response.success) {
         toast({
-          title: "Success",
-          description: "Photo deleted successfully",
+          title: "Berhasil",
+          description: "Foto berhasil dihapus",
         });
         fetchEventDetails();
       } else {
@@ -223,7 +223,7 @@ const EventDetail = () => {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete photo",
+        description: error.message || "Gagal menghapus foto",
         variant: "destructive",
       });
     } finally {
@@ -269,7 +269,7 @@ const EventDetail = () => {
           )
         );
         toast({
-          title: "Success",
+          title: "Berhasil",
           description: "Harga foto berhasil diperbarui",
         });
         setEditingPhotoId(null);
@@ -313,9 +313,9 @@ const EventDetail = () => {
       <div className="min-h-screen bg-background">
         <Header />
         <main className="container mx-auto px-4 py-8 text-center">
-          <h1 className="text-2xl font-bold mb-4">Event not found</h1>
+          <h1 className="text-2xl font-bold mb-4">Event tidak ditemukan</h1>
           <Button onClick={() => navigate('/photographer/events')}>
-            Back to Events
+            Kembali ke Event
           </Button>
         </main>
       </div>
@@ -335,7 +335,7 @@ const EventDetail = () => {
             className="mb-4"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Events
+            Kembali ke Event
           </Button>
 
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -347,13 +347,13 @@ const EventDetail = () => {
                     ? 'bg-green-500/10 text-green-600' 
                     : 'bg-muted text-muted-foreground'
                 }>
-                  {event.status}
+                  {event.status === 'active' ? 'Aktif' : 'Tidak Aktif'}
                 </Badge>
               </div>
               <div className="flex flex-wrap items-center gap-4 mt-2 text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Calendar className="h-4 w-4" />
-                  {format(new Date(event.event_date), 'MMMM dd, yyyy')}
+                  {format(new Date(event.event_date), 'dd MMMM yyyy')}
                 </span>
                 {event.location && (
                   <span className="flex items-center gap-1">
@@ -377,7 +377,7 @@ const EventDetail = () => {
                 <Image className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-2xl font-bold">{photos.length}</p>
-                  <p className="text-xs text-muted-foreground">Photos</p>
+                  <p className="text-xs text-muted-foreground">Foto</p>
                 </div>
               </div>
             </CardContent>
@@ -390,7 +390,7 @@ const EventDetail = () => {
                   <p className="text-2xl font-bold">
                     {photos.reduce((sum, p) => sum + (p.faces_count || 0), 0)}
                   </p>
-                  <p className="text-xs text-muted-foreground">Faces Detected</p>
+                  <p className="text-xs text-muted-foreground">Wajah Terdeteksi</p>
                 </div>
               </div>
             </CardContent>
@@ -402,11 +402,24 @@ const EventDetail = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5" />
-              Upload Photos
+              Unggah Foto
             </CardTitle>
             <CardDescription>
-              Upload photos to this event. AI will automatically detect faces.
+              Unggah foto ke event ini. AI akan otomatis mendeteksi wajah.
             </CardDescription>
+            <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg">
+              <div className="flex gap-2">
+                <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-semibold text-amber-900 dark:text-amber-400 mb-1">
+                    Penting: Jangan Ubah Nama File!
+                  </p>
+                  <p className="text-amber-800 dark:text-amber-300">
+                    Pastikan nama file foto tidak diubah dari kamera. Nama file original diperlukan untuk mencocokkan dengan foto hi-res saat pembeli melakukan pembelian.
+                  </p>
+                </div>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <input
@@ -424,9 +437,9 @@ const EventDetail = () => {
               className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
             >
               <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-              <p className="font-medium">Click to upload photos</p>
+              <p className="font-medium">Klik untuk unggah foto</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Support: JPG, PNG, WEBP
+                Mendukung: JPG, PNG, WEBP
               </p>
             </div>
 
@@ -434,7 +447,7 @@ const EventDetail = () => {
             {uploadingPhotos.length > 0 && (
               <div className="mt-6">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium">Upload Queue ({uploadingPhotos.length})</h4>
+                  <h4 className="font-medium">Antrian Upload ({uploadingPhotos.length})</h4>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
@@ -442,7 +455,7 @@ const EventDetail = () => {
                       onClick={clearCompletedUploads}
                       disabled={isUploading}
                     >
-                      Clear Completed
+                      Hapus yang Selesai
                     </Button>
                     <Button
                       size="sm"
@@ -452,12 +465,12 @@ const EventDetail = () => {
                       {isUploading ? (
                         <>
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Uploading...
+                          Mengunggah...
                         </>
                       ) : (
                         <>
                           <Upload className="h-4 w-4 mr-2" />
-                          Upload All
+                          Unggah Semua
                         </>
                       )}
                     </Button>
@@ -477,7 +490,7 @@ const EventDetail = () => {
                         {/* Status Overlay */}
                         <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
                           {photo.status === 'pending' && (
-                            <span className="text-xs text-muted-foreground">Pending</span>
+                            <span className="text-xs text-muted-foreground">Menunggu</span>
                           )}
                           {photo.status === 'uploading' && (
                             <div className="text-center">
@@ -488,13 +501,13 @@ const EventDetail = () => {
                           {photo.status === 'success' && (
                             <div className="text-center text-green-600">
                               <CheckCircle className="h-6 w-6 mx-auto mb-1" />
-                              <span className="text-xs">{photo.facesDetected} faces</span>
+                              <span className="text-xs">{photo.facesDetected} wajah</span>
                             </div>
                           )}
                           {photo.status === 'error' && (
                             <div className="text-center text-destructive">
                               <AlertCircle className="h-6 w-6 mx-auto mb-1" />
-                              <span className="text-xs">Failed</span>
+                              <span className="text-xs">Gagal</span>
                             </div>
                           )}
                         </div>
@@ -520,13 +533,13 @@ const EventDetail = () => {
         {/* Photos Grid */}
         <Card>
           <CardHeader>
-            <CardTitle>Event Photos ({photos.length})</CardTitle>
+            <CardTitle>Foto Event ({photos.length})</CardTitle>
           </CardHeader>
           <CardContent>
             {photos.length === 0 ? (
               <div className="text-center py-12">
                 <Image className="h-16 w-16 mx-auto text-muted-foreground/50 mb-4" />
-                <p className="text-muted-foreground">No photos uploaded yet</p>
+                <p className="text-muted-foreground">Belum ada foto yang diunggah</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -550,7 +563,7 @@ const EventDetail = () => {
                         <p className="text-sm font-medium truncate">{photo.filename}</p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Users className="h-3 w-3" />
-                          <span>{photo.faces_count} faces detected</span>
+                          <span>{photo.faces_count} wajah terdeteksi</span>
                         </div>
                         
                         {/* Price Section */}
@@ -638,15 +651,15 @@ const EventDetail = () => {
       <AlertDialog open={deletePhotoDialog} onOpenChange={setDeletePhotoDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Photo?</AlertDialogTitle>
+            <AlertDialogTitle>Hapus Foto?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete "{photoToDelete?.filename}". This action cannot be undone.
+              Tindakan ini akan menghapus permanen "{photoToDelete?.filename}". Tindakan ini tidak dapat dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeletePhoto} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+              Hapus
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
