@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, DollarSign, Users, Calendar, CreditCard, Camera, Coins, Percent, ShoppingCart, Image } from 'lucide-react';
+import { TrendingUp, DollarSign, Users, Calendar, CreditCard, Camera, Coins, Percent, ShoppingCart, Image, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { adminService } from '@/services/api/admin.service';
 import { toast } from 'sonner';
 import { Header } from '@/components/layout/Header';
@@ -17,6 +18,8 @@ const AdminRevenue = () => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
+  const [topPhotosPage, setTopPhotosPage] = useState(1);
+  const photosPerPage = 5;
 
   const fetchRevenue = async () => {
     try {
@@ -36,6 +39,7 @@ const AdminRevenue = () => {
 
   useEffect(() => {
     fetchRevenue();
+    setTopPhotosPage(1); // Reset pagination when period changes
   }, [period]);
 
   // Fungsi untuk parsing number dengan aman
@@ -98,7 +102,7 @@ const AdminRevenue = () => {
   // Transform daily revenue data for chart
   const dailyRevenueData = dailyRevenue.map((item: any) => ({
     date: format(new Date(item.date), 'dd MMM', { locale: id }),
-    topup: parseNumber(item.topup_revenue),
+    // topup: parseNumber(item.topup_revenue), // HIDDEN: FotoPoin top-up
     photo_fee: parseNumber(item.photo_platform_fee),
     api: parseNumber(item.api_revenue),
     total: parseNumber(item.total_platform_revenue),
@@ -106,12 +110,13 @@ const AdminRevenue = () => {
 
   // Transform revenue sources for pie chart
   const revenueSourcesData = [
-    {
-      name: 'Top-Up FotoPoin',
-      value: parseNumber(revenueSources.point_topup?.amount),
-      percentage: parseFloat(revenueSources.point_topup?.percentage || 0),
-      color: COLORS[0]
-    },
+    // HIDDEN: FotoPoin top-up revenue source
+    // {
+    //   name: 'Top-Up FotoPoin',
+    //   value: parseNumber(revenueSources.point_topup?.amount),
+    //   percentage: parseFloat(revenueSources.point_topup?.percentage || 0),
+    //   color: COLORS[0]
+    // },
     {
       name: 'Fee Penjualan Foto',
       value: parseNumber(revenueSources.photo_platform_fee?.amount),
@@ -127,20 +132,23 @@ const AdminRevenue = () => {
   ].filter(item => item.value > 0);
 
   // Transform payment method data for bar chart
-  const paymentMethodData = byPaymentMethod.map((item: any) => ({
-    name: item.payment_method === 'Transfer' || item.payment_method === 'bank_transfer' ? 'Transfer Bank' : 
-          item.payment_method === 'cash' ? 'Tunai' :
-          item.payment_method === 'points' ? 'FotoPoin' :
-          item.payment_method || 'Lainnya',
-    transactions: item.transaction_count || 0,
-    amount: parseNumber(item.total_amount),
-    type: item.transaction_type,
-  }));
+  const paymentMethodData = byPaymentMethod
+    // HIDDEN: Filter out FotoPoin payment method
+    .filter((item: any) => item.payment_method !== 'points')
+    .map((item: any) => ({
+      name: item.payment_method === 'Transfer' || item.payment_method === 'bank_transfer' ? 'Transfer Bank' : 
+            item.payment_method === 'cash' ? 'Tunai' :
+            // item.payment_method === 'points' ? 'FotoPoin' : // HIDDEN
+            item.payment_method || 'Lainnya',
+      transactions: item.transaction_count || 0,
+      amount: parseNumber(item.total_amount),
+      type: item.transaction_type,
+    }));
 
   // Transform transaction type labels
   const getTransactionTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
-      'point_topup': 'Top-Up FotoPoin',
+      // 'point_topup': 'Top-Up FotoPoin', // HIDDEN
       'photo_purchase': 'Pembelian Foto',
       'api_token_purchase': 'Pembelian Token API'
     };
@@ -150,12 +158,17 @@ const AdminRevenue = () => {
   const getPaymentMethodLabel = (method: string) => {
     const labels: Record<string, string> = {
       'cash': 'Tunai',
-      'points': 'FotoPoin',
+      // 'points': 'FotoPoin', // HIDDEN
       'bank_transfer': 'Transfer Bank',
       'Transfer': 'Transfer Bank'
     };
     return labels[method] || method;
   };
+
+  // HIDDEN: Filter out point_topup transactions
+  const filteredTransactionTypes = byTransactionType.filter(
+    (item: any) => item.transaction_type !== 'point_topup'
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -225,7 +238,8 @@ const AdminRevenue = () => {
         </div>
 
         {/* Summary Cards - Row 2 */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          {/* HIDDEN: Top-Up FotoPoin Card
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Top-Up FotoPoin</CardTitle>
@@ -238,6 +252,7 @@ const AdminRevenue = () => {
               </p>
             </CardContent>
           </Card>
+          */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Fee Platform Foto</CardTitle>
@@ -292,7 +307,8 @@ const AdminRevenue = () => {
                       <Tooltip formatter={(value: number) => formatCurrency(value)} />
                       <Legend />
                       <Line type="monotone" dataKey="total" name="Total Pendapatan" stroke="hsl(var(--primary))" strokeWidth={2} />
-                      <Line type="monotone" dataKey="topup" name="Top-Up" stroke="#10b981" strokeWidth={2} />
+                      {/* HIDDEN: Top-Up line */}
+                      {/* <Line type="monotone" dataKey="topup" name="Top-Up" stroke="#10b981" strokeWidth={2} /> */}
                       <Line type="monotone" dataKey="photo_fee" name="Fee Foto" stroke="#3b82f6" strokeWidth={2} />
                     </LineChart>
                   </ResponsiveContainer>
@@ -385,15 +401,17 @@ const AdminRevenue = () => {
               <CardDescription>Breakdown berdasarkan jenis transaksi</CardDescription>
             </CardHeader>
             <CardContent>
-              {byTransactionType.length > 0 ? (
+              {filteredTransactionTypes.length > 0 ? (
                 <div className="space-y-4">
-                  {byTransactionType.map((item: any, index: number) => (
+                  {filteredTransactionTypes.map((item: any, index: number) => (
                     <div key={index} className="flex items-center justify-between p-4 rounded-lg border">
                       <div className="flex items-center gap-3">
                         <div className="p-2 rounded-full bg-primary/10">
-                          {item.transaction_type === 'point_topup' ? (
+                          {/* HIDDEN: FotoPoin icon condition */}
+                          {/* {item.transaction_type === 'point_topup' ? (
                             <Coins className="h-5 w-5 text-green-600" />
-                          ) : item.transaction_type === 'photo_purchase' ? (
+                          ) : */}
+                          {item.transaction_type === 'photo_purchase' ? (
                             <Image className="h-5 w-5 text-blue-600" />
                           ) : (
                             <ShoppingCart className="h-5 w-5 text-primary" />
@@ -439,23 +457,60 @@ const AdminRevenue = () => {
             </CardHeader>
             <CardContent>
               {topPhotos.length > 0 ? (
-                <div className="space-y-3">
-                  {topPhotos.map((photo: any, index: number) => (
-                    <div key={photo.id || index} className="flex items-center gap-4 p-3 rounded-lg border">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
-                        {index + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{photo.filename || 'Unknown'}</p>
-                        <p className="text-sm text-muted-foreground truncate">{photo.event_name}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold">{formatCurrency(photo.gross_revenue)}</p>
-                        <Badge variant="secondary">{photo.sales_in_period} penjualan</Badge>
+                <>
+                  <div className="space-y-3">
+                    {topPhotos
+                      .slice((topPhotosPage - 1) * photosPerPage, topPhotosPage * photosPerPage)
+                      .map((photo: any, index: number) => {
+                        const actualIndex = (topPhotosPage - 1) * photosPerPage + index;
+                        return (
+                          <div key={photo.id || actualIndex} className="flex items-center gap-4 p-3 rounded-lg border">
+                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
+                              {actualIndex + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">{photo.filename || 'Unknown'}</p>
+                              <p className="text-sm text-muted-foreground truncate">{photo.event_name}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold">{formatCurrency(photo.gross_revenue)}</p>
+                              <Badge variant="secondary">{photo.sales_in_period} penjualan</Badge>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                  
+                  {/* Pagination Controls */}
+                  {topPhotos.length > photosPerPage && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        Menampilkan {Math.min((topPhotosPage - 1) * photosPerPage + 1, topPhotos.length)}-{Math.min(topPhotosPage * photosPerPage, topPhotos.length)} dari {topPhotos.length} foto
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setTopPhotosPage(prev => Math.max(1, prev - 1))}
+                          disabled={topPhotosPage === 1}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <div className="flex items-center px-3 text-sm font-medium">
+                          {topPhotosPage} / {Math.ceil(topPhotos.length / photosPerPage)}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setTopPhotosPage(prev => Math.min(Math.ceil(topPhotos.length / photosPerPage), prev + 1))}
+                          disabled={topPhotosPage >= Math.ceil(topPhotos.length / photosPerPage)}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               ) : (
                 <div className="flex items-center justify-center h-48 text-muted-foreground">
                   Belum ada penjualan foto

@@ -243,7 +243,8 @@ const AdminDashboard = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {/* HIDDEN: FotoPoin Top-Up Revenue Card
               <div className="p-4 bg-background/80 rounded-lg">
                 <div className="flex items-center gap-2 mb-1">
                   <Coins className="h-4 w-4 text-green-600" />
@@ -256,6 +257,7 @@ const AdminDashboard = () => {
                   {revenueData?.revenue_sources?.point_topup?.percentage || '0'}% dari total
                 </p>
               </div>
+              */}
               <div className="p-4 bg-background/80 rounded-lg">
                 <div className="flex items-center gap-2 mb-1">
                   <ShoppingCart className="h-4 w-4 text-purple-600" />
@@ -374,6 +376,7 @@ const AdminDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              {/* HIDDEN: User FotoPoin balance card
               <div className="p-4 bg-background/80 rounded-lg">
                 <p className="text-sm text-muted-foreground">Poin Pengguna di Sistem</p>
                 <p className="text-xl font-bold text-primary">
@@ -383,6 +386,7 @@ const AdminDashboard = () => {
                   {walletStats?.user_wallets?.total_wallets || 0} dompet
                 </p>
               </div>
+              */}
               <div className="p-4 bg-background/80 rounded-lg">
                 <p className="text-sm text-muted-foreground">Saldo Fotografer</p>
                 <p className="text-xl font-bold text-green-600">
@@ -402,12 +406,21 @@ const AdminDashboard = () => {
                 </p>
               </div>
               <div className="p-4 bg-background/80 rounded-lg">
-                <p className="text-sm text-muted-foreground">Total Ditarik</p>
-                <p className="text-xl font-bold">
-                  {formatCurrency(walletStats?.photographer_wallets?.all_time_withdrawn || 0)}
+                <p className="text-sm text-muted-foreground">Disetujui (Belum Dibayar)</p>
+                <p className="text-xl font-bold text-blue-600">
+                  {formatCurrency(withdrawalStats?.summary?.approved_amount || 0)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {withdrawalStats?.summary?.paid_count || 0} dibayar
+                  {withdrawalStats?.summary?.approved_count || 0} disetujui
+                </p>
+              </div>
+              <div className="p-4 bg-background/80 rounded-lg">
+                <p className="text-sm text-muted-foreground">Total Ditarik</p>
+                <p className="text-xl font-bold text-green-700">
+                  {formatCurrency(withdrawalStats?.summary?.paid_amount || 0)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {withdrawalStats?.summary?.paid_count || 0} penarikan dibayar
                 </p>
               </div>
             </div>
@@ -524,24 +537,6 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
           </Link>
-           {/* 
-          <Link to="/admin/revenue">
-            <Card className="hover:bg-accent cursor-pointer transition-colors">
-              <CardContent className="flex flex-col items-center justify-center py-6">
-                <DollarSign className="h-8 w-8 mb-2 text-primary" />
-                <span className="text-sm font-medium">Pendapatan</span>
-              </CardContent>
-            </Card>
-          </Link>*/}
-          {/* Add more quick links as needed
-          <Link to="/admin/withdrawals">
-            <Card className="hover:bg-accent cursor-pointer transition-colors">
-              <CardContent className="flex flex-col items-center justify-center py-6">
-                <Banknote className="h-8 w-8 mb-2 text-green-600" />
-                <span className="text-sm font-medium">Penarikan</span>
-              </CardContent>
-            </Card>
-          </Link> */}
           <Link to="/admin/settings">
             <Card className="hover:bg-accent cursor-pointer transition-colors">
               <CardContent className="flex flex-col items-center justify-center py-6">

@@ -22,6 +22,38 @@ const UserHiResPhotos = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
+  // Helper function to deduplicate photos by photo_id
+  const deduplicatePhotos = (photoList: UserHiResPhoto[]): UserHiResPhoto[] => {
+    const photoMap = new Map<string, UserHiResPhoto>();
+    
+    photoList.forEach(photo => {
+      const existingPhoto = photoMap.get(photo.photo_id);
+      
+      if (!existingPhoto) {
+        // First occurrence of this photo_id
+        photoMap.set(photo.photo_id, photo);
+      } else {
+        // Choose the better record based on priority:
+        // 1. Most recent hires_status update (delivered > uploaded > waiting)
+        // 2. Latest purchased_at date
+        const shouldReplace = 
+          // Prioritize delivered status
+          (photo.hires_status === 'delivered' && existingPhoto.hires_status !== 'delivered') ||
+          // Then uploaded status
+          (photo.hires_status === 'uploaded' && existingPhoto.hires_status === 'waiting') ||
+          // If same status, take the latest purchase
+          (photo.hires_status === existingPhoto.hires_status && 
+           new Date(photo.purchased_at) > new Date(existingPhoto.purchased_at));
+        
+        if (shouldReplace) {
+          photoMap.set(photo.photo_id, photo);
+        }
+      }
+    });
+    
+    return Array.from(photoMap.values());
+  };
+
   const fetchPhotos = async () => {
     try {
       setIsLoading(true);
@@ -29,7 +61,14 @@ const UserHiResPhotos = () => {
       const response = await hiresService.getMyHiResPhotos({ status });
       
       if (response.success && response.data) {
-        setPhotos(response.data);
+        // Deduplicate photos before setting state
+        const uniquePhotos = deduplicatePhotos(response.data);
+        setPhotos(uniquePhotos);
+        
+        // Log if duplicates were found (for debugging)
+        if (response.data.length > uniquePhotos.length) {
+          console.log(`Removed ${response.data.length - uniquePhotos.length} duplicate photo(s)`);
+        }
       }
     } catch (error) {
       toast.error('Gagal memuat foto Hi-Res');

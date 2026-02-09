@@ -78,10 +78,7 @@ const PhotoGallery = () => {
 
   const loadData = async () => {
     setIsLoading(true);
-    await Promise.all([
-      loadPhotos(),
-      loadUserBalance()
-    ]);
+    await loadPhotos();
     setIsLoading(false);
   };
 
@@ -145,24 +142,25 @@ const PhotoGallery = () => {
     }
   };
 
-  const loadUserBalance = async () => {
-    try {
-      const response = await userService.getBalance();
-      if (response.success && response.data) {
-        setUserPointBalance(response.data.balance);
-      }
-    } catch (err) {
-      console.error('Error loading balance:', err);
-      try {
-        const walletRes = await paymentService.getUserWallet();
-        if (walletRes.success && walletRes.data) {
-          setUserPointBalance(walletRes.data.wallet.point_balance);
-        }
-      } catch (walletErr) {
-        console.error('Error loading wallet:', walletErr);
-      }
-    }
-  };
+  // ❌ COMMENTED OUT: loadUserBalance is not needed anymore (no FOTOPOIN feature)
+  // const loadUserBalance = async () => {
+  //   try {
+  //     const response = await userService.getBalance();
+  //     if (response.success && response.data) {
+  //       setUserPointBalance(response.data.balance);
+  //     }
+  //   } catch (err) {
+  //     console.error('Error loading balance:', err);
+  //     try {
+  //       const walletRes = await paymentService.getUserWallet();
+  //       if (walletRes.success && walletRes.data) {
+  //         setUserPointBalance(walletRes.data.wallet.point_balance);
+  //       }
+  //     } catch (walletErr) {
+  //       console.error('Error loading wallet:', walletErr);
+  //     }
+  //   }
+  // };
 
   // Get current photos based on active tab
   const currentPhotos = useMemo(() => {
@@ -458,7 +456,7 @@ const PhotoGallery = () => {
     setIsPurchaseModalOpen(false);
     setPhotoToPurchase(null);
     
-    loadUserBalance();
+    // ❌ NO LONGER NEEDED: loadUserBalance() removed
     
     sonnerToast.success("Foto berhasil dibeli! Anda sekarang bisa mengunduh foto ini.");
   };

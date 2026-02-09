@@ -333,33 +333,35 @@ export interface PaginationInfo {
 export const paymentService = {
   // ============ PUBLIC ============
   
-  async getPointPackages(): Promise<{ success: boolean; data?: PointPackage[]; error?: string }> {
-    try {
-      const response = await paymentApi.get('/payment/packages');
-      return response.data;
-    } catch (error: any) {
-      console.error('Error fetching point packages:', error);
-      return {
-        success: false,
-        error: error.response?.data?.error || error.message || 'Gagal mengambil paket poin'
-      };
-    }
-  },
+  // ❌ COMMENTED OUT: Get point packages for top-up
+  // async getPointPackages(): Promise<{ success: boolean; data?: PointPackage[]; error?: string }> {
+  //   try {
+  //     const response = await paymentApi.get('/payment/packages');
+  //     return response.data;
+  //   } catch (error: any) {
+  //     console.error('Error fetching point packages:', error);
+  //     return {
+  //       success: false,
+  //       error: error.response?.data?.error || error.message || 'Gagal mengambil paket poin'
+  //     };
+  //   }
+  // },
 
   // ============ USER WALLET ============
 
-  async createTopUp(packageId: string): Promise<{ success: boolean; message?: string; data?: TopUpResponse; error?: string }> {
-    try {
-      const response = await paymentApi.post('/payment/topup', { package_id: packageId });
-      return response.data;
-    } catch (error: any) {
-      console.error('Error creating top-up:', error);
-      return {
-        success: false,
-        error: error.response?.data?.error || error.message || 'Gagal membuat top-up'
-      };
-    }
-  },
+  // ❌ COMMENTED OUT: Create top-up transaction
+  // async createTopUp(packageId: string): Promise<{ success: boolean; message?: string; data?: TopUpResponse; error?: string }> {
+  //   try {
+  //     const response = await paymentApi.post('/payment/topup', { package_id: packageId });
+  //     return response.data;
+  //   } catch (error: any) {
+  //     console.error('Error creating top-up:', error);
+  //     return {
+  //       success: false,
+  //       error: error.response?.data?.error || error.message || 'Gagal membuat top-up'
+  //     };
+  //   }
+  // },
 
   async purchasePhoto(photoId: string, paymentMethod: 'cash' | 'points'): Promise<{ success: boolean; message?: string; data?: PhotoPurchaseResponse; error?: string }> {
     try {
@@ -387,49 +389,51 @@ export const paymentService = {
     }
   },
 
-  async getUserWallet(): Promise<{ 
-    success: boolean; 
-    data?: { 
-      wallet: UserWallet; 
-      purchased_photos_count: number; 
-      recent_transactions: Transaction[] 
-    }; 
-    error?: string 
-  }> {
-    try {
-      const response = await paymentApi.get('/payment/wallet');
-      return response.data;
-    } catch (error: any) {
-      console.error('Error fetching user wallet:', error);
-      return {
-        success: false,
-        error: error.response?.data?.error || error.message || 'Gagal mengambil data wallet'
-      };
-    }
-  },
+  // ❌ COMMENTED OUT: Get user wallet info
+  // async getUserWallet(): Promise<{ 
+  //   success: boolean; 
+  //   data?: { 
+  //     wallet: UserWallet; 
+  //     purchased_photos_count: number; 
+  //     recent_transactions: Transaction[] 
+  //   }; 
+  //   error?: string 
+  // }> {
+  //   try {
+  //     const response = await paymentApi.get('/payment/wallet');
+  //     return response.data;
+  //   } catch (error: any) {
+  //     console.error('Error fetching user wallet:', error);
+  //     return {
+  //       success: false,
+  //       error: error.response?.data?.error || error.message || 'Gagal mengambil data wallet'
+  //     };
+  //   }
+  // },
 
-  async getWalletHistory(params?: { 
-    page?: number; 
-    limit?: number; 
-    type?: 'topup' | 'purchase' | 'earning' | 'withdrawal' 
-  }): Promise<{ 
-    success: boolean; 
-    data?: WalletHistoryItem[]; 
-    pagination?: PaginationInfo; 
-    error?: string 
-  }> {
-    try {
-      const response = await paymentApi.get('/payment/wallet/history', { params });
-      return response.data;
-    } catch (error: any) {
-      console.error('Error fetching wallet history:', error);
-      return {
-        success: false,
-        data: [],
-        error: error.response?.data?.error || error.message || 'Gagal mengambil riwayat wallet'
-      };
-    }
-  },
+  // ❌ COMMENTED OUT: Get wallet history
+  // async getWalletHistory(params?: { 
+  //   page?: number; 
+  //   limit?: number; 
+  //   type?: 'topup' | 'purchase' | 'earning' | 'withdrawal' 
+  // }): Promise<{ 
+  //   success: boolean; 
+  //   data?: WalletHistoryItem[]; 
+  //   pagination?: PaginationInfo; 
+  //   error?: string 
+  // }> {
+  //   try {
+  //     const response = await paymentApi.get('/payment/wallet/history', { params });
+  //     return response.data;
+  //   } catch (error: any) {
+  //     console.error('Error fetching wallet history:', error);
+  //     return {
+  //       success: false,
+  //       data: [],
+  //       error: error.response?.data?.error || error.message || 'Gagal mengambil riwayat wallet'
+  //     };
+  //   }
+  // },
 
   async getPurchasedPhotos(params?: { 
     page?: number; 
@@ -476,7 +480,6 @@ export const paymentService = {
     }
   },
 
-  // ✅ FIXED: Request withdrawal dengan proper type
   async requestWithdrawal(data: WithdrawalRequestData): Promise<{ 
     success: boolean; 
     message?: string; 

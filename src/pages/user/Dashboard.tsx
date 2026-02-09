@@ -36,21 +36,21 @@ const UserDashboard = () => {
 
   const loadData = async () => {
     setIsLoading(true);
-    await Promise.all([loadPhotos(), loadWallet(), loadUpgradeStatus()]);
+    await Promise.all([loadPhotos(), loadUpgradeStatus()]);
     setIsLoading(false);
   };
 
-  const loadWallet = async () => {
-    try {
-      const response = await paymentService.getUserWallet();
-      if (response.success && response.data) {
-        setWallet(response.data.wallet);
-        setPurchasedCount(response.data.purchased_photos_count || 0);
-      }
-    } catch (error) {
-      console.error('Error loading wallet:', error);
-    }
-  };
+  // const loadWallet = async () => {
+    // try {
+     //  const response = await paymentService.getUserWallet();
+       //if (response.success && response.data) {
+       //  setWallet(response.data.wallet);
+       //  setPurchasedCount(response.data.purchased_photos_count || 0);
+      // }
+   //  } catch (error) {
+    //   console.error('Error loading wallet:', error);
+  //   }
+  // };
 
   const loadPhotos = async () => {
     try {
@@ -148,7 +148,6 @@ const UserDashboard = () => {
       .slice(0, 6);
   }, [photos]);
 
-  // Quick actions
   const quickActions = [
     {
       icon: Camera,
@@ -170,14 +169,15 @@ const UserDashboard = () => {
       description: `${stats.totalPhotos} foto`,
       href: "/user/photos",
       color: "bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border-yellow-200"
-    },
-    {
-      icon: Wallet,
-      label: "Dompet Saya",
-      description: `${Number(wallet?.point_balance || 0).toLocaleString('id-ID')} FotoPoin`,
-      href: "/user/wallet",
-      color: "bg-green-50 text-green-600 hover:bg-green-100 border-green-200"
     }
+    // Wallet option commented out
+    // {
+    //   icon: Wallet,
+    //   label: "Dompet Saya",
+    //   description: `${Number(wallet?.point_balance || 0).toLocaleString('id-ID')} FotoPoin`,
+    //   href: "/user/wallet",
+    //   color: "bg-green-50 text-green-600 hover:bg-green-100 border-green-200"
+    // }
   ];
 
   return (
@@ -293,7 +293,7 @@ const UserDashboard = () => {
           </div>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
             {quickActions.map((action, index) => (
               <Link key={index} to={action.href}>
                 <Card className={`border-2 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 cursor-pointer group ${action.color}`}>
@@ -310,7 +310,7 @@ const UserDashboard = () => {
           </div>
 
           {/* Main Stats Grid */}
-          <div className="grid gap-4 md:grid-cols-4 mb-8">
+          <div className="grid gap-3 md:grid-cols-3 mb-8">
             {isLoading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <Card key={i} className="border-2 border-gray-100 shadow-sm">
@@ -373,7 +373,7 @@ const UserDashboard = () => {
                   </CardContent>
                 </Card>
                 
-                <Card className="border-2 border-green-200 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-green-50 to-emerald-50">
+                  {/*<Card className="border-2 border-green-200 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-green-50 to-emerald-50">
                   <CardContent className="pt-6">
                     <div className="flex items-center gap-3 mb-2">
                       <div className="p-2 rounded-lg bg-green-100">
@@ -393,7 +393,7 @@ const UserDashboard = () => {
                       </Button>
                     </Link>
                   </CardContent>
-                </Card>
+                </Card>*/}
               </>
             )}
           </div>
