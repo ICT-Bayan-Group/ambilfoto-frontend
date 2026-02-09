@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Header } from "@/components/layout/Header";
+import "../../animations.css"; 
 import { paymentService, WithdrawalRequest, WithdrawalSummary } from "@/services/api/payment.service";
 import { 
   Send, 
@@ -22,11 +23,51 @@ import {
   Calendar,
   User,
   Building2,
-  CreditCard
+  CreditCard,
+  AlertTriangle
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { toast } from "sonner";
+
+// Tipe untuk alert state
+type AlertState = 'normal' | 'warning' | 'critical';
+
+// Fungsi untuk menghitung alert state berdasarkan hari
+const getAlertState = (requestedAt: string): { state: AlertState; daysElapsed: number; daysRemaining: number } => {
+  const now = new Date();
+  const requestDate = new Date(requestedAt);
+  const daysElapsed = differenceInDays(now, requestDate);
+  const daysRemaining = 7 - daysElapsed;
+
+  if (daysElapsed >= 7) {
+    return { state: 'critical', daysElapsed, daysRemaining: 0 };
+  } else if (daysElapsed >= 5) {
+    return { state: 'warning', daysElapsed, daysRemaining };
+  }
+  return { state: 'normal', daysElapsed, daysRemaining };
+};
+
+// Komponen Alert Icon dengan animasi
+const DeadlineAlertIcon = ({ state }: { state: AlertState }) => {
+  if (state === 'normal') return null;
+
+  const animationClass = state === 'warning' 
+    ? 'animate-pulse-slow' 
+    : 'animate-pulse-fast';
+
+  const colorClass = state === 'warning'
+    ? 'text-yellow-500'
+    : 'text-red-500';
+
+  const sizeClass = state === 'warning' ? 'h-5 w-5' : 'h-6 w-6';
+
+  return (
+    <div className={`${animationClass} ${colorClass}`}>
+      <AlertTriangle className={`${sizeClass} drop-shadow-glow`} />
+    </div>
+  );
+};
 
 const AdminWithdrawals = () => {
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
@@ -47,7 +88,6 @@ const AdminWithdrawals = () => {
     try {
       setIsLoading(true);
       
-      // Jangan kirim status filter jika "all" dipilih
       const params = statusFilter === 'all' 
         ? {} 
         : { status: statusFilter as any };
@@ -57,7 +97,6 @@ const AdminWithdrawals = () => {
       if (response.success) {
         setWithdrawals(response.data || []);
         
-        // Pastikan summary ada dengan nilai default
         const defaultSummary: WithdrawalSummary = {
           total_requests: 0,
           pending_count: 0,
@@ -82,6 +121,22 @@ const AdminWithdrawals = () => {
       setIsLoading(false);
     }
   };
+
+  // Hitung statistik deadline alerts
+  const deadlineStats = useMemo(() => {
+    const pendingWithdrawals = withdrawals.filter(wd => wd.status === 'pending');
+    
+    let criticalCount = 0;
+    let warningCount = 0;
+
+    pendingWithdrawals.forEach(wd => {
+      const { state } = getAlertState(wd.requested_at || '');
+      if (state === 'critical') criticalCount++;
+      if (state === 'warning') warningCount++;
+    });
+
+    return { criticalCount, warningCount, totalAlerts: criticalCount + warningCount };
+  }, [withdrawals]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -169,7 +224,6 @@ const AdminWithdrawals = () => {
     }
   };
 
-  // Hitung summary dari data yang ada jika backend tidak mengirim
   const calculateLocalSummary = (): WithdrawalSummary => {
     if (!withdrawals || withdrawals.length === 0) {
       return {
@@ -202,7 +256,6 @@ const AdminWithdrawals = () => {
     });
   };
 
-  // Gunakan summary dari API atau hitung lokal
   const displaySummary = summary || calculateLocalSummary();
 
   return (
@@ -221,6 +274,33 @@ const AdminWithdrawals = () => {
             Proses permintaan penarikan dana dari fotografer
           </p>
         </div>
+
+        {/* Floating Alert Banner - Critical State */}
+        {deadlineStats.criticalCount > 0 && (
+          <Alert className="mb-6 border-red-500 bg-red-50 dark:bg-red-950/20 animate-pulse-fast">
+            <AlertTriangle className="h-5 w-5 text-red-500" />
+            <AlertDescription className="ml-2">
+              <span className="font-bold text-red-700 dark:text-red-400">
+                ⚠️ {deadlineStats.criticalCount} withdrawal request{deadlineStats.criticalCount > 1 ? 's are' : ' is'} at or past deadline (≥7 days)
+              </span>
+              <p className="text-sm text-red-600 dark:text-red-500 mt-1">
+                Segera proses untuk menghindari keterlambatan payout
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Warning Banner */}
+        {deadlineStats.warningCount > 0 && deadlineStats.criticalCount === 0 && (
+          <Alert className="mb-6 border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
+            <AlertTriangle className="h-5 w-5 text-yellow-500" />
+            <AlertDescription className="ml-2">
+              <span className="font-bold text-yellow-700 dark:text-yellow-400">
+                {deadlineStats.warningCount} withdrawal request{deadlineStats.warningCount > 1 ? 's are' : ' is'} approaching deadline (5-7 days)
+              </span>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
@@ -244,6 +324,11 @@ const AdminWithdrawals = () => {
                 <div className="p-2 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
                   <Clock className="h-5 w-5 text-yellow-600" />
                 </div>
+                {deadlineStats.totalAlerts > 0 && (
+                  <Badge className="bg-red-500 text-white animate-pulse-fast">
+                    {deadlineStats.totalAlerts} Alert{deadlineStats.totalAlerts > 1 ? 's' : ''}
+                  </Badge>
+                )}
               </div>
               <p className="text-3xl font-bold text-yellow-600 mb-1">
                 {displaySummary.pending_count}
@@ -314,108 +399,133 @@ const AdminWithdrawals = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {withdrawals.map((wd) => (
-                  <div 
-                    key={wd.id} 
-                    className="p-5 rounded-lg border hover:border-primary/50 transition-all hover:shadow-md"
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <User className="h-5 w-5 text-primary" />
-                          <p className="font-bold text-lg">
-                            {wd.photographer_name || wd.business_name}
-                          </p>
-                          {getStatusIcon(wd.status)}
+                {withdrawals.map((wd) => {
+                  const alertInfo = wd.status === 'pending' ? getAlertState(wd.requested_at || '') : null;
+                  
+                  return (
+                    <div 
+                      key={wd.id} 
+                      className={`p-5 rounded-lg border hover:border-primary/50 transition-all hover:shadow-md ${
+                        alertInfo?.state === 'critical' ? 'border-red-300 bg-red-50/30 dark:bg-red-950/10' :
+                        alertInfo?.state === 'warning' ? 'border-yellow-300 bg-yellow-50/30 dark:bg-yellow-950/10' : ''
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <User className="h-5 w-5 text-primary" />
+                            <p className="font-bold text-lg">
+                              {wd.photographer_name || wd.business_name}
+                            </p>
+                            {getStatusIcon(wd.status)}
+                            {alertInfo && <DeadlineAlertIcon state={alertInfo.state} />}
+                          </div>
+                          <p className="text-sm text-muted-foreground">{wd.photographer_email}</p>
+                          <div className="flex items-center gap-3 mt-1">
+                            <p className="text-xs text-muted-foreground">
+                              <Calendar className="h-3 w-3 inline mr-1" />
+                              {formatDate(wd.requested_at || '')}
+                            </p>
+                            {alertInfo && (
+                              <Badge 
+                                variant="outline"
+                                className={`text-xs ${
+                                  alertInfo.state === 'critical' 
+                                    ? 'border-red-500 text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/20' 
+                                    : 'border-yellow-500 text-yellow-700 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/20'
+                                }`}
+                              >
+                                {alertInfo.state === 'critical' 
+                                  ? `Melewati deadline (${alertInfo.daysElapsed} hari)`
+                                  : `${alertInfo.daysRemaining} hari tersisa`
+                                }
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">{wd.photographer_email}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          <Calendar className="h-3 w-3 inline mr-1" />
-                          {formatDate(wd.requested_at || '')}
-                        </p>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-primary mb-2">
+                            {formatCurrency(wd.amount)}
+                          </p>
+                          {getStatusBadge(wd.status)}
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-primary mb-2">
-                          {formatCurrency(wd.amount)}
-                        </p>
-                        {getStatusBadge(wd.status)}
-                      </div>
-                    </div>
 
-                    <div className="bg-muted/50 p-3 rounded mb-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <CreditCard className="h-4 w-4" />
-                        <p className="text-sm font-semibold">Rekening</p>
+                      <div className="bg-muted/50 p-3 rounded mb-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <CreditCard className="h-4 w-4" />
+                          <p className="text-sm font-semibold">Rekening</p>
+                        </div>
+                        <p className="text-sm ml-6">
+                          <span className="font-bold">{wd.bank_name}</span> - {wd.bank_account}
+                        </p>
+                        {wd.account_holder && (
+                          <p className="text-xs text-muted-foreground ml-6">a/n {wd.account_holder}</p>
+                        )}
                       </div>
-                      <p className="text-sm ml-6">
-                        <span className="font-bold">{wd.bank_name}</span> - {wd.bank_account}
-                      </p>
-                      {wd.account_holder && (
-                        <p className="text-xs text-muted-foreground ml-6">a/n {wd.account_holder}</p>
+
+                      {wd.photographer_note && (
+                        <Alert className="mb-3 border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+                          <AlertDescription>
+                            <p className="text-xs font-medium mb-1">Catatan Fotografer:</p>
+                            <p className="text-sm">{wd.photographer_note}</p>
+                          </AlertDescription>
+                        </Alert>
                       )}
-                    </div>
 
-                    {wd.photographer_note && (
-                      <Alert className="mb-3 border-blue-200 bg-blue-50 dark:bg-blue-950/20">
-                        <AlertDescription>
-                          <p className="text-xs font-medium mb-1">Catatan Fotografer:</p>
-                          <p className="text-sm">{wd.photographer_note}</p>
-                        </AlertDescription>
-                      </Alert>
-                    )}
+                      {wd.admin_note && (
+                        <Alert className="mb-3 border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+                          <AlertDescription>
+                            <p className="text-xs font-medium mb-1">Catatan Admin:</p>
+                            <p className="text-sm">{wd.admin_note}</p>
+                          </AlertDescription>
+                        </Alert>
+                      )}
 
-                    {wd.admin_note && (
-                      <Alert className="mb-3 border-amber-200 bg-amber-50 dark:bg-amber-950/20">
-                        <AlertDescription>
-                          <p className="text-xs font-medium mb-1">Catatan Admin:</p>
-                          <p className="text-sm">{wd.admin_note}</p>
-                        </AlertDescription>
-                      </Alert>
-                    )}
-
-                    <div className="flex gap-2 mt-4">
-                      {wd.status === 'pending' && (
-                        <>
+                      <div className="flex gap-2 mt-4">
+                        {wd.status === 'pending' && (
+                          <>
+                            <Button 
+                              size="sm" 
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => {
+                                setSelectedRequest(wd);
+                                setActionType('approve');
+                              }}
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-1" />
+                              Setujui
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              onClick={() => {
+                                setSelectedRequest(wd);
+                                setActionType('reject');
+                              }}
+                            >
+                              <Ban className="h-4 w-4 mr-1" />
+                              Tolak
+                            </Button>
+                          </>
+                        )}
+                        {wd.status === 'approved' && (
                           <Button 
                             size="sm" 
-                            className="bg-green-600 hover:bg-green-700"
+                            className="bg-blue-600 hover:bg-blue-700"
                             onClick={() => {
                               setSelectedRequest(wd);
-                              setActionType('approve');
+                              setActionType('mark_paid');
                             }}
                           >
-                            <CheckCircle2 className="h-4 w-4 mr-1" />
-                            Setujui
+                            <FileCheck className="h-4 w-4 mr-1" />
+                            Tandai Sudah Dibayar
                           </Button>
-                          <Button 
-                            size="sm" 
-                            variant="destructive"
-                            onClick={() => {
-                              setSelectedRequest(wd);
-                              setActionType('reject');
-                            }}
-                          >
-                            <Ban className="h-4 w-4 mr-1" />
-                            Tolak
-                          </Button>
-                        </>
-                      )}
-                      {wd.status === 'approved' && (
-                        <Button 
-                          size="sm" 
-                          className="bg-blue-600 hover:bg-blue-700"
-                          onClick={() => {
-                            setSelectedRequest(wd);
-                            setActionType('mark_paid');
-                          }}
-                        >
-                          <FileCheck className="h-4 w-4 mr-1" />
-                          Tandai Sudah Dibayar
-                        </Button>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
