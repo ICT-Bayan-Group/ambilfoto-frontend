@@ -59,6 +59,20 @@ export interface UserPhoto {
   confidence?: number;
   match_date?: string;
   
+  escrow_status?: 'NOT_APPLICABLE' | 'HELD' | 'WAITING_CONFIRMATION' | 'REVISION_REQUESTED' | 'RELEASED' | 'REFUNDED';
+  escrow_transaction_id?: string;
+  escrow_can_confirm?: boolean;
+  escrow_can_download?: boolean;
+  escrow_deadline?: string | null;
+  escrow_hours_remaining?: number | null;
+  escrow_revision_count?: number;
+  escrow_max_revisions?: number;
+  escrow_status_message?: string;
+  
+  // Delivery fields (optional)
+  delivery_version?: number | null;
+  delivery_uploaded_at?: string | null;
+  
   // Pricing
   price_cash?: number;
   price_points?: number;

@@ -376,7 +376,7 @@ const PhotographerDashboard = () => {
                 </Button>
               )}
               
-              <Link to="/photographer/hires-queue" className="block">
+              <Link to="/photographer/pending-orders" className="block">
                 <Button variant="outline" className="w-full justify-start gap-3 text-emerald-600 border-emerald-500/30 hover:bg-emerald-50">
                   <Download className="h-4 w-4" />
                   Antrian Photo Hi-Res 
