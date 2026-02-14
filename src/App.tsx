@@ -45,8 +45,15 @@ import PaymentFailed from "./pages/payment/PaymentFailed";
 import NotFound from "./pages/NotFound";
 import PhotoSales from "./pages/photographer/PhotoSales";
 import AdminHiResAnalytics from "./pages/admin/HiResAnalytics";
-import HiResQueue from "./pages/photographer/HiResQueue";
-import UserHiResPhotos from "./pages/user/HiResPhotos";
+
+// ❌ DEPRECATED ROUTES - Replaced by Escrow System
+// import HiResQueue from "./pages/photographer/HiResQueue";
+// import UserHiResPhotos from "./pages/user/HiResPhotos";
+
+// ✅ NEW ESCROW ROUTES
+import BuyerPurchases from "./pages/user/BuyerPuchase";
+import PhotographerPendingOrders from "./pages/photographer/PhotographerPendingOrders";
+
 import UserFotoMap from "./pages/user/FotoMap";
 import GlobalEventsMap from "./pages/user/GlobalEventMap";
 import AdminDropboxImport from "./pages/admin/DropboxImport";
@@ -55,7 +62,6 @@ import PhotographerEventPublicView from "./pages/photographer/PhotographerEventP
 import ForgotPassword from "./pages/ForgorPassword";
 import ResetPassword from "./pages/ResetPassword";
 import AdminPhotographerStatistics from "./pages/admin/AdminPhotographerStatistics";
-// ✅ NEW IMPORTS - Photographer Upgrade Feature
 import PhotographerUpgradeRequest from "./pages/user/PhotographerUpgradeRequest";
 import PhotographerUpgradeStatus from "./pages/user/PhotographerUpgradeStatus";
 import AdminPhotographerRequests from "./pages/admin/AdminPhotographerRequest";
@@ -81,7 +87,7 @@ const PhotographerRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// ✅ NEW: Protected route for users only (cannot access if already photographer)
+// Protected route for users only (cannot access if already photographer)
 const UserOnlyRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isAuthenticated, isLoading } = useAuth();
   
@@ -128,10 +134,12 @@ const App = () => (
             <Route path="/register/face" element={<RegisterFace />} />
             <Route path="/login/face" element={<FaceLogin />} />
             
-            {/* ✅ PUBLIC EVENT VIEW - Must be BEFORE other routes to avoid conflicts */}
+            {/* PUBLIC EVENT VIEW - Must be BEFORE other routes to avoid conflicts */}
             <Route path="/event/:eventSlug" element={<PhotographerEventPublicView />} />
             
-            {/* User Routes */}
+            {/* ========================================
+                USER ROUTES 
+            ======================================== */}
             <Route 
               path="/user/dashboard" 
               element={
@@ -180,14 +188,22 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            
+            {/* ✅ NEW ESCROW ROUTE - Replaces /user/hires */}
             <Route 
-              path="/user/hires" 
+              path="/user/purchases" 
               element={
                 <ProtectedRoute>
-                  <UserHiResPhotos />
+                  <BuyerPurchases />
                 </ProtectedRoute>
               } 
             />
+            
+            {/* ❌ DEPRECATED - Redirect old route to new escrow page 
+            <Route 
+              path="/user/hires" 
+              element={<Navigate to="/user/purchases" replace />}
+            />*/}
             
             {/* User FotoMap Routes */}
             <Route 
@@ -225,7 +241,9 @@ const App = () => (
               } 
             />
             
-            {/* Photographer Routes */}
+            {/* ========================================
+                PHOTOGRAPHER ROUTES 
+            ======================================== */}
             <Route 
               path="/photographer/dashboard" 
               element={
@@ -290,16 +308,24 @@ const App = () => (
                 </PhotographerRoute>
               } 
             />
+            
+            {/* ✅ NEW ESCROW ROUTE - Replaces /photographer/hires-queue */}
             <Route 
-              path="/photographer/hires-queue" 
+              path="/photographer/pending-orders" 
               element={
                 <PhotographerRoute>
-                  <HiResQueue />
+                  <PhotographerPendingOrders />
                 </PhotographerRoute>
               } 
             />
+            
+            {/* ❌ DEPRECATED - Redirect old route to new escrow page 
+            <Route 
+              path="/photographer/hires-queue" 
+              element={<Navigate to="/photographer/pending-orders" replace />}
+            /> */}
 
-            {/* ✅ FIXED: Photographer FotoMap Routes - menggunakan eventId bukan eventSlug */}
+            {/* Photographer FotoMap Routes */}
             <Route 
               path="/photographer/fotomap" 
               element={
@@ -308,7 +334,6 @@ const App = () => (
                 </PhotographerRoute>
               } 
             />
-            {/* ✅ FotoMap detail menggunakan eventId untuk photographer management */}
             <Route 
               path="/photographer/fotomap/:eventId" 
               element={
@@ -318,7 +343,9 @@ const App = () => (
               } 
             />
             
-            {/* Admin Routes */}
+            {/* ========================================
+                ADMIN ROUTES 
+            ======================================== */}
             <Route 
               path="/admin/dashboard" 
               element={

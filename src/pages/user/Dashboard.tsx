@@ -153,7 +153,7 @@ const UserDashboard = () => {
       icon: Camera,
       label: "Hi Res Foto",
       description: "Unduh versi Hi-Res",
-      href: "/user/Hires",
+      href: "/user/purchases",
       color: "bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200"
     },
     {
