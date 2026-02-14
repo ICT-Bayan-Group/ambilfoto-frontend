@@ -68,7 +68,7 @@ const Register = () => {
         email: formData.email,
         password: formData.password,
         full_name: formData.name,
-        phone: formData.phone,
+        phone_number: formData.phone,
         role: 'user', // ✅ HARDCODED - semua user register sebagai 'user'
       });
 

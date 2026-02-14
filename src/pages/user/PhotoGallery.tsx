@@ -37,7 +37,7 @@ import { PhotoDetailModal } from "@/components/PhotoDetailModal";
 import { PhotoLightbox } from "@/components/PhotoLightbox";
 import { PhotoPurchaseModal } from "@/components/PhotoPurchaseModal";
 import { toast as sonnerToast } from "sonner";
-
+import { buyerEscrowService } from "@/services/api/buyer.escrow.service";
 type TabType = 'temuan' | 'favorite' | 'koleksi';
 
 const PhotoGallery = () => {
@@ -434,33 +434,106 @@ const PhotoGallery = () => {
     setIsPurchaseModalOpen(true);
   };
 
-  const handlePurchaseSuccess = (downloadUrl?: string) => {
-    if (photoToPurchase) {
-      // Update photos
-      setPhotos(prev => prev.map(p => 
-        p.event_photo_id === photoToPurchase.event_photo_id 
-          ? { ...p, is_purchased: true, cta: 'DOWNLOAD' as const, download_url: downloadUrl }
-          : p
-      ));
-      
-      // Update favorites if favorited
-      setFavoritePhotos(prev => prev.map(p => 
-        p.event_photo_id === photoToPurchase.event_photo_id 
-          ? { ...p, is_purchased: true, cta: 'DOWNLOAD' as const, download_url: downloadUrl }
-          : p
-      ));
-      
-      // Reload purchased photos
+const handlePurchaseSuccess = async (downloadUrl?: string) => {
+  if (photoToPurchase) {
+    // Update photos
+    setPhotos(prev => prev.map(p => 
+      p.event_photo_id === photoToPurchase.event_photo_id 
+        ? { ...p, is_purchased: true, cta: 'DOWNLOAD' as const, download_url: downloadUrl }
+        : p
+    ));
+    
+    // Update favorites if favorited
+    setFavoritePhotos(prev => prev.map(p => 
+      p.event_photo_id === photoToPurchase.event_photo_id 
+        ? { ...p, is_purchased: true, cta: 'DOWNLOAD' as const, download_url: downloadUrl }
+        : p
+    ));
+    
+    // Reload purchased photos with escrow status
+    try {
+      const escrowResponse = await buyerEscrowService.getMyPurchases();
+      if (escrowResponse.success && escrowResponse.data) {
+        console.log('📦 Escrow purchases loaded:', escrowResponse.data);
+        
+        // Map BuyerPurchase to UserPhoto format
+        const purchasesWithEscrow: UserPhoto[] = escrowResponse.data.map(purchase => {
+          const canDownload = purchase.escrow.can_download;
+          
+          return {
+            // Core photo fields
+            photo_id: purchase.photo.id,
+            event_photo_id: purchase.photo.id,
+            filename: purchase.photo.filename,
+            
+            // Event fields
+            event_id: purchase.transaction_id,
+            event_name: purchase.photo.event_name,
+            event_date: purchase.purchased_at,
+            event_location: null,
+            
+            // URLs
+            preview_url: purchase.photo.preview_url || '',
+            download_url: purchase.photo.download_url || '',
+            thumbnail_url: purchase.photo.preview_url || '',
+            
+            // Purchase status
+            is_purchased: true,
+            is_favorited: false,
+            is_for_sale: false,
+            
+            // Price (from payment info)
+            price: purchase.payment.amount,
+            price_cash: purchase.payment.amount,
+            price_points: null,
+            price_in_points: null,
+            
+            // CTA - Use VIEW if can't download yet, DOWNLOAD if ready
+            cta: canDownload ? 'DOWNLOAD' : 'VIEW',
+            
+            // Photographer info
+            photographer_name: purchase.photographer.name,
+            photographer_id: purchase.photographer.id,
+            
+            // Escrow specific fields
+            escrow_status: purchase.escrow.status,
+            escrow_transaction_id: purchase.transaction_id,
+            escrow_can_confirm: purchase.escrow.can_confirm,
+            escrow_can_download: purchase.escrow.can_download,
+            escrow_deadline: purchase.escrow.deadline,
+            escrow_hours_remaining: purchase.escrow.hours_remaining,
+            escrow_revision_count: purchase.escrow.revision_count,
+            escrow_max_revisions: purchase.escrow.max_revisions,
+            escrow_status_message: purchase.escrow.status_message,
+            
+            // Delivery info
+            delivery_version: purchase.delivery?.version || null,
+            delivery_uploaded_at: purchase.delivery?.uploaded_at || null,
+            
+            // Other optional fields
+            similarity: null,
+            uploaded_at: purchase.purchased_at,
+          } as UserPhoto;
+        });
+        
+        setPurchasedPhotos(purchasesWithEscrow);
+      } else {
+        // Fallback to regular purchased photos if escrow fails
+        loadPurchasedPhotos();
+      }
+    } catch (escrowErr) {
+      console.error('Error loading escrow purchases:', escrowErr);
+      // Fallback to regular purchased photos
       loadPurchasedPhotos();
     }
-    setIsPurchaseModalOpen(false);
-    setPhotoToPurchase(null);
-    
-    // ❌ NO LONGER NEEDED: loadUserBalance() removed
-    
-    sonnerToast.success("Foto berhasil dibeli! Anda sekarang bisa mengunduh foto ini.");
-  };
-
+  }
+  
+  setIsPurchaseModalOpen(false);
+  setPhotoToPurchase(null);
+  
+  sonnerToast.success("Foto berhasil dibeli! Anda sekarang bisa mengunduh foto ini.");
+};
+  
   const handleNext = () => {
     if (!selectedPhoto) return;
     const currentIndex = filteredPhotos.findIndex(p => p.photo_id === selectedPhoto.photo_id);
@@ -476,6 +549,8 @@ const PhotoGallery = () => {
       setSelectedPhoto(filteredPhotos[currentIndex - 1]);
     }
   };
+
+  
 
   const selectedPhotoIndex = selectedPhoto 
     ? filteredPhotos.findIndex(p => p.event_photo_id === selectedPhoto.event_photo_id)
@@ -625,10 +700,10 @@ const PhotoGallery = () => {
                   <Button 
                     onClick={handleDownloadAll}
                     size="sm"
-                    className="bg-gradient-to-r from-blue-600 to-yellow-500 hover:from-blue-700 hover:to-yellow-600 rounded-xl shadow-lg"
+                    className="bg-amber-500 hover:from-blue-700 hover:to-yellow-600 rounded-xl shadow-lg"
                   >
                     <Download className="mr-2 h-4 w-4" />
-                    Unduh Semua ({filteredPhotos.length})
+                    Download ({filteredPhotos.length})
                   </Button>
                 )}
               </div>
