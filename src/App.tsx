@@ -45,6 +45,15 @@ import PaymentFailed from "./pages/payment/PaymentFailed";
 import NotFound from "./pages/NotFound";
 import PhotoSales from "./pages/photographer/PhotoSales";
 import AdminHiResAnalytics from "./pages/admin/HiResAnalytics";
+import DeveloperBilling from "./pages/developer/Billing";
+import DeveloperDashboard from "./pages/developer/Dashboard";
+import DeveloperDocs from "./pages/developer/Docs";
+import DeveloperKeys from "./pages/developer/Keys";
+import DeveloperPricing from "./pages/developer/Pricing";
+import DeveloperSettings from "./pages/developer/Settings";
+import DeveloperUsage from "./pages/developer/Usage";
+import DeveloperCheckout from "./pages/developer/Checkout";
+
 
 // ❌ DEPRECATED ROUTES - Replaced by Escrow System
 // import HiResQueue from "./pages/photographer/HiResQueue";
@@ -65,6 +74,7 @@ import AdminPhotographerStatistics from "./pages/admin/AdminPhotographerStatisti
 import PhotographerUpgradeRequest from "./pages/user/PhotographerUpgradeRequest";
 import PhotographerUpgradeStatus from "./pages/user/PhotographerUpgradeStatus";
 import AdminPhotographerRequests from "./pages/admin/AdminPhotographerRequest";
+import PaymentResult from "./pages/developer/Result";
 
 const queryClient = new QueryClient();
 
@@ -124,7 +134,8 @@ const App = () => (
             <Route path="/logout" element={<Navigate to="/login" replace />} />
             <Route path="/about" element={<About />} />
             <Route path="/features" element={<Features />} />
-            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/pricing" element={<DeveloperPricing />} />
+            <Route path="/docs" element={<DeveloperDocs/>}/>
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/register" element={<Register />} />
@@ -133,6 +144,7 @@ const App = () => (
             <Route path="/contact" element={<ContactUs />} />
             <Route path="/register/face" element={<RegisterFace />} />
             <Route path="/login/face" element={<FaceLogin />} />
+            
             
             {/* PUBLIC EVENT VIEW - Must be BEFORE other routes to avoid conflicts */}
             <Route path="/event/:eventSlug" element={<PhotographerEventPublicView />} />
@@ -450,7 +462,51 @@ const App = () => (
                 </AdminRoute>
               }
             />
-            
+            {/* Developer Platform Routes */}
+            <Route path="/developer/checkout" element={<DeveloperCheckout />} />
+            <Route path="/developer/payment/finish" element={<PaymentResult status="success" />} />
+            <Route path="/developer/payment/pending"element={<PaymentResult status="pending" />} />
+            <Route path="/developer/payment/error"  element={<PaymentResult status="error" />} />
+             <Route
+              path="/developer/:id"
+              element={
+                <ProtectedRoute>
+                  <DeveloperDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/developer/:id/keys"
+              element={
+                <ProtectedRoute>
+                  <DeveloperKeys />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/developer/:id/usage"
+              element={
+                <ProtectedRoute>
+                  <DeveloperUsage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/developer/:id/billing"
+              element={
+                <ProtectedRoute>
+                  <DeveloperBilling />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/developer/:id/settings"
+              element={
+                <ProtectedRoute>
+                  <DeveloperSettings />
+                </ProtectedRoute>
+              }
+            />
             {/* Payment Callback Routes */}
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/pending" element={<PaymentPending />} />

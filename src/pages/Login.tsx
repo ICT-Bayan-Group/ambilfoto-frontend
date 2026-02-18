@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +23,10 @@ const Login = () => {
   const [puzzleCaptchaToken, setPuzzleCaptchaToken] = useState<string | null>(null);
   const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Ambil redirect param dari URL, contoh: /login?redirect=/developer/checkout?plan_id=xxx
+  const redirectParam = new URLSearchParams(location.search).get("redirect");
 
   // Load CAPTCHA configuration on mount
   useEffect(() => {
@@ -32,9 +36,9 @@ const Login = () => {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
-      redirectBasedOnRole(user.role);
+      handlePostLoginRedirect(user.role);
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user]);
 
   /**
    * Load CAPTCHA configuration
@@ -42,25 +46,37 @@ const Login = () => {
   const loadCaptchaConfig = async () => {
     try {
       const provider = await captchaService.getProvider();
-      setCaptchaProvider(provider);  
-    } catch (error) {   
-    }
+      setCaptchaProvider(provider);
+    } catch (error) {}
   };
 
   /**
-   * Helper function to redirect based on role
+   * Setelah login berhasil:
+   * - Jika ada ?redirect=..., navigasi ke sana
+   * - Jika tidak, navigasi berdasarkan role seperti biasa
+   */
+  const handlePostLoginRedirect = (role: string) => {
+    if (redirectParam) {
+      navigate(redirectParam, { replace: true });
+      return;
+    }
+    redirectBasedOnRole(role);
+  };
+
+  /**
+   * Fallback redirect berdasarkan role (tanpa redirect param)
    */
   const redirectBasedOnRole = (role: string) => {
     switch (role) {
       case 'photographer':
-        navigate('/photographer/dashboard');
+        navigate('/photographer/dashboard', { replace: true });
         break;
       case 'admin':
-        navigate('/admin/dashboard');
+        navigate('/admin/dashboard', { replace: true });
         break;
       case 'user':
       default:
-        navigate('/user/dashboard');
+        navigate('/user/dashboard', { replace: true });
         break;
     }
   };
@@ -70,7 +86,6 @@ const Login = () => {
    */
   const handlePuzzleComplete = (token: string) => {
     setPuzzleCaptchaToken(token);
-    console.log('✅ Puzzle CAPTCHA completed');
   };
 
   /**
@@ -88,25 +103,22 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     setRemainingAttempts(null);
-    
+
     try {
       let captchaToken: string | null = null;
 
       // Get CAPTCHA token based on provider
       if (requiresCaptcha) {
         if (captchaProvider === 'puzzle') {
-          // For puzzle CAPTCHA, use token from component
           if (!puzzleCaptchaToken) {
             throw new Error('Please complete the security verification');
           }
           captchaToken = puzzleCaptchaToken;
-          
         } else if (captchaProvider === 'recaptcha') {
-          // For reCAPTCHA, execute it
           setCaptchaLoading(true);
           captchaToken = await recaptchaService.executeRecaptcha('login');
           setCaptchaLoading(false);
-          
+
           if (!captchaToken) {
             throw new Error('Failed to verify reCAPTCHA');
           }
@@ -115,47 +127,35 @@ const Login = () => {
 
       // Attempt login
       const result = await login(email, password, captchaToken);
-      
+
       // Reset puzzle token after use
       setPuzzleCaptchaToken(null);
-      
-      // Redirect based on user role
+
+      // Redirect: cek redirect param dulu, baru fallback role
       if (result && result.user) {
-        redirectBasedOnRole(result.user.role);
+        handlePostLoginRedirect(result.user.role);
       }
-      
+
     } catch (error: any) {
       // Reset puzzle token on error
       setPuzzleCaptchaToken(null);
-      
-      // Check if error response contains remaining attempts
+
       if (error.response?.data?.remainingAttempts !== undefined) {
         setRemainingAttempts(error.response.data.remainingAttempts);
-        
-        // If attempts are low, next attempt will require CAPTCHA
         if (error.response.data.remainingAttempts < 3) {
           setRequiresCaptcha(true);
         }
       }
-      
-      // Check if CAPTCHA is required
+
       if (error.response?.data?.code === 'CAPTCHA_REQUIRED') {
         setRequiresCaptcha(true);
-        console.log('CAPTCHA now required for next attempt');
       }
-      
-      // Check if CAPTCHA failed
+
       if (error.response?.data?.code === 'CAPTCHA_INVALID') {
-        console.log('CAPTCHA verification failed');
-        setRequiresCaptcha(true); // Keep CAPTCHA required
+        setRequiresCaptcha(true);
       }
-      
-      // Check if account is locked
-      if (error.response?.data?.code === 'ACCOUNT_LOCKED') {
-        console.log('Account locked due to too many failed attempts');
-      }
-      
-      // Error already handled by AuthContext toast
+
+      // Error toast sudah dihandle oleh AuthContext
     } finally {
       setLoading(false);
       setCaptchaLoading(false);
@@ -166,18 +166,21 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-background p-4">
       <div className="w-full max-w-md">
         <Link to="/" className="flex items-center justify-center w-full transition-all duration-200 hover:opacity-80">
-          <img 
-            src="https://res.cloudinary.com/dwyi4d3rq/image/upload/v1765171746/ambilfoto-logo_hvn8s2.png" 
-            alt="AmbilFoto.id Logo" 
+          <img
+            src="https://res.cloudinary.com/dwyi4d3rq/image/upload/v1765171746/ambilfoto-logo_hvn8s2.png"
+            alt="AmbilFoto.id Logo"
             className="h-24 mx-auto w-auto"
           />
         </Link>
-        
+
         <Card className="shadow-strong border-border/50">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl">Selamat Datang!</CardTitle>
             <CardDescription>
-              Masuk ke akun kamu 
+              {/* Jika ada redirect ke checkout, tampilkan hint kecil */}
+              {redirectParam?.includes('/developer/checkout')
+                ? "Masuk dulu untuk melanjutkan pembayaran paket API"
+                : "Masuk ke akun kamu"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -213,10 +216,9 @@ const Login = () => {
                 <AlertDescription className="text-blue-900">
                   <strong>Verifikasi keamanan diperlukan</strong>
                   <br />
-                  {captchaProvider === 'puzzle' 
+                  {captchaProvider === 'puzzle'
                     ? 'Selesaikan puzzle di bawah untuk melanjutkan.'
-                    : 'Login Anda akan diverifikasi dengan reCAPTCHA untuk keamanan.'
-                  }
+                    : 'Login Anda akan diverifikasi dengan reCAPTCHA untuk keamanan.'}
                 </AlertDescription>
               </Alert>
             )}
@@ -235,7 +237,7 @@ const Login = () => {
                   autoFocus
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
@@ -258,16 +260,13 @@ const Login = () => {
                   </button>
                 </div>
               </div>
-              
+
               <div className="flex items-center justify-between text-sm">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" className="rounded border-border" disabled={loading} />
                   <span className="text-muted-foreground">Ingat saya</span>
                 </label>
-                <Link 
-                  to="/forgot" 
-                  className="text-primary hover:underline font-medium"
-                >
+                <Link to="/forgot" className="text-primary hover:underline font-medium">
                   Lupa kata sandi?
                 </Link>
               </div>
@@ -287,18 +286,18 @@ const Login = () => {
                   <Shield className="h-4 w-4 text-slate-600" />
                   <AlertDescription className="text-slate-900 text-xs">
                     Situs ini dilindungi oleh reCAPTCHA dan berlaku{" "}
-                    <a 
-                      href="https://policies.google.com/privacy" 
-                      target="_blank" 
+                    <a
+                      href="https://policies.google.com/privacy"
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary hover:underline"
                     >
                       Privacy Policy
                     </a>
                     {" "}dan{" "}
-                    <a 
-                      href="https://policies.google.com/terms" 
-                      target="_blank" 
+                    <a
+                      href="https://policies.google.com/terms"
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary hover:underline"
                     >
@@ -308,10 +307,10 @@ const Login = () => {
                   </AlertDescription>
                 </Alert>
               )}
-              
-              <Button 
-                type="submit" 
-                className="w-full" 
+
+              <Button
+                type="submit"
+                className="w-full"
                 disabled={loading || captchaLoading || (requiresCaptcha && captchaProvider === 'puzzle' && !puzzleCaptchaToken)}
                 size="lg"
               >
@@ -330,7 +329,7 @@ const Login = () => {
                 )}
               </Button>
             </form>
-            
+
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-border" />
@@ -339,11 +338,11 @@ const Login = () => {
                 <span className="bg-card px-2 text-muted-foreground">Atau</span>
               </div>
             </div>
-            
+
             <Link to="/login/face">
-              <Button 
-                variant="outline" 
-                className="w-full" 
+              <Button
+                variant="outline"
+                className="w-full"
                 disabled={loading}
                 size="lg"
               >
@@ -351,28 +350,18 @@ const Login = () => {
                 Masuk dengan Face Scan
               </Button>
             </Link>
-            
+
             <p className="text-center text-sm text-muted-foreground">
               Belum punya akun?{" "}
-              <Link to="/register" className="text-primary hover:underline font-medium">
+              <Link
+                to={redirectParam ? `/register?redirect=${encodeURIComponent(redirectParam)}` : "/register"}
+                className="text-primary hover:underline font-medium"
+              >
                 Daftar
               </Link>
             </p>
           </CardContent>
         </Card>
-
-        {/* Security Notice 
-        <Card className="mt-4 bg-muted/50">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-muted-foreground">
-                Untuk keamanan akun Anda, kami membatasi percobaan login. Setelah 5 kali percobaan gagal, akun akan dikunci sementara selama 15 menit.
-                {captchaProvider !== 'none' && " Setelah 3 kali percobaan gagal, verifikasi CAPTCHA akan diperlukan."}
-              </p>
-            </div>
-          </CardContent>
-        </Card>*/}
       </div>
     </div>
   );
