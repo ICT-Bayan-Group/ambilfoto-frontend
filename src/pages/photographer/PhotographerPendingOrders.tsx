@@ -37,7 +37,7 @@ const PhotographerPendingOrders = () => {
   const [activeTab, setActiveTab] = useState<string>('all');
   const [showOverdueOnly, setShowOverdueOnly] = useState(false);
   
-  // Upload modal state
+  // State modal unggah
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<PendingOrder | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -64,7 +64,6 @@ const PhotographerPendingOrders = () => {
       if (response.success && response.data) {
         let fetchedOrders = response.data;
         
-        // Filter overdue if needed
         if (showOverdueOnly) {
           fetchedOrders = fetchedOrders.filter(o => o.deadline.is_overdue);
         }
@@ -75,10 +74,10 @@ const PhotographerPendingOrders = () => {
           setStats(response.summary);
         }
       } else {
-        toast.error(response.error || 'Failed to load orders');
+        toast.error(response.error || 'Gagal memuat pesanan');
       }
     } catch (error) {
-      toast.error('Failed to load pending orders');
+      toast.error('Gagal memuat pesanan yang tertunda');
     } finally {
       setIsLoading(false);
     }
@@ -88,14 +87,12 @@ const PhotographerPendingOrders = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     const validTypes = ['image/jpeg', 'image/png', 'image/tiff'];
     if (!validTypes.includes(file.type)) {
       toast.error('Format file tidak valid. Gunakan JPG, PNG, atau TIFF.');
       return;
     }
 
-    // Validate file size (max 50MB)
     if (file.size > 50 * 1024 * 1024) {
       toast.error('Ukuran file terlalu besar. Maksimum 50MB.');
       return;
@@ -103,7 +100,6 @@ const PhotographerPendingOrders = () => {
 
     setUploadFile(file);
 
-    // Create preview
     const reader = new FileReader();
     reader.onload = (e) => {
       setUploadPreview(e.target?.result as string);
@@ -134,11 +130,11 @@ const PhotographerPendingOrders = () => {
       setUploadProgress(90);
 
       if (response.success) {
-        toast.success('Hi-Res berhasil diupload! Buyer telah dinotifikasi.');
+        toast.success('Hi-Res berhasil diunggah! Pembeli telah diberitahu.');
         closeUploadModal();
         fetchOrders();
       } else {
-        toast.error(response.error || 'Gagal upload Hi-Res');
+        toast.error(response.error || 'Gagal mengunggah Hi-Res');
         if (response.hint) {
           toast.info(response.hint);
         }
@@ -146,7 +142,7 @@ const PhotographerPendingOrders = () => {
 
       setUploadProgress(100);
     } catch (error) {
-      toast.error('Gagal upload Hi-Res');
+      toast.error('Gagal mengunggah Hi-Res');
     } finally {
       setIsUploading(false);
     }
@@ -172,11 +168,11 @@ const PhotographerPendingOrders = () => {
 
   const getUrgencyBadge = (urgency: string) => {
     const config = {
-      overdue: { color: 'bg-red-500', icon: AlertTriangle, label: 'OVERDUE' },
-      urgent: { color: 'bg-orange-500', icon: Clock, label: 'URGENT' },
-      warning: { color: 'bg-yellow-500', icon: Clock, label: 'WARNING' },
+      overdue: { color: 'bg-red-500', icon: AlertTriangle, label: 'TERLAMBAT' },
+      urgent: { color: 'bg-orange-500', icon: Clock, label: 'MENDESAK' },
+      warning: { color: 'bg-yellow-500', icon: Clock, label: 'PERINGATAN' },
       normal: { color: 'bg-blue-500', icon: Clock, label: 'NORMAL' },
-      waiting: { color: 'bg-gray-500', icon: Clock, label: 'WAITING' },
+      waiting: { color: 'bg-gray-500', icon: Clock, label: 'MENUNGGU' },
     };
 
     const { color, icon: Icon, label } = config[urgency as keyof typeof config] || config.normal;
@@ -215,7 +211,7 @@ const PhotographerPendingOrders = () => {
       <Header />
       
       <main className="container mx-auto px-4 py-8">
-        {/* Header */}
+        {/* Judul Halaman */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div className="flex items-center gap-4">
             <Link to="/photographer/dashboard">
@@ -226,21 +222,21 @@ const PhotographerPendingOrders = () => {
             <div>
               <h1 className="text-3xl font-bold flex items-center gap-2">
                 <Package className="h-8 w-8 text-primary" />
-                Upload Hires
+                Unggah Hires
               </h1>
               <p className="text-muted-foreground mt-1">
-                Upload hi-res photos untuk pesanan yang sudah dibeli. Pastikan untuk mengunggah sebelum deadline.
+                Unggah foto hi-res untuk pesanan yang sudah dibeli. Pastikan untuk mengunggah sebelum batas waktu.
               </p>
             </div>
           </div>
           
           <Button onClick={fetchOrders} variant="outline" className="gap-2">
             <RefreshCw className="h-4 w-4" />
-            Refresh
+            Perbarui
           </Button>
         </div>
 
-        {/* Stats Cards */}
+        {/* Kartu Statistik */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <Card className={stats?.total_pending ? 'border-primary/50' : ''}>
             <CardContent className="pt-6">
@@ -250,7 +246,7 @@ const PhotographerPendingOrders = () => {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{stats?.total_pending || 0}</p>
-                  <p className="text-sm text-muted-foreground">Total Pending</p>
+                  <p className="text-sm text-muted-foreground">Total Tertunda</p>
                 </div>
               </div>
             </CardContent>
@@ -264,7 +260,7 @@ const PhotographerPendingOrders = () => {
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-red-600">{stats?.total_overdue || 0}</p>
-                  <p className="text-sm text-muted-foreground">Overdue</p>
+                  <p className="text-sm text-muted-foreground">Terlambat</p>
                 </div>
               </div>
             </CardContent>
@@ -278,7 +274,7 @@ const PhotographerPendingOrders = () => {
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-orange-600">{stats?.total_urgent || 0}</p>
-                  <p className="text-sm text-muted-foreground">Urgent</p>
+                  <p className="text-sm text-muted-foreground">Mendesak</p>
                 </div>
               </div>
             </CardContent>
@@ -292,7 +288,7 @@ const PhotographerPendingOrders = () => {
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-yellow-600">{stats?.total_revisions || 0}</p>
-                  <p className="text-sm text-muted-foreground">Revisions</p>
+                  <p className="text-sm text-muted-foreground">Revisi</p>
                 </div>
               </div>
             </CardContent>
@@ -308,39 +304,39 @@ const PhotographerPendingOrders = () => {
                   <p className="text-lg font-bold text-green-600">
                     {formatCurrency(stats?.total_earning_pending || 0)}
                   </p>
-                  <p className="text-sm text-muted-foreground">Pending Earning</p>
+                  <p className="text-sm text-muted-foreground">Penghasilan Tertunda</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Overdue Alert */}
+        {/* Peringatan Terlambat */}
         {(stats?.total_overdue || 0) > 0 && (
           <Alert className="mb-6 border-red-500/50 bg-red-50">
             <AlertCircle className="h-5 w-5 text-red-600" />
             <AlertDescription className="text-red-800">
-              <strong>{stats?.total_overdue} foto melebihi deadline 48 jam!</strong>
-              {' '}Upload segera untuk menghindari auto-approval dan rating buruk.
+              <strong>{stats?.total_overdue} foto melewati batas waktu 48 jam!</strong>
+              {' '}Unggah segera untuk menghindari persetujuan otomatis dan penilaian buruk.
             </AlertDescription>
           </Alert>
         )}
 
-        {/* Tabs */}
+        {/* Tab */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <div className="flex items-center justify-between mb-4">
             <TabsList>
               <TabsTrigger value="all" className="gap-2">
                 <Package className="h-4 w-4" />
-                All ({stats?.total_pending || 0})
+                Semua ({stats?.total_pending || 0})
               </TabsTrigger>
               <TabsTrigger value="new" className="gap-2">
                 <Upload className="h-4 w-4" />
-                New Orders
+                Pesanan Baru
               </TabsTrigger>
               <TabsTrigger value="revision" className="gap-2">
                 <RotateCcw className="h-4 w-4" />
-                Revisions ({stats?.total_revisions || 0})
+                Revisi ({stats?.total_revisions || 0})
               </TabsTrigger>
             </TabsList>
 
@@ -351,7 +347,7 @@ const PhotographerPendingOrders = () => {
                 onChange={(e) => setShowOverdueOnly(e.target.checked)}
                 className="rounded"
               />
-              <span className="text-sm">Overdue only</span>
+              <span className="text-sm">Hanya yang terlambat</span>
             </label>
           </div>
 
@@ -366,11 +362,11 @@ const PhotographerPendingOrders = () => {
               <Card>
                 <CardContent className="py-12 text-center">
                   <CheckCircle className="h-12 w-12 mx-auto text-green-500 mb-4" />
-                  <h3 className="text-lg font-semibold">No pending orders</h3>
+                  <h3 className="text-lg font-semibold">Tidak ada pesanan tertunda</h3>
                   <p className="text-muted-foreground">
                     {activeTab === 'all' 
-                      ? 'All orders have been processed'
-                      : `No ${activeTab} orders at the moment`
+                      ? 'Semua pesanan telah diproses'
+                      : `Tidak ada pesanan ${activeTab === 'new' ? 'baru' : 'revisi'} saat ini`
                     }
                   </p>
                 </CardContent>
@@ -384,7 +380,7 @@ const PhotographerPendingOrders = () => {
                   >
                     <CardContent className="pt-6">
                       <div className="flex flex-col md:flex-row gap-4">
-                        {/* Preview */}
+                        {/* Pratinjau Foto */}
                         <div className="w-full md:w-32 h-24 bg-muted rounded-lg overflow-hidden flex-shrink-0">
                           {order.photo.preview_url ? (
                             <img 
@@ -399,7 +395,7 @@ const PhotographerPendingOrders = () => {
                           )}
                         </div>
 
-                        {/* Info */}
+                        {/* Informasi Pesanan */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2 mb-2">
                             <div>
@@ -414,7 +410,7 @@ const PhotographerPendingOrders = () => {
                             </div>
                           </div>
 
-                          {/* Details Grid */}
+                          {/* Grid Detail */}
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm mb-3">
                             <div className="flex items-center gap-2">
                               <User className="h-4 w-4 text-muted-foreground" />
@@ -432,16 +428,16 @@ const PhotographerPendingOrders = () => {
                             </div>
                           </div>
 
-                          {/* Deadline Progress */}
+                          {/* Progress Deadline */}
                           <div className="space-y-2 mb-3">
                             <div className="flex items-center justify-between text-xs">
                               <span className={order.deadline.is_overdue ? 'text-red-600 font-bold' : 'text-muted-foreground'}>
-                                {order.deadline.is_overdue ? '🔴 OVERDUE!' : order.deadline.upload_deadline}
+                                {order.deadline.is_overdue ? '🔴 TERLAMBAT!' : order.deadline.upload_deadline}
                               </span>
                               <span className={order.deadline.is_overdue ? 'text-red-600 font-bold' : ''}>
                                 {order.deadline.is_overdue 
-                                  ? `${Math.abs(order.deadline.hours_remaining).toFixed(1)}h overdue`
-                                  : `${order.deadline.hours_remaining.toFixed(1)}h left`
+                                  ? `${Math.abs(order.deadline.hours_remaining).toFixed(1)}j terlambat`
+                                  : `${order.deadline.hours_remaining.toFixed(1)}j tersisa`
                                 }
                               </span>
                             </div>
@@ -451,27 +447,27 @@ const PhotographerPendingOrders = () => {
                             />
                           </div>
 
-                          {/* Revision Info */}
+                          {/* Info Revisi */}
                           {order.revision && (
                             <Alert className="mb-3 border-orange-500/50 bg-orange-50">
                               <RotateCcw className="h-4 w-4 text-orange-600" />
                               <AlertDescription className="text-orange-900">
                                 <p className="font-semibold">
-                                  Revision #{order.revision.number} of {order.revision.max} Requested
+                                  Revisi #{order.revision.number} dari {order.revision.max} Diminta
                                 </p>
                                 <p className="text-sm mt-1">
-                                  <strong>Reason:</strong> {order.revision.reason}
+                                  <strong>Alasan:</strong> {order.revision.reason}
                                 </p>
                                 {order.revision.previous_notes && (
                                   <p className="text-xs mt-1 text-orange-700">
-                                    Previous notes: {order.revision.previous_notes}
+                                    Catatan sebelumnya: {order.revision.previous_notes}
                                   </p>
                                 )}
                               </AlertDescription>
                             </Alert>
                           )}
 
-                          {/* Upload Button */}
+                          {/* Tombol Unggah */}
                           <div className="mt-4">
                             <Button 
                               onClick={() => openUploadModal(order)} 
@@ -479,7 +475,7 @@ const PhotographerPendingOrders = () => {
                               variant={order.deadline.is_overdue ? 'destructive' : 'default'}
                             >
                               <Upload className="h-4 w-4" />
-                              {order.revision ? 'Upload Revision' : 'Upload Hi-Res Photo'}
+                              {order.revision ? 'Unggah Revisi' : 'Unggah Foto Hi-Res'}
                             </Button>
                           </div>
                         </div>
@@ -493,62 +489,72 @@ const PhotographerPendingOrders = () => {
         </Tabs>
       </main>
 
-      {/* Upload Modal */}
+      {/* Modal Unggah — scrollable */}
       <Dialog open={uploadModalOpen} onOpenChange={closeUploadModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
+        {/*
+          Kunci scroll modal:
+          - DialogContent menggunakan flex flex-col dengan max-h-[90vh]
+          - Header & Footer di-set shrink-0 agar tidak ikut scroll
+          - Bagian tengah (konten) diberi flex-1 overflow-y-auto
+        */}
+        <DialogContent className="max-w-md w-full flex flex-col max-h-[90vh] p-0 gap-0 overflow-hidden">
+
+          {/* Header — tetap di atas */}
+          <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5" />
-              Upload Hi-Res Photo
+              Unggah Foto Hi-Res
             </DialogTitle>
             <DialogDescription>
               {selectedOrder?.revision 
-                ? `Upload revision #${selectedOrder.revision.number} untuk "${selectedOrder.photo.filename}"`
-                : `Upload foto resolusi tinggi untuk "${selectedOrder?.photo.filename}"`
+                ? `Unggah revisi #${selectedOrder.revision.number} untuk "${selectedOrder.photo.filename}"`
+                : `Unggah foto resolusi tinggi untuk "${selectedOrder?.photo.filename}"`
               }
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {/* Buyer info */}
+          {/* Konten — dapat di-scroll */}
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+
+            {/* Info Pembeli */}
             <Card className="bg-muted/50">
               <CardContent className="pt-4 space-y-2 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Buyer:</span>
+                  <span className="text-muted-foreground">Pembeli:</span>
                   <span className="font-medium">{selectedOrder?.buyer.name}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Your earning:</span>
+                  <span className="text-muted-foreground">Penghasilan Anda:</span>
                   <span className="font-bold text-green-600">
                     {selectedOrder?.payment.your_earning_formatted}
                   </span>
                 </div>
                 {selectedOrder?.revision && (
                   <div className="pt-2 border-t">
-                    <p className="font-semibold text-orange-600">Revision Reason:</p>
+                    <p className="font-semibold text-orange-600">Alasan Revisi:</p>
                     <p className="text-xs mt-1">{selectedOrder.revision.reason}</p>
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* File requirements */}
+            {/* Persyaratan File */}
             <Card className="bg-blue-50 border-blue-200">
               <CardContent className="pt-4 text-sm space-y-1">
                 <p className="font-semibold flex items-center gap-2">
                   <AlertCircle className="h-4 w-4" />
-                  Requirements:
+                  Persyaratan:
                 </p>
                 <ul className="text-muted-foreground list-disc list-inside space-y-0.5">
-                  <li>Minimum resolution: 2000x2000</li>
-                  <li>Format: JPG, PNG, or TIFF</li>
-                  <li>Maximum size: 50MB</li>
-                  <li>No watermarks</li>
+                  <li>Resolusi minimal: 2000 × 2000 piksel</li>
+                  <li>Format: JPG, PNG, atau TIFF</li>
+                  <li>Ukuran maksimal: 50MB</li>
+                  <li>Tanpa watermark</li>
                 </ul>
               </CardContent>
             </Card>
 
-            {/* Upload area */}
+            {/* Area Unggah */}
             <div 
               onClick={() => !isUploading && fileInputRef.current?.click()}
               className={`
@@ -570,15 +576,15 @@ const PhotographerPendingOrders = () => {
                 <div className="space-y-2">
                   <img 
                     src={uploadPreview} 
-                    alt="Preview" 
+                    alt="Pratinjau" 
                     className="max-h-40 mx-auto rounded"
                   />
                   <p className="text-sm font-medium">{uploadFile?.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {uploadFile && (
-                      (uploadFile.size / (1024 * 1024) > 1 
+                      uploadFile.size / (1024 * 1024) > 1 
                         ? `${(uploadFile.size / (1024 * 1024)).toFixed(2)} MB`
-                        : `${(uploadFile.size / 1024).toFixed(0)} KB`)
+                        : `${(uploadFile.size / 1024).toFixed(0)} KB`
                     )}
                   </p>
                 </div>
@@ -586,63 +592,66 @@ const PhotographerPendingOrders = () => {
                 <div className="space-y-2">
                   <Camera className="h-10 w-10 mx-auto text-muted-foreground" />
                   <p className="text-muted-foreground">
-                    Click to select hi-res file
+                    Klik untuk memilih file hi-res
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Photographer notes */}
+            {/* Catatan Fotografer */}
             <div className="space-y-2">
               <label className="text-sm font-medium">
-                Notes for buyer (optional)
+                Catatan untuk pembeli (opsional)
               </label>
               <textarea
-                className="w-full min-h-[80px] px-3 py-2 rounded-md border border-input bg-background text-sm"
-                placeholder="Add any notes about the photo, editing done, etc..."
+                className="w-full min-h-[80px] px-3 py-2 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="Tambahkan catatan mengenai foto, proses pengeditan, dll..."
                 value={photographerNotes}
                 onChange={(e) => setPhotographerNotes(e.target.value)}
                 disabled={isUploading}
               />
             </div>
 
-            {/* Upload progress */}
+            {/* Progress Unggah */}
             {isUploading && (
               <div className="space-y-2">
                 <Progress value={uploadProgress} />
                 <p className="text-sm text-center text-muted-foreground">
-                  Uploading... {uploadProgress}%
+                  Mengunggah... {uploadProgress}%
                 </p>
               </div>
             )}
           </div>
 
-          <DialogFooter>
+          {/* Footer — tetap di bawah */}
+          <DialogFooter className="px-6 py-4 border-t shrink-0 flex gap-2">
             <Button 
               variant="outline" 
               onClick={closeUploadModal}
               disabled={isUploading}
+              className="flex-1"
             >
-              Cancel
+              Batal
             </Button>
             <Button 
               onClick={handleUpload}
               disabled={!uploadFile || isUploading}
-              className="gap-2"
+              className="flex-1 gap-2"
             >
               {isUploading ? (
                 <>
                   <RefreshCw className="h-4 w-4 animate-spin" />
-                  Uploading...
+                  Mengunggah...
                 </>
               ) : (
                 <>
                   <Upload className="h-4 w-4" />
-                  Upload Hi-Res
+                  Unggah Hi-Res
                 </>
               )}
             </Button>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
 
