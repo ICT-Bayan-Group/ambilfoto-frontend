@@ -31,20 +31,21 @@ const DeveloperBilling = () => {
   const { pay, isLoaded } = useMidtransSnap();
   const { toast } = useToast();
 
-  const loadInvoices = (p = 1) => {
-    if (!id) return;
-    setLoading(true);
-    developerService.getInvoices(id, p)
-      .then((res) => {
-        if (res.success) {
-          setInvoices(res.data.invoices);
-          setTotalPages(res.data.pagination.pages);
-          setPage(p);
-        }
-      })
-      .catch(() => toast({ title: "Failed to load invoices", variant: "destructive" }))
-      .finally(() => setLoading(false));
-  };
+const loadInvoices = (p = 1) => {
+  if (!id) return;
+  setLoading(true);
+  developerService.getInvoices(id, p)
+    .then((res) => {
+      if (res.success) {
+        setInvoices(res.data.invoices);
+        // Handle both `pages` and `total_pages` from API
+        setTotalPages(res.data.pagination.pages ?? (res.data.pagination as any).total_pages ?? 1);
+        setPage(p);
+      }
+    })
+    .catch(() => toast({ title: "Failed to load invoices", variant: "destructive" }))
+    .finally(() => setLoading(false));
+};
 
   useEffect(() => { loadInvoices(); }, [id]);
 

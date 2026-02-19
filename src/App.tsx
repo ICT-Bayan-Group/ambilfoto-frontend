@@ -53,7 +53,7 @@ import DeveloperPricing from "./pages/developer/Pricing";
 import DeveloperSettings from "./pages/developer/Settings";
 import DeveloperUsage from "./pages/developer/Usage";
 import DeveloperCheckout from "./pages/developer/Checkout";
-
+import DeveloperPlayground from "./pages/developer/Playground";
 
 // ❌ DEPRECATED ROUTES - Replaced by Escrow System
 // import HiResQueue from "./pages/photographer/HiResQueue";
@@ -507,6 +507,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+          <Route path="/developer/:id/playground" element={<ProtectedRoute><DeveloperPlayground /></ProtectedRoute>} />
             {/* Payment Callback Routes */}
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/pending" element={<PaymentPending />} />

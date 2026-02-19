@@ -181,7 +181,6 @@ export const developerService = {
     return res.data;
   },
 
-  // ✅ Hitung breakdown harga sebelum bayar (subtotal + PPN + service fee)
   async calculateOrder(planId: string): Promise<{ success: boolean; data: OrderBreakdown }> {
     const res = await authApi.get('/developer/calculate-order', {
       params: { plan_id: planId },
@@ -189,14 +188,15 @@ export const developerService = {
     return res.data;
   },
 
-  // ✅ Cek apakah user sudah punya developer account & subscription aktif
   async getMe(): Promise<{ success: boolean; has_developer_account: boolean; data: DeveloperMe | null }> {
     const res = await authApi.get('/developer/me');
     return res.data;
   },
 
   // Subscribe
-  async subscribe(planId: string, companyName?: string): Promise<{ success: boolean; data: SubscribeResponse }> {
+  async subscribe(planId: string, companyName?: string): Promise<{
+    error: string; success: boolean; data: SubscribeResponse
+  }> {
     const res = await authApi.post('/developer/subscribe', {
       plan_id: planId,
       company_name: companyName,
@@ -232,10 +232,32 @@ export const developerService = {
     limit = 10
   ): Promise<{ success: boolean; data: { invoices: Invoice[]; pagination: { total: number; page: number; limit: number; pages: number } } }> {
     const res = await authApi.get(`/developer/${developerId}/invoices`, { params: { page, limit } });
-    return res.data;
+
+    const raw = res.data;
+
+    if (Array.isArray(raw?.data)) {
+      const pagination = raw.pagination ?? {};
+      return {
+        success: raw.success,
+        data: {
+          invoices: raw.data,
+          pagination: {
+            total: pagination.total ?? 0,
+            page: pagination.page ?? page,
+            limit: pagination.limit ?? limit,
+            pages: pagination.total_pages ?? pagination.pages ?? 1,
+          },
+        },
+      };
+    }
+
+    if (raw?.data?.pagination) {
+      raw.data.pagination.pages = raw.data.pagination.total_pages ?? raw.data.pagination.pages;
+    }
+    return raw;
   },
 
-  // Invoice status (setelah redirect dari Midtrans)
+  // Invoice status
   async getInvoiceStatus(invoiceId: string): Promise<{ success: boolean; data: {
     invoice_id: string;
     invoice_number: string;
@@ -246,7 +268,7 @@ export const developerService = {
     developer_id: string;
     paid_at: string | null;
     subscription_active: boolean;
-  }}> {
+  } }> {
     const res = await authApi.get(`/developer/invoice/${invoiceId}/status`);
     return res.data;
   },
@@ -274,13 +296,35 @@ export const developerService = {
     return res.data;
   },
 
-  // Usage Analytics
+  // Usage Analytics — normalize field names from API response
   async getUsageAnalytics(
     developerId: string,
     days = 30
   ): Promise<{ success: boolean; data: UsageAnalytics }> {
     const res = await authApi.get(`/developer/${developerId}/usage`, { params: { days } });
-    return res.data;
+    const raw = res.data;
+
+    if (raw?.success && raw?.data?.totals) {
+      const t = raw.data.totals;
+      // Normalize: API returns total_requests/success_requests/error_requests
+      // but our interface expects requests/success/errors
+      const requests: number = t.total_requests ?? t.requests ?? 0;
+      const success: number = t.success_requests ?? t.success ?? 0;
+      const errors: number = t.error_requests ?? t.errors ?? 0;
+      const success_rate: number =
+        t.success_rate ?? (requests > 0 ? Math.round((success / requests) * 100 * 10) / 10 : 0);
+      const avg_response_ms: number = t.avg_response_ms ?? 0;
+
+      return {
+        success: raw.success,
+        data: {
+          ...raw.data,
+          totals: { requests, success, errors, success_rate, avg_response_ms },
+        },
+      };
+    }
+
+    return raw;
   },
 
   async getRealtimeUsage(developerId: string): Promise<{ success: boolean; data: RealtimeUsage }> {

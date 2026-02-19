@@ -11,6 +11,8 @@ import {
   LogOut,
   Code2,
   ChevronRight,
+  Play,
+  ImagePlay,
 } from "lucide-react";
 
 interface DeveloperLayoutProps {
@@ -24,6 +26,7 @@ const navItems = (id: string) => [
   { label: "Usage & Analytics", href: `/developer/${id}/usage`, icon: BarChart3 },
   { label: "Billing", href: `/developer/${id}/billing`, icon: FileText },
   { label: "Settings", href: `/developer/${id}/settings`, icon: Settings },
+  { label: "PLayground", href: `/developer/${id}/playground`, icon: ImagePlay },
 ];
 
 export const DeveloperLayout = ({ children, developerId }: DeveloperLayoutProps) => {
@@ -43,12 +46,14 @@ export const DeveloperLayout = ({ children, developerId }: DeveloperLayoutProps)
         {/* Logo */}
         <div className="p-6 border-b border-border">
           <Link to="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <Code2 className="h-4 w-4 text-primary-foreground" />
-            </div>
+            <img 
+            src="https://res.cloudinary.com/dwyi4d3rq/image/upload/v1765171746/ambilfoto-logo_hvn8s2.png" 
+            alt="Logo AmbilFoto.id" 
+            className="h-16 w-auto"
+             />
             <div>
-              <p className="font-bold text-sm leading-tight">AmbildFoto</p>
-              <p className="text-xs text-muted-foreground">Developer Platform</p>
+              <p className="font-bold text-sm leading-tight">AmbilFoto</p>
+              <p className="text-xs text-muted-foreground">API Developer Platform</p>
             </div>
           </Link>
         </div>
