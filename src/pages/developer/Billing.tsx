@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileText, RefreshCw, Download } from "lucide-react";
+import { FileText, Download, Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 const formatRupiah = (v: number) =>
@@ -28,26 +28,42 @@ const DeveloperBilling = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [renewLoading, setRenewLoading] = useState(false);
+  // FIX: track which invoice row is downloading (null = none)
+  const [pdfLoading, setPdfLoading] = useState<string | null>(null);
   const { pay, isLoaded } = useMidtransSnap();
   const { toast } = useToast();
 
-const loadInvoices = (p = 1) => {
-  if (!id) return;
-  setLoading(true);
-  developerService.getInvoices(id, p)
-    .then((res) => {
-      if (res.success) {
-        setInvoices(res.data.invoices);
-        // Handle both `pages` and `total_pages` from API
-        setTotalPages(res.data.pagination.pages ?? (res.data.pagination as any).total_pages ?? 1);
-        setPage(p);
-      }
-    })
-    .catch(() => toast({ title: "Failed to load invoices", variant: "destructive" }))
-    .finally(() => setLoading(false));
-};
+  // FIX: service now returns { success, data: { invoices, pagination: { pages } } }
+  const loadInvoices = (p = 1) => {
+    if (!id) return;
+    setLoading(true);
+    developerService.getInvoices(id, p)
+      .then((res) => {
+        if (res.success) {
+          setInvoices(res.data.invoices);             // FIX: was res.data.invoices (same shape now)
+          setTotalPages(res.data.pagination.pages);   // FIX: normalised from total_pages → pages
+          setPage(p);
+        }
+      })
+      .catch(() => toast({ title: "Failed to load invoices", variant: "destructive" }))
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => { loadInvoices(); }, [id]);
+
+  // FIX: implement PDF download handler
+  const handleDownloadPdf = async (inv: Invoice) => {
+    if (!id || inv.status !== "paid") return;
+    setPdfLoading(inv.id);
+    await developerService.downloadReceiptPdf(
+      id,
+      inv.id,
+      inv.invoice_number,
+      undefined,
+      (msg) => toast({ title: "Gagal mengunduh PDF", description: msg, variant: "destructive" })
+    );
+    setPdfLoading(null);
+  };
 
   if (!id) return null;
 
@@ -100,9 +116,29 @@ const loadInvoices = (p = 1) => {
                       <Badge variant="outline" className={statusColors[inv.status] || ""}>
                         {inv.status}
                       </Badge>
-                      <p className="font-semibold text-sm">{formatRupiah(inv.amount)}</p>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Download">
-                        <Download className="h-3.5 w-3.5" />
+
+                      {/* FIX: show total_amount (including tax) instead of amount (subtotal only) */}
+                      <p className="font-semibold text-sm min-w-[90px] text-right">
+                        {formatRupiah(inv.total_amount ?? inv.amount)}
+                      </p>
+
+                      {/* FIX: wired up — spinner on the row being downloaded, disabled for unpaid */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        title={
+                          inv.status === "paid"
+                            ? "Download Receipt PDF"
+                            : "Receipt hanya tersedia untuk invoice yang sudah lunas"
+                        }
+                        disabled={inv.status !== "paid" || pdfLoading === inv.id}
+                        onClick={() => handleDownloadPdf(inv)}
+                      >
+                        {pdfLoading === inv.id
+                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          : <Download className="h-3.5 w-3.5" />
+                        }
                       </Button>
                     </div>
                   </div>
