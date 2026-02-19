@@ -39,6 +39,9 @@ const DeveloperUsage = () => {
 
   if (!id) return null;
 
+  // Guard: realtime data valid only when uploads & storage are both present
+  const hasRealtime = realtime && realtime.uploads && realtime.storage;
+
   return (
     <DeveloperLayout developerId={id}>
       <div className="space-y-6">
@@ -67,7 +70,7 @@ const DeveloperUsage = () => {
         {/* Realtime quota */}
         {loading ? (
           <Skeleton className="h-48 rounded-xl" />
-        ) : realtime ? (
+        ) : hasRealtime ? (
           <Card className="shadow-soft">
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
@@ -94,7 +97,14 @@ const DeveloperUsage = () => {
               />
             </CardContent>
           </Card>
-        ) : null}
+        ) : !loading && (
+          <Card className="shadow-soft">
+            <CardContent className="pt-6 pb-6 text-center text-muted-foreground text-sm">
+              <Zap className="h-8 w-8 mx-auto mb-2 opacity-30" />
+              No active subscription quota data available.
+            </CardContent>
+          </Card>
+        )}
 
         {/* Summary stats */}
         {analytics && (
@@ -179,6 +189,16 @@ const DeveloperUsage = () => {
                   );
                 })}
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Empty state when no analytics data */}
+        {!loading && analytics && analytics.daily_trend.length === 0 && analytics.by_endpoint.length === 0 && (
+          <Card className="shadow-soft">
+            <CardContent className="pt-6 pb-6 text-center text-muted-foreground text-sm">
+              <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-30" />
+              No request data for the selected period.
             </CardContent>
           </Card>
         )}

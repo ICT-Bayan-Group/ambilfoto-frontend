@@ -194,34 +194,54 @@ const DeveloperCheckout = () => {
       if (!res.success) {
         toast({
           title: "Gagal membuat order",
-          description: "Silakan coba lagi",
+          description: res.error ?? "Silakan coba lagi",
           variant: "destructive",
         });
-        setPaying(false);
         return;
       }
 
-      const { token, payment_url, developer_id, invoice_id } = res.data;
+      const { token, payment_url, developer_id } = res.data;
+      const invoiceId = res.data.invoice_id;
+
+      const goToFinish = () =>
+        navigate(`/developer/payment/finish?invoice_id=${invoiceId}&developer_id=${developer_id}`);
 
       if (isLoaded && token) {
-        // Buka Midtrans Snap popup
-        pay(token, {
-          onSuccess: () =>
-            navigate(`/developer/payment/finish?invoice_id=${invoice_id}&developer_id=${developer_id}`),
-          onPending: () =>
-            navigate(`/developer/payment/pending?invoice_id=${invoice_id}&developer_id=${developer_id}`),
-          onError: () => {
-            toast({ title: "Pembayaran gagal", variant: "destructive" });
+        await pay(token, {
+          // ✅ onSuccess & onPending keduanya → /finish
+          // Sama seperti payment.controller.js — backend yang tanya Midtrans langsung
+          onSuccess: goToFinish,
+          onPending: goToFinish,
+
+          onError: (result) => {
+            console.error('Midtrans payment error:', result);
+            toast({
+              title: "Pembayaran gagal",
+              description: "Silakan coba lagi atau pilih metode pembayaran lain.",
+              variant: "destructive",
+            });
             setPaying(false);
           },
-          onClose: () => setPaying(false),
+
+          // ✅ onClose: user tutup popup — cek dulu ke backend pakai Midtrans direct check
+          // Sama seperti pola checkTransactionStatus di payment.controller.js
+          onClose: async () => {
+            try {
+              const statusRes = await developerService.getInvoiceStatus(invoiceId);
+              if (statusRes.success && statusRes.data.subscription_active) {
+                // Sudah terbayar sebelum popup ditutup → tetap redirect ke finish
+                goToFinish();
+              } else {
+                setPaying(false);
+              }
+            } catch {
+              setPaying(false);
+            }
+          },
         });
-      } else if (payment_url) {
+      } else {
         // Fallback: redirect langsung ke Midtrans jika Snap belum loaded
         window.location.href = payment_url;
-      } else {
-        toast({ title: "Error", description: "Token pembayaran tidak valid", variant: "destructive" });
-        setPaying(false);
       }
     } catch (err: any) {
       const msg = err?.response?.data?.error ?? "Terjadi kesalahan";
