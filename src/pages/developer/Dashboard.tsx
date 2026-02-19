@@ -47,7 +47,8 @@ const DeveloperDashboard = () => {
 
   const sub = overview?.subscription;
   const usage = overview?.usage;
-  const keys = overview?.api_keys || [];
+  // FIX: was `overview?.api_keys` — backend + DeveloperOverview type both use `keys`
+  const keys = overview?.keys || [];
   const dev = overview?.developer;
 
   const statusColor = sub?.status === "active" ? "bg-secondary text-secondary-foreground" : "bg-destructive text-destructive-foreground";
