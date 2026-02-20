@@ -19,21 +19,38 @@ authApi.interceptors.request.use((config) => {
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 
+export type BillingCycle = 'monthly' | 'yearly';
+
 export interface Plan {
   id: string;
   slug: string;
   name: string;
-  storage_gb: number;
-  upload_limit: number;
-  price: number;
-  price_formatted: string;
-  upload_label: string;
-  storage_label: string;
+  color_tag: string;
+  target_segment: string;
+  positioning: string;
+  // Pricing (NEW — replaces single `price`)
+  price_monthly: number;
+  price_yearly: number;
+  discount_yearly_pct: number;
+  price_monthly_formatted: string;
+  price_yearly_formatted: string | null;
+  // Limits
+  api_hit_limit: number;         // replaces upload_limit
+  upload_limit_monthly?: number; // alias jika backend masih kirim keduanya
   rate_limit_rpm: number;
   sla_hours: number;
+  sla_label: string;             // NEW
+  support_channel: string;       // NEW: "email" | "whatsapp_email" | "24_7_call"
   support_level: string;
+  // Display labels
+  upload_label: string;
   is_custom: number;
+  sort_order: number;
   features: string[];
+  // Legacy compat (may still come from backend for old plans)
+  storage_gb?: number;
+  upload_limit?: number;
+  price?: number;
 }
 
 export interface DeveloperProfile {
@@ -46,7 +63,6 @@ export interface DeveloperProfile {
   dashboard_url?: string;
 }
 
-// Backend returns limits nested; getOverview() normalises them to flat fields.
 export interface Subscription {
   id: string;
   status: 'active' | 'expired' | 'cancelled';
@@ -57,26 +73,37 @@ export interface Subscription {
   end_date: string;
   days_remaining: number;
   features: string[];
-  // Flat — available after getOverview() normalisation
-  storage_gb: number;
-  upload_limit: number;
+  // Billing cycle info (NEW)
+  billing_cycle: BillingCycle;
+  cycle_price: number;
+  total_billed_amount: number;
+  savings_amount: number;
+  // Limits (flat after normalisation)
+  api_hit_limit: number;
   rate_limit_rpm: number;
+  sla_label: string;
+  support_channel: string;
   sla_hours: number;
   support_level: string;
-  // Nested — as originally returned by backend (kept for reference)
+  // Legacy flat fields (kept for compat)
+  storage_gb?: number;
+  upload_limit?: number;
   limits?: {
-    storage_gb: number;
-    upload_limit: number;
+    api_hit_limit: number;
     rate_limit_rpm: number;
+    sla_label: string;
+    support_channel: string;
     sla_hours: number;
     support_level: string;
+    storage_gb?: number;
+    upload_limit?: number;
   };
 }
 
 export interface UsageStat {
-  storage: {
+  storage?: {
     used_mb: number;
-    used_gb: number;   // pre-calculated by getOverview()
+    used_gb: number;
     limit_gb: number;
     pct: number;
   };
@@ -90,9 +117,6 @@ export interface UsageStat {
   this_month: { used_mb: number; upload_count: number };
 }
 
-// FIX: field names match backend response AND all component usage:
-//   - key_type  (not `type`)       — used by DeveloperKeys, DeveloperPlayground, DeveloperDashboard
-//   - key_preview (not `preview`)  — stored by backend
 export interface ApiKey {
   id: string;
   key_type: 'dev' | 'prod';
@@ -106,8 +130,6 @@ export interface ApiKey {
   request_count: number;
 }
 
-// FIX: `keys` (not `api_keys`) — matches backend getOverview response
-//      and fixes DeveloperDashboard.tsx `overview?.api_keys` → `overview?.keys`
 export interface DeveloperOverview {
   developer: DeveloperProfile;
   subscription: Subscription | null;
@@ -122,6 +144,11 @@ export interface Invoice {
   plan_slug: string;
   amount: number;
   total_amount: number;
+  // Billing cycle info (NEW)
+  billing_cycle: BillingCycle;
+  price_per_month: number;
+  savings_amount: number;
+  discount_pct: number;
   status: 'pending' | 'paid' | 'cancelled' | 'refunded';
   paid_at: string | null;
   created_at: string;
@@ -129,9 +156,6 @@ export interface Invoice {
   pdf_url: string | null;
 }
 
-// FIX: getInvoices() returns this shape directly (flat, not nested under `data`).
-//   DeveloperBilling.tsx accesses: res.data.invoices + res.data.pagination.pages
-//   → Now we match that exact shape.
 export interface InvoicesResponse {
   success: boolean;
   data: {
@@ -140,7 +164,7 @@ export interface InvoicesResponse {
       total: number;
       page: number;
       limit: number;
-      pages: number;   // normalised from total_pages
+      pages: number;
     };
   };
 }
@@ -156,6 +180,7 @@ export interface SubscribeResponse {
     price: number;
     price_formatted: string;
   };
+  billing_cycle: BillingCycle;
   payment_url: string;
   token: string;
   expired_at: string;
@@ -176,20 +201,26 @@ export interface UsageAnalytics {
 
 export interface RealtimeUsage {
   uploads: { used: number; limit: number; remaining: number | null; pct: number };
-  storage: { used_mb: number; limit_mb: number; remaining_mb: number; pct: number };
+  storage?: { used_mb: number; limit_mb: number; remaining_mb: number; pct: number };
   expires_in_days: number;
 }
 
+// NEW: billing_cycle aware breakdown
 export interface OrderBreakdown {
   plan: {
     id: string;
     slug: string;
     name: string;
-    storage_gb: number;
-    upload_limit: number;
+    color_tag: string;
+    api_hit_limit: number;
     rate_limit_rpm: number;
+    sla_label: string;
+    support_channel: string;
     support_level: string;
     features: string[];
+    // Legacy compat
+    storage_gb?: number;
+    upload_limit?: number;
   };
   breakdown: {
     subtotal: number;
@@ -201,6 +232,14 @@ export interface OrderBreakdown {
     service_fee_formatted: string;
     total: number;
     total_formatted: string;
+    // NEW
+    billing_cycle: BillingCycle;
+    price_per_month: number;
+    price_per_month_formatted: string;
+    savings_amount: number;
+    savings_formatted: string;
+    discount_pct: number;
+    duration_days: number;
   };
   period_days: number;
   note: string;
@@ -217,6 +256,7 @@ export interface DeveloperMe {
     plan_name: string;
     end_date: string;
     days_remaining: number;
+    billing_cycle: BillingCycle;
   } | null;
 }
 
@@ -241,10 +281,6 @@ export function getInvoicePdfUrl(developerId: string, invoiceId: string): string
   return `${AUTH_API_URL}/developer/${developerId}/invoices/${invoiceId}/pdf`;
 }
 
-/**
- * Trigger browser Save-As download for a receipt PDF.
- * Uses fetch (not <a href>) so the JWT Authorization header is sent.
- */
 export async function downloadInvoicePdf(
   developerId: string,
   invoiceId: string,
@@ -283,11 +319,63 @@ export const developerService = {
 
   async getPlans(): Promise<{ success: boolean; data: Plan[] }> {
     const res = await authApi.get('/developer/plans');
-    return res.data;
+    const raw = res.data;
+
+    // ── Normalise plan fields from actual API response shape:
+    //    plan.pricing.monthly.price  → plan.price_monthly
+    //    plan.pricing.yearly.price   → plan.price_yearly
+    //    plan.limits.api_hit_limit   → plan.api_hit_limit
+    //    plan.limits.rate_limit_rpm  → plan.rate_limit_rpm
+    //    plan.limits.sla_label       → plan.sla_label
+    //    plan.limits.support_channel → plan.support_channel
+    if (raw?.success && Array.isArray(raw?.data)) {
+      raw.data = raw.data.map((p: any) => {
+        const pricing = p.pricing ?? {};
+        const monthly = pricing.monthly ?? {};
+        const yearly  = pricing.yearly  ?? {};
+        const limits  = p.limits        ?? {};
+
+        // Hitung diskon yearly
+        const priceMonthly = monthly.price ?? p.price ?? 0;
+        const priceYearly  = yearly.price  ?? priceMonthly;
+        const discountPct  = priceMonthly > 0 && priceYearly < priceMonthly
+          ? Math.round((1 - priceYearly / priceMonthly) * 100)
+          : 0;
+
+        return {
+          ...p,
+          // Pricing flat fields
+          price_monthly:           priceMonthly,
+          price_yearly:            priceYearly,
+          discount_yearly_pct:     discountPct,
+          price_monthly_formatted: monthly.price_formatted ?? p.price_formatted ?? `Rp ${priceMonthly.toLocaleString('id-ID')}`,
+          price_yearly_formatted:  yearly.price_formatted  ?? null,
+          // Limits flat fields
+          api_hit_limit:    limits.api_hit_limit   ?? p.api_hit_limit   ?? 0,
+          rate_limit_rpm:   limits.rate_limit_rpm  ?? p.rate_limit_rpm  ?? 0,
+          sla_hours:        limits.sla_hours        ?? p.sla_hours       ?? 0,
+          sla_label:        limits.sla_label        ?? p.sla_label       ?? '-',
+          support_channel:  limits.support_channel  ?? p.support_channel ?? 'email',
+          support_level:    limits.support_level    ?? p.support_level   ?? 'email',
+          // is_custom as number (normalise boolean → number)
+          is_custom: p.is_custom === true ? 1 : (p.is_custom === false ? 0 : (p.is_custom ?? 0)),
+        };
+      });
+    }
+
+    return raw;
   },
 
-  async calculateOrder(planId: string): Promise<{ success: boolean; data: OrderBreakdown }> {
-    const res = await authApi.get('/developer/calculate-order', { params: { plan_id: planId } });
+  /**
+   * NEW: billing_cycle param untuk kalkulasi harga yearly/monthly
+   */
+  async calculateOrder(
+    planId: string,
+    billingCycle: BillingCycle = 'monthly'
+  ): Promise<{ success: boolean; data: OrderBreakdown }> {
+    const res = await authApi.get('/developer/calculate-order', {
+      params: { plan_id: planId, billing_cycle: billingCycle },
+    });
     return res.data;
   },
 
@@ -304,16 +392,33 @@ export const developerService = {
 
   // ── Subscription ──────────────────────────────────────────────────────────
 
+  /**
+   * NEW: billing_cycle param — 'monthly' | 'yearly'
+   */
   async subscribe(
     planId: string,
+    billingCycle: BillingCycle = 'monthly',
     companyName?: string
   ): Promise<{ success: boolean; error?: string; data: SubscribeResponse }> {
-    const res = await authApi.post('/developer/subscribe', { plan_id: planId, company_name: companyName });
+    const res = await authApi.post('/developer/subscribe', {
+      plan_id:       planId,
+      billing_cycle: billingCycle,
+      company_name:  companyName,
+    });
     return res.data;
   },
 
-  async renew(planId: string): Promise<{ success: boolean; data: SubscribeResponse }> {
-    const res = await authApi.post('/developer/renew', { plan_id: planId });
+  /**
+   * NEW: billing_cycle param untuk renewal
+   */
+  async renew(
+    planId: string,
+    billingCycle: BillingCycle = 'monthly'
+  ): Promise<{ success: boolean; data: SubscribeResponse }> {
+    const res = await authApi.post('/developer/renew', {
+      plan_id:       planId,
+      billing_cycle: billingCycle,
+    });
     return res.data;
   },
 
@@ -331,26 +436,47 @@ export const developerService = {
     const res = await authApi.get(`/developer/${developerId}`);
     const raw = res.data;
 
-    // Normalise: flatten subscription.limits → top-level fields
-    // so DeveloperDashboard can use sub.storage_gb / sub.rate_limit_rpm directly
-    if (raw?.data?.subscription?.limits) {
-      const lim = raw.data.subscription.limits;
+    // Normalise subscription.limits → top-level fields
+    if (raw?.data?.subscription) {
       const sub = raw.data.subscription;
+      const lim = sub.limits ?? {};
       raw.data.subscription = {
         ...sub,
-        storage_gb:     sub.storage_gb     ?? lim.storage_gb,
-        upload_limit:   sub.upload_limit   ?? lim.upload_limit,
-        rate_limit_rpm: sub.rate_limit_rpm ?? lim.rate_limit_rpm,
-        sla_hours:      sub.sla_hours      ?? lim.sla_hours,
-        support_level:  sub.support_level  ?? lim.support_level,
+        // NEW fields (prioritize top-level, fallback to limits)
+        api_hit_limit:   sub.api_hit_limit   ?? lim.api_hit_limit   ?? sub.upload_limit ?? lim.upload_limit ?? 0,
+        rate_limit_rpm:  sub.rate_limit_rpm  ?? lim.rate_limit_rpm  ?? 60,
+        sla_label:       sub.sla_label       ?? lim.sla_label       ?? '-',
+        support_channel: sub.support_channel ?? lim.support_channel ?? 'email',
+        sla_hours:       sub.sla_hours       ?? lim.sla_hours       ?? 0,
+        support_level:   sub.support_level   ?? lim.support_level   ?? '-',
+        // Billing cycle
+        billing_cycle:        sub.billing_cycle        ?? 'monthly',
+        cycle_price:          sub.cycle_price          ?? 0,
+        total_billed_amount:  sub.total_billed_amount  ?? 0,
+        savings_amount:       sub.savings_amount       ?? 0,
+        // Legacy compat
+        storage_gb:    sub.storage_gb   ?? lim.storage_gb   ?? 0,
+        upload_limit:  sub.upload_limit ?? lim.upload_limit ?? sub.api_hit_limit ?? 0,
       };
     }
 
-    // Ensure usage.storage.used_gb is pre-calculated
-    if (raw?.data?.usage?.storage) {
-      const s = raw.data.usage.storage;
-      s.used_gb  = s.used_gb  ?? Math.round((s.used_mb / 1024) * 100) / 100;
-      s.limit_gb = s.limit_gb ?? (raw.data.subscription?.storage_gb ?? 0);
+    // Ensure usage fields normalised (storage may not exist in new plans)
+    if (raw?.data?.usage) {
+      const u = raw.data.usage;
+      if (u.storage) {
+        u.storage.used_gb  = u.storage.used_gb  ?? Math.round((u.storage.used_mb / 1024) * 100) / 100;
+        u.storage.limit_gb = u.storage.limit_gb ?? (raw.data.subscription?.storage_gb ?? 0);
+      }
+      // Normalise uploads field name (backend may send upload_used/upload_limit)
+      if (!u.uploads && u.upload_used !== undefined) {
+        const used  = u.upload_used  ?? 0;
+        const limit = u.upload_limit ?? raw.data.subscription?.api_hit_limit ?? 0;
+        u.uploads = {
+          used,
+          limit,
+          pct: limit > 0 ? Math.round((used / limit) * 100) : 0,
+        };
+      }
     }
 
     return raw;
@@ -366,15 +492,10 @@ export const developerService = {
 
   // ── Invoices ──────────────────────────────────────────────────────────────
 
-  // FIX: returns { success, data: { invoices, pagination: { pages } } }
-  // to match exactly what DeveloperBilling.tsx accesses:
-  //   res.data.invoices
-  //   res.data.pagination.pages
   async getInvoices(developerId: string, page = 1, limit = 10): Promise<InvoicesResponse> {
     const res = await authApi.get(`/developer/${developerId}/invoices`, { params: { page, limit } });
     const raw = res.data;
 
-    // Backend returns: { success, data: Invoice[], pagination: { total, page, limit, total_pages } }
     const invoices: Invoice[] = Array.isArray(raw?.data) ? raw.data : (raw?.data?.invoices ?? []);
     const pg = raw?.pagination ?? raw?.data?.pagination ?? {};
 
@@ -399,17 +520,6 @@ export const developerService = {
 
   // ── PDF Receipt ───────────────────────────────────────────────────────────
 
-  /**
-   * Download receipt PDF and trigger browser Save-As dialog.
-   *
-   * @example
-   * const [pdfLoading, setPdfLoading] = useState<string | null>(null);
-   * await developerService.downloadReceiptPdf(
-   *   developerId, invoice.id, invoice.invoice_number,
-   *   (v) => setPdfLoading(v ? invoice.id : null),
-   *   (msg) => toast({ title: msg, variant: 'destructive' })
-   * );
-   */
   async downloadReceiptPdf(
     developerId: string,
     invoiceId: string,
@@ -468,7 +578,6 @@ export const developerService = {
     const res = await authApi.get(`/developer/${developerId}/usage`, { params: { days } });
     const raw = res.data;
 
-    // Normalise field names from backend
     if (raw?.success && raw?.data?.totals) {
       const t = raw.data.totals;
       const requests = t.total_requests   ?? t.requests ?? 0;

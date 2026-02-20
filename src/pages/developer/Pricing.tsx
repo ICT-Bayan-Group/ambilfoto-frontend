@@ -1,13 +1,11 @@
 /**
- * DeveloperPricing.tsx  (UPDATED)
+ * DeveloperPricing.tsx (UPDATED — billing cycle toggle)
  *
  * Perubahan dari versi sebelumnya:
- *  - handleSelect: tidak lagi buka Dialog inline
- *  - Langsung navigate ke /developer/checkout?plan_id=xxx
- *  - Jika belum login → navigate ke /login dengan redirect state
- *  - Dialog subscribe dihapus (pindah ke DeveloperCheckout.tsx)
- *
- * Semua kode lain (hero, stats, features, plans grid, GSAP) TETAP sama persis.
+ *  - Tambah toggle Monthly / Yearly di atas grid plan
+ *  - billingCycle state dikirim ke DeveloperCheckout via URL param
+ *  - navigate ke /developer/checkout?plan_id=xxx&billing_cycle=yearly
+ *  - Semua logic hero, stats, features, GSAP, canvas TETAP sama
  */
 
 import { useState, useEffect, useRef } from "react";
@@ -15,7 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PlanCard } from "@/components/developer/PlanCard";
-import { developerService, Plan } from "@/services/api/developer.service";
+import { developerService, Plan, BillingCycle } from "@/services/api/developer.service";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,6 +36,10 @@ declare global {
     ScrollTrigger: any;
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
 function StatCard({ value, label, sub }: { value: string; label: string; sub: string }) {
   return (
@@ -74,14 +76,117 @@ function TrustBadge({ text }: { text: string }) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Billing Cycle Toggle Component
+// ─────────────────────────────────────────────────────────────────────────────
+
+function BillingCycleToggle({
+  value,
+  onChange,
+  plans,
+}: {
+  value: BillingCycle;
+  onChange: (v: BillingCycle) => void;
+  plans: Plan[];
+}) {
+  // Ambil rata-rata discount yearly dari plan yang ada
+  const avgDiscount = plans.length > 0
+    ? Math.round(
+        plans
+          .filter((p) => !p.is_custom && p.discount_yearly_pct > 0)
+          .reduce((sum, p) => sum + p.discount_yearly_pct, 0) /
+        Math.max(plans.filter((p) => !p.is_custom && p.discount_yearly_pct > 0).length, 1)
+      )
+    : 8;
+
+  return (
+    <div className="flex items-center justify-center gap-4 mb-10">
+      {/* Label Bulanan */}
+      <span
+        onClick={() => onChange('monthly')}
+        className={`text-sm font-semibold cursor-pointer select-none transition-all duration-200 ${
+          value === 'monthly' ? 'text-slate-800 scale-105' : 'text-slate-400'
+        }`}
+      >
+        Bulanan
+      </span>
+
+      {/* Toggle switch — smooth iOS-style */}
+      <button
+        type="button"
+        role="switch"
+        aria-checked={value === 'yearly'}
+        onClick={() => onChange(value === 'monthly' ? 'yearly' : 'monthly')}
+        style={{
+          width: 52,
+          height: 28,
+          borderRadius: 999,
+          padding: 3,
+          border: 'none',
+          cursor: 'pointer',
+          outline: 'none',
+          transition: 'background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          backgroundColor: value === 'yearly' ? '#2563EB' : '#CBD5E1',
+          display: 'flex',
+          alignItems: 'center',
+          position: 'relative',
+          flexShrink: 0,
+        }}
+      >
+        <span
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: '50%',
+            backgroundColor: '#fff',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.10)',
+            transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            transform: value === 'yearly' ? 'translateX(24px)' : 'translateX(0px)',
+            display: 'block',
+            flexShrink: 0,
+          }}
+        />
+      </button>
+
+      {/* Label Tahunan */}
+      <span
+        onClick={() => onChange('yearly')}
+        className={`text-sm font-semibold cursor-pointer select-none transition-all duration-200 flex items-center gap-2 ${
+          value === 'yearly' ? 'text-slate-800 scale-105' : 'text-slate-400'
+        }`}
+      >
+        Tahunan
+        {avgDiscount > 0 && (
+          <span
+            className="px-2 py-0.5 rounded-full text-xs font-bold transition-all duration-300"
+            style={{
+              backgroundColor: value === 'yearly' ? '#d1fae5' : '#f1f5f9',
+              color: value === 'yearly' ? '#065f46' : '#94a3b8',
+            }}
+          >
+            Hemat s/d {avgDiscount}%
+          </span>
+        )}
+      </span>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Component
+// ─────────────────────────────────────────────────────────────────────────────
+
 const DeveloperPricing = () => {
-  const [plans,   setPlans]   = useState<Plan[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { isAuthenticated }   = useAuth();
-  const navigate              = useNavigate();
-  const { toast }             = useToast();
-  const heroRef               = useRef<HTMLElement>(null);
-  const canvasRef             = useRef<HTMLCanvasElement>(null);
+  const [plans,        setPlans]        = useState<Plan[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  // NEW: billing cycle toggle state
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
+
+  const { isAuthenticated } = useAuth();
+  const navigate            = useNavigate();
+  const { toast }           = useToast();
+  const heroRef             = useRef<HTMLElement>(null);
+  const canvasRef           = useRef<HTMLCanvasElement>(null);
 
   /* ── Load plans ── */
   useEffect(() => {
@@ -92,7 +197,7 @@ const DeveloperPricing = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  /* ── Canvas particle bg (sama persis) ── */
+  /* ── Canvas particle bg ── */
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -131,7 +236,7 @@ const DeveloperPricing = () => {
     return () => { cancelAnimationFrame(animId); window.removeEventListener("resize", resize); };
   }, []);
 
-  /* ── GSAP (sama persis) ── */
+  /* ── GSAP ── */
   useEffect(() => {
     const loadGSAP = () => new Promise<void>((resolve) => {
       if (window.gsap) { resolve(); return; }
@@ -165,31 +270,29 @@ const DeveloperPricing = () => {
     });
   }, []);
 
-  /* ══════════════════════════════════════════════════════
-     ✅ HANDLER UTAMA — navigate ke checkout
-  ══════════════════════════════════════════════════════ */
+  /* ── Handle select plan — kirim billing_cycle ke checkout ── */
   const handleSelect = (plan: Plan) => {
     if (plan.is_custom) {
       window.open("mailto:support@ambilfoto.id?subject=Custom API Plan", "_blank");
       return;
     }
     if (!isAuthenticated) {
-      // Simpan plan yang dipilih di sessionStorage supaya setelah login bisa lanjut
       sessionStorage.setItem("pending_plan_id", plan.id);
-      navigate(`/login?redirect=${encodeURIComponent(`/developer/checkout?plan_id=${plan.id}`)}`);
+      sessionStorage.setItem("pending_billing_cycle", billingCycle);
+      navigate(`/login?redirect=${encodeURIComponent(`/developer/checkout?plan_id=${plan.id}&billing_cycle=${billingCycle}`)}`);
       return;
     }
-    // Langsung ke halaman checkout
-    navigate(`/developer/checkout?plan_id=${plan.id}`);
+    // NEW: sertakan billing_cycle di URL
+    navigate(`/developer/checkout?plan_id=${plan.id}&billing_cycle=${billingCycle}`);
   };
 
-  const popularIndex = plans.findIndex((p) => p.slug === "super-2");
+  const popularIndex = plans.findIndex((p) => p.slug === "developer" || p.slug === "super-2");
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 font-sans">
       <Header />
 
-      {/* HERO */}
+      {/* ── HERO ── */}
       <section ref={heroRef} className="relative overflow-hidden bg-white border-b border-slate-100 py-24 md:py-32">
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
         <div className="orb-1 absolute -top-24 -left-24 w-96 h-96 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 opacity-60 blur-3xl pointer-events-none" />
@@ -209,7 +312,7 @@ const DeveloperPricing = () => {
             ke Aplikasimu
           </h1>
           <p className="hero-sub text-lg text-slate-500 max-w-xl mx-auto leading-relaxed mb-8">
-            API berbasis subscription bulanan. Dual key (dev &amp; prod), storage quota, upload limit, dan support level berbeda tiap paket.
+            API berbasis subscription bulanan atau tahunan. Dual key (dev &amp; prod), API hit limit, dan support level berbeda tiap paket.
           </p>
           <div className="hero-cta flex flex-wrap gap-3 justify-center mb-10">
             <button
@@ -225,28 +328,28 @@ const DeveloperPricing = () => {
             </a>
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-2 justify-center">
-            {["Aktif instan setelah bayar", "Cancel kapan saja", "Enkripsi end-to-end", "99.9% uptime SLA"].map((t) => (
+            {["Aktif instan setelah bayar", "Hemat s/d 8% dengan tahunan", "Enkripsi end-to-end", "99.9% uptime SLA"].map((t) => (
               <TrustBadge key={t} text={t} />
             ))}
           </div>
         </div>
       </section>
 
-      {/* STATS */}
+      {/* ── STATS ── */}
       <section className="stats-section py-12 bg-slate-50">
         <div className="container max-w-4xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { value: "512-dim", label: "Face Embedding",  sub: "Akurasi tinggi"       },
               { value: "< 200ms", label: "Response Time",   sub: "API latency rata-rata" },
-              { value: "10K+",    label: "Foto/bulan",      sub: "Paket tertinggi"       },
+              { value: "40K+",    label: "Hit API/bulan",   sub: "Paket Enterprise"      },
               { value: "99.9%",   label: "Uptime SLA",      sub: "Terjamin kontrak"      },
             ].map((s) => <StatCard key={s.label} {...s} />)}
           </div>
         </div>
       </section>
 
-      {/* FEATURES */}
+      {/* ── FEATURES ── */}
       <section className="features-section py-12 bg-white border-y border-slate-100">
         <div className="container max-w-4xl mx-auto px-6">
           <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Semua paket sudah termasuk</p>
@@ -265,41 +368,56 @@ const DeveloperPricing = () => {
         </div>
       </section>
 
-      {/* PLANS */}
+      {/* ── PLANS ── */}
       <section id="plans" className="plans-section py-20 bg-slate-50">
         <div className="container max-w-6xl mx-auto px-6">
-          <div className="plans-heading text-center mb-12">
+          <div className="plans-heading text-center mb-8">
             <span className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-full px-3 py-1 mb-3">
               💡 Transparan tanpa biaya tersembunyi
             </span>
             <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-3">Pilih Paket yang Tepat</h2>
-            <p className="text-slate-500 max-w-md mx-auto text-sm">Semua paket aktif 30 hari. Bisa renew atau upgrade kapan saja.</p>
+            <p className="text-slate-500 max-w-md mx-auto text-sm mb-6">
+              Pilih siklus pembayaran yang sesuai. Paket tahunan lebih hemat hingga 8%.
+            </p>
           </div>
 
+          {/* ── Billing cycle toggle ── */}
+          <BillingCycleToggle
+            value={billingCycle}
+            onChange={setBillingCycle}
+            plans={plans}
+          />
+
           {loading ? (
-            <div className="plans-grid grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+            <div className="plans-grid grid gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-[420px] rounded-2xl" />)}
             </div>
           ) : (
-            <div className="plans-grid grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+            <div className="plans-grid grid gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {plans.map((plan, i) => (
                 <div key={plan.id} className="plan-card-wrap">
-                  <PlanCard plan={plan} isPopular={i === popularIndex} onSelect={handleSelect} loading={false} />
+                  <PlanCard
+                    plan={plan}
+                    billingCycle={billingCycle}
+                    isPopular={i === popularIndex}
+                    onSelect={handleSelect}
+                    loading={false}
+                  />
                 </div>
               ))}
             </div>
           )}
 
           <p className="text-center text-xs text-slate-400 mt-8">
-            Butuh lebih dari 10.000 foto/bulan atau SLA khusus?{" "}
+            Butuh lebih dari 40.000 hit/bulan atau SLA khusus?{" "}
             <a href="mailto:support@ambilfoto.id?subject=Custom API Plan" className="text-blue-600 hover:underline font-medium">
-              Hubungi kami untuk paket Enterprise →
+              Hubungi kami untuk paket Custom →
             </a>
           </p>
         </div>
       </section>
 
-      {/* CTA BOTTOM */}
+      {/* ── CTA BOTTOM ── */}
       <section className="cta-section py-20 bg-white border-t border-slate-100">
         <div className="container max-w-3xl mx-auto px-6">
           <div className="cta-section-inner relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 p-10 md:p-14 text-center shadow-xl shadow-blue-200">
