@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import DeveloperProtectedRoute from "@/components/DeveloperProtectedRoute"; // ✅ NEW
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -54,6 +55,7 @@ import DeveloperSettings from "./pages/developer/Settings";
 import DeveloperUsage from "./pages/developer/Usage";
 import DeveloperCheckout from "./pages/developer/Checkout";
 import DeveloperPlayground from "./pages/developer/Playground";
+import DeveloperLogin from "./pages/DeveloperLogin"; // ✅ already imported
 
 // ❌ DEPRECATED ROUTES - Replaced by Escrow System
 // import HiResQueue from "./pages/photographer/HiResQueue";
@@ -145,7 +147,6 @@ const App = () => (
             <Route path="/register/face" element={<RegisterFace />} />
             <Route path="/login/face" element={<FaceLogin />} />
             
-            
             {/* PUBLIC EVENT VIEW - Must be BEFORE other routes to avoid conflicts */}
             <Route path="/event/:eventSlug" element={<PhotographerEventPublicView />} />
             
@@ -201,7 +202,7 @@ const App = () => (
               } 
             />
             
-            {/* ✅ NEW ESCROW ROUTE - Replaces /user/hires */}
+            {/* ✅ NEW ESCROW ROUTE */}
             <Route 
               path="/user/purchases" 
               element={
@@ -210,13 +211,7 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-            
-            {/* ❌ DEPRECATED - Redirect old route to new escrow page 
-            <Route 
-              path="/user/hires" 
-              element={<Navigate to="/user/purchases" replace />}
-            />*/}
-            
+
             {/* User FotoMap Routes */}
             <Route 
               path="/user/fotomap" 
@@ -321,7 +316,7 @@ const App = () => (
               } 
             />
             
-            {/* ✅ NEW ESCROW ROUTE - Replaces /photographer/hires-queue */}
+            {/* ✅ NEW ESCROW ROUTE */}
             <Route 
               path="/photographer/pending-orders" 
               element={
@@ -330,12 +325,6 @@ const App = () => (
                 </PhotographerRoute>
               } 
             />
-            
-            {/* ❌ DEPRECATED - Redirect old route to new escrow page 
-            <Route 
-              path="/photographer/hires-queue" 
-              element={<Navigate to="/photographer/pending-orders" replace />}
-            /> */}
 
             {/* Photographer FotoMap Routes */}
             <Route 
@@ -462,56 +451,78 @@ const App = () => (
                 </AdminRoute>
               }
             />
-            {/* Developer Platform Routes */}
+
+            {/* ========================================
+                DEVELOPER PLATFORM ROUTES
+            ======================================== */}
+
+            {/* ── Public (no auth needed) ── */}
+            <Route path="/developer/login"   element={<DeveloperLogin />} />  {/* ✅ NEW */}
+            <Route path="/developer/pricing" element={<DeveloperPricing />} />
+            <Route path="/developer/docs"    element={<DeveloperDocs />} />
             <Route path="/developer/checkout" element={<DeveloperCheckout />} />
-            <Route path="/developer/payment/finish" element={<PaymentResult status="success" />} />
-            <Route path="/developer/payment/pending"element={<PaymentResult status="pending" />} />
-            <Route path="/developer/payment/error"  element={<PaymentResult status="error" />} />
-             <Route
+
+            {/* Payment callback pages — public, Midtrans redirects here */}
+            <Route path="/developer/payment/finish"  element={<PaymentResult status="success" />} />
+            <Route path="/developer/payment/pending" element={<PaymentResult status="pending" />} />
+            <Route path="/developer/payment/error"   element={<PaymentResult status="error" />} />
+
+            {/* ── Protected — requires valid JWT, redirects to /developer/login ── */}
+            <Route
               path="/developer/:id"
               element={
-                <ProtectedRoute>
+                <DeveloperProtectedRoute>
                   <DeveloperDashboard />
-                </ProtectedRoute>
+                </DeveloperProtectedRoute>
               }
             />
             <Route
               path="/developer/:id/keys"
               element={
-                <ProtectedRoute>
+                <DeveloperProtectedRoute>
                   <DeveloperKeys />
-                </ProtectedRoute>
+                </DeveloperProtectedRoute>
               }
             />
             <Route
               path="/developer/:id/usage"
               element={
-                <ProtectedRoute>
+                <DeveloperProtectedRoute>
                   <DeveloperUsage />
-                </ProtectedRoute>
+                </DeveloperProtectedRoute>
               }
             />
             <Route
               path="/developer/:id/billing"
               element={
-                <ProtectedRoute>
+                <DeveloperProtectedRoute>
                   <DeveloperBilling />
-                </ProtectedRoute>
+                </DeveloperProtectedRoute>
               }
             />
             <Route
               path="/developer/:id/settings"
               element={
-                <ProtectedRoute>
+                <DeveloperProtectedRoute>
                   <DeveloperSettings />
-                </ProtectedRoute>
+                </DeveloperProtectedRoute>
               }
             />
-          <Route path="/developer/:id/playground" element={<ProtectedRoute><DeveloperPlayground /></ProtectedRoute>} />
-            {/* Payment Callback Routes */}
+            <Route
+              path="/developer/:id/playground"
+              element={
+                <DeveloperProtectedRoute>
+                  <DeveloperPlayground />
+                </DeveloperProtectedRoute>
+              }
+            />
+
+            {/* ========================================
+                PAYMENT CALLBACK ROUTES (non-developer)
+            ======================================== */}
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/pending" element={<PaymentPending />} />
-            <Route path="/payment/failed" element={<PaymentFailed />} />
+            <Route path="/payment/failed"  element={<PaymentFailed />} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

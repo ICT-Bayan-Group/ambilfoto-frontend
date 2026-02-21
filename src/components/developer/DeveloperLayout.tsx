@@ -11,7 +11,6 @@ import {
   LogOut,
   Code2,
   ChevronRight,
-  Play,
   ImagePlay,
 } from "lucide-react";
 
@@ -21,12 +20,12 @@ interface DeveloperLayoutProps {
 }
 
 const navItems = (id: string) => [
-  { label: "Overview", href: `/developer/${id}`, icon: LayoutDashboard },
-  { label: "API Keys", href: `/developer/${id}/keys`, icon: Key },
-  { label: "Usage & Analytics", href: `/developer/${id}/usage`, icon: BarChart3 },
-  { label: "Billing", href: `/developer/${id}/billing`, icon: FileText },
-  { label: "Settings", href: `/developer/${id}/settings`, icon: Settings },
-  { label: "PLayground", href: `/developer/${id}/playground`, icon: ImagePlay },
+  { label: "Overview",          href: `/developer/${id}`,            icon: LayoutDashboard },
+  { label: "API Keys",          href: `/developer/${id}/keys`,       icon: Key },
+  { label: "Usage & Analytics", href: `/developer/${id}/usage`,      icon: BarChart3 },
+  { label: "Billing",           href: `/developer/${id}/billing`,    icon: FileText },
+  { label: "Settings",          href: `/developer/${id}/settings`,   icon: Settings },
+  { label: "Playground",        href: `/developer/${id}/playground`, icon: ImagePlay }, // ✅ fix typo "PLayground"
 ];
 
 export const DeveloperLayout = ({ children, developerId }: DeveloperLayoutProps) => {
@@ -36,7 +35,17 @@ export const DeveloperLayout = ({ children, developerId }: DeveloperLayoutProps)
 
   const handleLogout = () => {
     logout();
-    navigate("/login");
+    // ✅ Redirect ke /developer/login, bukan /login
+    // Sertakan ?redirect= supaya user bisa balik ke halaman yang sama setelah login ulang
+    const returnTo = encodeURIComponent(location.pathname + location.search);
+    navigate(`/developer/login?redirect=${returnTo}`);
+  };
+
+  // ✅ Active check: untuk Overview, exact match; untuk sub-pages, startsWith
+  const isActive = (href: string) => {
+    const basePath = `/developer/${developerId}`;
+    if (href === basePath) return location.pathname === basePath;
+    return location.pathname.startsWith(href);
   };
 
   return (
@@ -46,11 +55,11 @@ export const DeveloperLayout = ({ children, developerId }: DeveloperLayoutProps)
         {/* Logo */}
         <div className="p-6 border-b border-border">
           <Link to="/" className="flex items-center gap-2">
-            <img 
-            src="https://res.cloudinary.com/dwyi4d3rq/image/upload/v1765171746/ambilfoto-logo_hvn8s2.png" 
-            alt="Logo AmbilFoto.id" 
-            className="h-16 w-auto"
-             />
+            <img
+              src="https://res.cloudinary.com/dwyi4d3rq/image/upload/v1765171746/ambilfoto-logo_hvn8s2.png"
+              alt="Logo AmbilFoto.id"
+              className="h-16 w-auto"
+            />
             <div>
               <p className="font-bold text-sm leading-tight">AmbilFoto</p>
               <p className="text-xs text-muted-foreground">API Developer Platform</p>
@@ -60,24 +69,21 @@ export const DeveloperLayout = ({ children, developerId }: DeveloperLayoutProps)
 
         {/* Nav */}
         <nav className="flex-1 p-4 space-y-1">
-          {navItems(developerId).map((item) => {
-            const isActive = location.pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                to={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-smooth",
-                  isActive
-                    ? "bg-primary text-primary-foreground shadow-soft"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                {item.label}
-              </Link>
-            );
-          })}
+          {navItems(developerId).map((item) => (
+            <Link
+              key={item.href}
+              to={item.href}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-smooth",
+                isActive(item.href)   // ✅ pakai helper isActive
+                  ? "bg-primary text-primary-foreground shadow-soft"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              <item.icon className="h-4 w-4 shrink-0" />
+              {item.label}
+            </Link>
+          ))}
         </nav>
 
         {/* Docs link + Logout */}
