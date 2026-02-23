@@ -1,562 +1,422 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { 
-  Mail, 
-  MapPin, 
-  Phone, 
-  Send,
-  MessageSquare,
-  Clock,
-  Instagram,
-  Twitter,
-  Linkedin,
-  Facebook,
-  Sparkles,
-  CheckCircle2,
-  Zap,
-  Heart,
-  ArrowRight
+import {
+  Mail, MapPin, Phone, Send, MessageSquare, Clock,
+  Instagram, Twitter, Linkedin, Facebook, Sparkles,
+  Check, Zap, Heart, ArrowRight, CheckCircle2
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 
+gsap.registerPlugin(ScrollTrigger);
+
+const STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+  * { box-sizing: border-box; }
+  .sora { font-family: 'Sora', system-ui, sans-serif; }
+  .mono { font-family: 'DM Mono', monospace; }
+  .heading { font-family: 'Sora', system-ui, sans-serif; font-weight: 800; letter-spacing: -0.03em; }
+  .gradient-text {
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    box-shadow: 0 8px 32px rgba(29,78,216,0.25), 0 2px 8px rgba(29,78,216,0.15);
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    color: white; font-weight: 700; border: none; cursor: pointer;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(29,78,216,0.4); }
+  .btn-primary:disabled { opacity: 0.65; transform: none; cursor: not-allowed; }
+  .btn-ghost {
+    background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.25);
+    color: white; font-weight: 700; cursor: pointer; transition: all 0.25s;
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,0.2); transform: translateY(-1px); }
+  .section-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 5px 12px; border-radius: 100px;
+  }
+  .contact-card {
+    background: white; border: 1.5px solid #f1f5f9; border-radius: 20px; padding: 28px;
+    text-align: center; cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+    overflow: hidden; position: relative;
+  }
+  .contact-card::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+    transform: scaleX(0); transition: transform 0.4s ease; transform-origin: left;
+  }
+  .contact-card.blue::after { background: linear-gradient(90deg, #1d4ed8, #2563eb); }
+  .contact-card.amber::after { background: linear-gradient(90deg, #f59e0b, #ea580c); }
+  .contact-card.emerald::after { background: linear-gradient(90deg, #059669, #10b981); }
+  .contact-card:hover { border-color: rgba(59,130,246,0.25); box-shadow: 0 12px 40px rgba(59,130,246,0.1); transform: translateY(-5px); }
+  .contact-card:hover::after { transform: scaleX(1); }
+  .input-field {
+    width: 100%; padding: 13px 16px; border-radius: 12px;
+    border: 1.5px solid #e2e8f0; background: white; outline: none;
+    font-family: 'Sora', system-ui, sans-serif; font-size: 14px; color: #1e293b;
+    transition: all 0.2s;
+  }
+  .input-field::placeholder { color: #94a3b8; }
+  .input-field:focus { border-color: rgba(29,78,216,0.5); box-shadow: 0 0 0 3px rgba(29,78,216,0.08); }
+  .sidebar-card {
+    background: white; border: 1.5px solid #f1f5f9; border-radius: 20px; padding: 24px;
+    overflow: hidden;
+  }
+  .sidebar-card-top { height: 3px; margin: -24px -24px 20px; }
+  .social-btn {
+    display: flex; align-items: center; gap: 12px; padding: 12px;
+    border: 1.5px solid #f1f5f9; border-radius: 14px; text-decoration: none;
+    transition: all 0.25s; cursor: pointer;
+  }
+  .social-btn:hover { border-color: rgba(59,130,246,0.2); box-shadow: 0 4px 16px rgba(59,130,246,0.08); transform: translateY(-2px); }
+  .schedule-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; border-radius: 10px; transition: background 0.2s;
+  }
+  .schedule-row:hover { background: #f8fafc; }
+  .faq-item {
+    padding: 14px 16px; border-radius: 12px; background: #f8fafc;
+    transition: all 0.2s; cursor: default;
+  }
+  .faq-item:hover { background: #f0f4ff; }
+  @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.85)} }
+  .live-dot { animation: pulse-dot 1.8s ease-in-out infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { animation: spin 1s linear infinite; }
+`;
+
 const ContactUs = () => {
-  const [scrollY, setScrollY] = useState(0);
-  const [isVisible, setIsVisible] = useState({});
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    subject: "",
-    message: ""
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [formData, setFormData] = useState({ name:"", email:"", subject:"", message:"" });
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
+  /* canvas */
   useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          setIsVisible((prev) => ({
-            ...prev,
-            [entry.target.id]: entry.isIntersecting,
-          }));
-        });
-      },
-      { threshold: 0.1 }
-    );
-
-    document.querySelectorAll("[id^='animate-']").forEach((el) => {
-      observer.observe(el);
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
+    const canvas = canvasRef.current; if (!canvas) return;
+    const ctx = canvas.getContext("2d"); if (!ctx) return;
+    let id: number;
+    const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; };
+    resize(); window.addEventListener("resize", resize);
+    const dots = Array.from({ length: 45 }, () => ({
+      x:Math.random()*canvas.width, y:Math.random()*canvas.height,
+      r:Math.random()*1.5+0.5, vx:(Math.random()-.5)*.28, vy:(Math.random()-.5)*.28,
+      a:Math.random()*.14+.04,
     }));
-  };
+    const draw = () => {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      dots.forEach(d => {
+        d.x+=d.vx; d.y+=d.vy;
+        if(d.x<0||d.x>canvas.width)d.vx*=-1; if(d.y<0||d.y>canvas.height)d.vy*=-1;
+        ctx.beginPath(); ctx.arc(d.x,d.y,d.r,0,Math.PI*2);
+        ctx.fillStyle=`rgba(59,130,246,${d.a})`; ctx.fill();
+      });
+      id=requestAnimationFrame(draw);
+    };
+    draw();
+    return () => { cancelAnimationFrame(id); window.removeEventListener("resize",resize); };
+  }, []);
+
+  /* GSAP */
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      gsap.timeline({ defaults:{ ease:"power3.out" } })
+        .from(".h-badge",  { y:20,opacity:0,scale:.9,duration:.6,ease:"back.out(1.5)" })
+        .from(".h-line",   { y:50,opacity:0,duration:.85,stagger:.1 }, "-=.3")
+        .from(".h-sub",    { y:20,opacity:0,duration:.6 }, "-=.4");
+
+      gsap.from(".cinfo-card", { scrollTrigger:{trigger:".cinfo-row",start:"top 85%"}, y:35,opacity:0,scale:.94,duration:.55,stagger:.12,ease:"back.out(1.3)" });
+      gsap.from(".form-wrap",  { scrollTrigger:{trigger:".form-section",start:"top 82%",toggleActions:"play none none reverse"}, x:-50,opacity:0,duration:.8,ease:"power3.out" });
+      gsap.from(".sidebar",    { scrollTrigger:{trigger:".form-section",start:"top 82%",toggleActions:"play none none reverse"}, x:50,opacity:0,duration:.8,ease:"power3.out",delay:.1 });
+      gsap.from(".map-wrap",   { scrollTrigger:{trigger:".map-section",start:"top 85%",toggleActions:"play none none reverse"}, scale:.96,opacity:0,duration:.7,ease:"power3.out" });
+      gsap.from(".cta-el",     { scrollTrigger:{trigger:".cta-wrap",start:"top 85%",toggleActions:"play none none reverse"}, y:40,opacity:0,duration:.65,stagger:.15 });
+    });
+    return () => ctx.revert();
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement>) =>
+    setFormData(p => ({ ...p, [e.target.name]: e.target.value }));
 
   const handleSubmit = () => {
     if (!formData.name || !formData.email || !formData.subject || !formData.message) {
-      alert('Mohon isi semua field terlebih dahulu! 😊');
-      return;
+      alert("Mohon isi semua field terlebih dahulu!"); return;
     }
-
-    setIsSubmitting(true);
-    
+    setSubmitting(true);
     setTimeout(() => {
-      const mailtoLink = `mailto:hello@ambilfoto.id?subject=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(
-        `Nama: ${formData.name}\nEmail: ${formData.email}\n\nPesan:\n${formData.message}`
-      )}`;
-      window.location.href = mailtoLink;
-      
-      setSubmitStatus('success');
-      setIsSubmitting(false);
-      
-      setFormData({
-        name: "",
-        email: "",
-        subject: "",
-        message: ""
-      });
-
-      setTimeout(() => setSubmitStatus(null), 5000);
-    }, 1000);
+      const mailto = `mailto:hello@ambilfoto.id?subject=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(`Nama: ${formData.name}\nEmail: ${formData.email}\n\nPesan:\n${formData.message}`)}`;
+      window.location.href = mailto;
+      setSubmitted(true); setSubmitting(false);
+      setFormData({ name:"", email:"", subject:"", message:"" });
+      setTimeout(() => setSubmitted(false), 5000);
+    }, 900);
   };
 
-  const contactInfo = [
-    {
-      icon: Mail,
-      title: "Email Kami",
-      description: "hello@ambilfoto.id",
-      subtitle: "Balas dalam 24 jam",
-      color: "text-purple-500",
-      bgColor: "bg-purple-500/10",
-      gradient: "from-purple-500 to-pink-500",
-      action: "mailto:hello@ambilfoto.id"
-    },
-    {
-      icon: Phone,
-      title: "WhatsApp",
-      description: "+62 812-3456-7890",
-      subtitle: "Chat dengan tim kami",
-      color: "text-green-500",
-      bgColor: "bg-green-500/10",
-      gradient: "from-green-500 to-emerald-500",
-      action: "https://wa.me/6281234567890"
-    },
-    {
-      icon: MapPin,
-      title: "Lokasi Kantor",
-      description: "Jakarta Selatan",
-      subtitle: "Indonesia",
-      color: "text-blue-500",
-      bgColor: "bg-blue-500/10",
-      gradient: "from-blue-500 to-cyan-500",
-      action: "https://maps.google.com"
-    }
+  const contactInfos = [
+    { icon:Mail,   title:"Email Kami",    desc:"hello@ambilfoto.id",    sub:"Balas dalam 24 jam",    action:"mailto:hello@ambilfoto.id",  accent:"blue",   iconBg:"bg-blue-50 text-blue-600"   },
+    { icon:Phone,  title:"WhatsApp",      desc:"+62 812-3456-7890",      sub:"Chat langsung tim kami", action:"https://wa.me/6281234567890", accent:"amber",  iconBg:"bg-amber-50 text-amber-600" },
+    { icon:MapPin, title:"Lokasi Kantor", desc:"Jakarta Selatan",        sub:"Indonesia 🇮🇩",           action:"https://maps.google.com",     accent:"emerald",iconBg:"bg-emerald-50 text-emerald-600"},
   ];
 
-  const socialMedia = [
-    {
-      icon: Instagram,
-      name: "Instagram",
-      handle: "@ambilfoto.id",
-      color: "hover:text-pink-500",
-      gradient: "from-pink-500 to-purple-500",
-      link: "https://instagram.com/ambilfoto.id"
-    },
-    {
-      icon: Twitter,
-      name: "Twitter",
-      handle: "@ambilfoto",
-      color: "hover:text-blue-400",
-      gradient: "from-blue-400 to-cyan-400",
-      link: "https://twitter.com/ambilfoto"
-    },
-    {
-      icon: Facebook,
-      name: "Facebook",
-      handle: "AmbilFoto.id",
-      color: "hover:text-blue-600",
-      gradient: "from-blue-600 to-blue-400",
-      link: "https://facebook.com/ambilfoto.id"
-    },
-    {
-      icon: Linkedin,
-      name: "LinkedIn",
-      handle: "AmbilFoto",
-      color: "hover:text-blue-700",
-      gradient: "from-blue-700 to-blue-500",
-      link: "https://linkedin.com/company/ambilfoto"
-    }
+  const socials = [
+    { icon:Instagram, name:"Instagram", handle:"@ambilfoto.id",  bg:"bg-orange-50 text-orange-500",  link:"https://instagram.com/ambilfoto.id" },
+    { icon:Twitter,   name:"Twitter",   handle:"@ambilfoto",      bg:"bg-blue-50 text-blue-500",      link:"https://twitter.com/ambilfoto"      },
+    { icon:Facebook,  name:"Facebook",  handle:"AmbilFoto.id",    bg:"bg-blue-50 text-blue-700",      link:"https://facebook.com/ambilfoto.id"  },
+    { icon:Linkedin,  name:"LinkedIn",  handle:"AmbilFoto",       bg:"bg-blue-50 text-blue-600",      link:"https://linkedin.com/company/ambilfoto"},
   ];
 
-  const officeHours = [
-    { day: "Senin - Jumat", hours: "09:00 - 18:00 WIB" },
-    { day: "Sabtu", hours: "10:00 - 15:00 WIB" },
-    { day: "Minggu", hours: "Tutup" }
+  const hours = [
+    { day:"Senin – Jumat", time:"09:00 – 18:00 WIB" },
+    { day:"Sabtu",         time:"10:00 – 15:00 WIB" },
+    { day:"Minggu",        time:"Tutup"              },
   ];
 
   const faqs = [
-    {
-      question: "Berapa lama respon email?",
-      answer: "Kami berusaha membalas dalam 24 jam kerja"
-    },
-    {
-      question: "Bisa video call?",
-      answer: "Tentu! Hubungi kami untuk jadwal meeting"
-    },
-    {
-      question: "Support 24/7?",
-      answer: "Chat support tersedia di jam kerja, email 24/7"
-    }
+    { q:"Berapa lama respon email?", a:"Kami berusaha membalas dalam 24 jam kerja." },
+    { q:"Bisa video call?",           a:"Tentu! Hubungi kami untuk jadwal meeting."   },
+    { q:"Support 24/7?",              a:"Chat support tersedia di jam kerja, email 24/7." },
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-screen flex-col bg-white sora">
+      <style>{STYLES}</style>
       <Header />
-      
-      {/* Hero Section */}
-      <section className="relative overflow-hidden py-20 md:py-32">
-        <div 
-          className="absolute inset-0 bg-gradient-to-br from-primary/10 via-secondary/10 to-accent/10"
-          style={{
-            transform: `translateY(${scrollY * 0.5}px)`,
-          }}
-        />
-        <div className="container relative">
-          <div 
-            id="animate-hero"
-            className={`mx-auto max-w-3xl text-center transition-all duration-1000 ${
-              isVisible['animate-hero'] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
-            }`}
-          >
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-2 text-sm font-medium text-primary animate-pulse">
-              <MessageSquare className="h-4 w-4" />
-              <span>Hubungi Kami</span>
-            </div>
-            
-            <h1 className="mb-6 text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-              Ada Pertanyaan?{" "}
-              <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-                Yuk, Ngobrol!
-              </span>
-            </h1>
-            
-            <p className="mb-8 text-lg text-muted-foreground sm:text-xl">
-              Tim kami siap bantu kamu. Drop message atau langsung chat aja. No worries, we're friendly! 😊
-            </p>
+
+      {/* ══ HERO ══════════════════════════════════════════════ */}
+      <section className="relative overflow-hidden bg-white border-b border-slate-100 pt-20 pb-16 md:pt-28 md:pb-20">
+        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+        <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full bg-blue-50/50 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-20 -right-20 w-[400px] h-[400px] rounded-full bg-amber-50/40 blur-3xl pointer-events-none" />
+
+        <div className="container max-w-2xl mx-auto px-6 text-center relative">
+          <div className="h-badge section-pill bg-blue-50 text-blue-700 border border-blue-200/80 mb-6 w-fit mx-auto">
+            <span className="live-dot w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
+            Hubungi Kami
           </div>
+          <h1 className="heading text-5xl md:text-6xl lg:text-7xl text-slate-900 leading-[1.04] mb-6">
+            <span className="h-line block">Ada Pertanyaan?</span>
+            <span className="h-line block gradient-text">Yuk, Ngobrol!</span>
+          </h1>
+          <p className="h-sub text-lg text-slate-500 max-w-lg mx-auto leading-relaxed">
+            Tim kami siap bantu kamu. Drop message atau langsung chat aja — kami friendly dan fast response! 😊
+          </p>
         </div>
       </section>
 
-      {/* Contact Info Cards */}
-      <section className="py-12 -mt-10">
-        <div className="container">
-          <div className="grid gap-6 md:grid-cols-3 max-w-5xl mx-auto">
-            {contactInfo.map((info, index) => {
-              const Icon = info.icon;
+      {/* ══ CONTACT INFO CARDS ════════════════════════════════ */}
+      <section className="py-12 bg-white border-b border-slate-100">
+        <div className="cinfo-row container max-w-4xl mx-auto px-6">
+          <div className="grid md:grid-cols-3 gap-5">
+            {contactInfos.map((c,i) => {
+              const Icon = c.icon;
               return (
-                <Card
-                  key={index}
-                  id={`animate-info-${index}`}
-                  className={`group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 border-border/50 overflow-hidden cursor-pointer ${
-                    isVisible[`animate-info-${index}`]
-                      ? 'opacity-100 translate-y-0'
-                      : 'opacity-0 translate-y-10'
-                  }`}
-                  style={{ transitionDelay: `${index * 100}ms` }}
-                  onClick={() => window.open(info.action, '_blank')}
-                >
-                  <CardContent className="pt-6 text-center">
-                    <div className={`mb-4 mx-auto flex h-14 w-14 items-center justify-center rounded-xl ${info.bgColor} group-hover:scale-110 transition-transform duration-300`}>
-                      <Icon className={`h-7 w-7 ${info.color}`} />
-                    </div>
-                    <h3 className="mb-1 text-lg font-semibold">{info.title}</h3>
-                    <p className="font-medium text-foreground mb-1">
-                      {info.description}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {info.subtitle}
-                    </p>
-                  </CardContent>
-                  <div className={`h-1 bg-gradient-to-r ${info.gradient} transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left`} />
-                </Card>
+                <div key={i} className={`cinfo-card contact-card ${c.accent}`} onClick={() => window.open(c.action,"_blank")}>
+                  <div className={`w-13 h-13 w-14 h-14 rounded-2xl ${c.iconBg} flex items-center justify-center mx-auto mb-4`}>
+                    <Icon className="w-6 h-6" />
+                  </div>
+                  <h3 className="heading text-base text-slate-900 mb-1">{c.title}</h3>
+                  <p className="font-semibold text-slate-700 text-sm mb-0.5">{c.desc}</p>
+                  <p className="text-xs text-slate-400">{c.sub}</p>
+                </div>
               );
             })}
           </div>
         </div>
       </section>
 
-      {/* Main Contact Section */}
-      <section className="py-20">
-        <div className="container">
-          <div className="grid gap-12 lg:grid-cols-2 max-w-6xl mx-auto">
-            {/* Contact Form */}
-            <div
-              id="animate-form"
-              className={`transition-all duration-1000 ${
-                isVisible['animate-form'] ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'
-              }`}
-            >
-              <Card className="border-border/50 shadow-lg">
-                <CardContent className="pt-6">
-                  <div className="mb-6">
-                    <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
-                      <Sparkles className="h-6 w-6 text-primary" />
-                      Kirim Pesan
-                    </h2>
-                    <p className="text-muted-foreground">
-                      Isi form di bawah dan kami akan segera menghubungi kamu!
-                    </p>
-                  </div>
+      {/* ══ FORM + SIDEBAR ════════════════════════════════════ */}
+      <section className="form-section py-20 bg-white">
+        <div className="container max-w-5xl mx-auto px-6">
+          <div className="grid lg:grid-cols-[1fr_340px] gap-8 items-start">
 
-                  {submitStatus === 'success' && (
-                    <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-                      <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
-                      <p className="text-sm text-green-700 dark:text-green-400">
-                        Pesan berhasil! Email client kamu akan terbuka.
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="space-y-5">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Nama Lengkap <span className="text-primary">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 outline-none"
-                        placeholder="Siapa nih?"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Email <span className="text-primary">*</span>
-                      </label>
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 outline-none"
-                        placeholder="emailkamu@example.com"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Subjek <span className="text-primary">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="subject"
-                        value={formData.subject}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 outline-none"
-                        placeholder="Mau ngobrolin apa?"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Pesan <span className="text-primary">*</span>
-                      </label>
-                      <textarea
-                        name="message"
-                        value={formData.message}
-                        onChange={handleInputChange}
-                        rows={6}
-                        className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 outline-none resize-none"
-                        placeholder="Ceritain dong... Jangan malu-malu 😊"
-                      />
-                    </div>
-
-                    <Button 
-                      onClick={handleSubmit}
-                      className="w-full shadow-lg hover:scale-105 transition-transform duration-300" 
-                      size="lg"
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Zap className="mr-2 h-5 w-5 animate-spin" />
-                          Mengirim...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="mr-2 h-5 w-5" />
-                          Kirim Pesan
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Info Sidebar */}
-            <div
-              id="animate-sidebar"
-              className={`space-y-6 transition-all duration-1000 ${
-                isVisible['animate-sidebar'] ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'
-              }`}
-            >
-              {/* Office Hours */}
-              <Card className="border-border/50 shadow-lg overflow-hidden">
-                <div className="h-2 bg-gradient-to-r from-primary via-secondary to-accent" />
-                <CardContent className="pt-6">
-                  <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-primary" />
-                    Jam Operasional
-                  </h3>
-                  <div className="space-y-3">
-                    {officeHours.map((schedule, index) => (
-                      <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors duration-200">
-                        <span className="font-medium">{schedule.day}</span>
-                        <span className="text-muted-foreground">{schedule.hours}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Social Media */}
-              <Card className="border-border/50 shadow-lg">
-                <CardContent className="pt-6">
-                  <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <Heart className="h-5 w-5 text-primary" />
-                    Follow Kami
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    {socialMedia.map((social, index) => {
-                      const Icon = social.icon;
-                      return (
-                        <a
-                          key={index}
-                          href={social.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={`flex items-center gap-3 p-3 rounded-lg border border-border hover:shadow-md transition-all duration-300 hover:-translate-y-1 group ${social.color}`}
-                        >
-                          <div className={`p-2 rounded-lg bg-gradient-to-br ${social.gradient} text-white group-hover:scale-110 transition-transform duration-300`}>
-                            <Icon className="h-4 w-4" />
-                          </div>
-                          <div className="text-left">
-                            <div className="text-xs text-muted-foreground">{social.name}</div>
-                            <div className="text-xs font-medium">{social.handle}</div>
-                          </div>
-                        </a>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Quick FAQs */}
-              <Card className="border-border/50 shadow-lg">
-                <CardContent className="pt-6">
-                  <h3 className="text-xl font-bold mb-4">Quick FAQs</h3>
-                  <div className="space-y-4">
-                    {faqs.map((faq, index) => (
-                      <div key={index} className="p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors duration-200">
-                        <h4 className="font-semibold mb-1 text-sm">{faq.question}</h4>
-                        <p className="text-sm text-muted-foreground">{faq.answer}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Map Section */}
-      <section className="py-20 bg-muted/30">
-        <div className="container">
-          <div
-            id="animate-map"
-            className={`max-w-6xl mx-auto transition-all duration-1000 ${
-              isVisible['animate-map'] ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
-            }`}
-          >
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold mb-4">Lokasi Kantor Kami</h2>
-              <p className="text-muted-foreground">
-                Mampir langsung? Kabarin dulu ya biar kita siapin kopi! ☕
-              </p>
-            </div>
-
-            <Card className="border-border/50 shadow-xl overflow-hidden">
-              <div className="aspect-[16/9] w-full bg-gradient-to-br from-primary/20 via-secondary/20 to-accent/20 relative">
-                <iframe
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d126920.23949154248!2d106.68942984335937!3d-6.229386799999999!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69f3e945e34b9d%3A0x5371bf0fdad786a2!2sJakarta%2C%20Indonesia!5e0!3m2!1sen!2sid!4v1234567890123!5m2!1sen!2sid"
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0 }}
-                  allowFullScreen
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  className="absolute inset-0"
-                ></iframe>
+            {/* Form */}
+            <div className="form-wrap bg-white border border-slate-100 rounded-3xl p-8 shadow-sm">
+              <div className="mb-8">
+                <div className="section-pill bg-blue-50 text-blue-700 border border-blue-100 mb-3">✉️ Kirim Pesan</div>
+                <h2 className="heading text-2xl text-slate-900 mb-1">Isi Form Berikut</h2>
+                <p className="text-sm text-slate-500">Kami akan segera menghubungi kamu!</p>
               </div>
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-secondary text-primary-foreground">
-                    <MapPin className="h-6 w-6" />
+
+              {submitted && (
+                <div className="mb-6 flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                  <p className="text-sm text-emerald-700 font-medium">Pesan terkirim! Email client kamu akan terbuka.</p>
+                </div>
+              )}
+
+              <div className="space-y-5">
+                <div className="grid sm:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Nama Lengkap <span className="text-blue-600">*</span></label>
+                    <input name="name" value={formData.name} onChange={handleChange} className="input-field" placeholder="Nama kamu siapa?" />
                   </div>
                   <div>
-                    <h3 className="font-bold mb-1">AmbilFoto.id Headquarters</h3>
-                    <p className="text-muted-foreground mb-3">
-                      Jl. Sudirman No. 123<br />
-                      Jakarta Selatan 12190<br />
-                      Indonesia
-                    </p>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => window.open('https://maps.google.com', '_blank')}
-                      className="hover:scale-105 transition-transform duration-300"
-                    >
-                      Buka di Maps
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Email <span className="text-blue-600">*</span></label>
+                    <input name="email" type="email" value={formData.email} onChange={handleChange} className="input-field" placeholder="email@contoh.com" />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Subjek <span className="text-blue-600">*</span></label>
+                  <input name="subject" value={formData.subject} onChange={handleChange} className="input-field" placeholder="Mau ngobrolin apa?" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Pesan <span className="text-blue-600">*</span></label>
+                  <textarea name="message" value={formData.message} onChange={handleChange} rows={6} className="input-field resize-none" placeholder="Ceritain dong... jangan malu-malu 😊" />
+                </div>
+                <button onClick={handleSubmit} disabled={submitting} className="btn-primary w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm">
+                  {submitting ? (
+                    <><Zap className="w-4 h-4 spin" /> Mengirim...</>
+                  ) : (
+                    <><Send className="w-4 h-4" /> Kirim Pesan</>
+                  )}
+                </button>
+              </div>
+            </div>
 
-      {/* CTA Section */}
-      <section className="relative py-20 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary via-secondary to-accent opacity-90" />
-        <div 
-          className="absolute inset-0 opacity-20"
-          style={{
-            backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
-            backgroundSize: '40px 40px',
-            animation: 'moveBackground 20s linear infinite',
-          }}
-        />
-        <style>
-          {`
-            @keyframes moveBackground {
-              0% { transform: translate(0, 0); }
-              100% { transform: translate(40px, 40px); }
-            }
-          `}
-        </style>
-        <div className="container relative">
-          <div
-            id="animate-cta"
-            className={`mx-auto max-w-3xl text-center text-primary-foreground transition-all duration-1000 ${
-              isVisible['animate-cta'] ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
-            }`}
-          >
-            <Sparkles className="h-16 w-16 mx-auto mb-6 animate-pulse" />
-            <h2 className="text-3xl font-bold mb-4">Masih Bingung? Gas Chat Aja!</h2>
-            <p className="text-lg mb-8 text-primary-foreground/90">
-              Tim support kami fast response dan super helpful. Jangan sungkan-sungkan ya! 🚀
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" variant="secondary" className="shadow-lg hover:scale-105 transition-transform duration-300">
-                <MessageSquare className="mr-2 h-5 w-5" />
-                Chat Sekarang
-              </Button>
-              <Button 
-                size="lg" 
-                variant="outline" 
-                className="bg-white/10 hover:bg-white/20 text-white border-white/30 hover:scale-105 transition-transform duration-300"
-                onClick={() => window.location.href = 'mailto:hello@ambilfoto.id'}
-              >
-                Kirim Email
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
+            {/* Sidebar */}
+            <div className="sidebar space-y-5">
+
+              {/* Jam Operasional */}
+              <div className="sidebar-card">
+                <div className="sidebar-card-top" style={{ background:"linear-gradient(90deg, #1d4ed8, #f59e0b)" }} />
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center">
+                    <Clock className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <h3 className="heading text-base text-slate-900">Jam Operasional</h3>
+                </div>
+                <div className="space-y-1">
+                  {hours.map((h,i) => (
+                    <div key={i} className="schedule-row">
+                      <span className="text-sm font-semibold text-slate-700">{h.day}</span>
+                      <span className={`text-sm font-medium ${h.time === "Tutup" ? "text-red-400" : "text-slate-500"}`}>{h.time}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Social Media */}
+              <div className="sidebar-card">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-9 h-9 bg-orange-50 rounded-xl flex items-center justify-center">
+                    <Heart className="w-4 h-4 text-orange-500" />
+                  </div>
+                  <h3 className="heading text-base text-slate-900">Follow Kami</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {socials.map((s,i) => {
+                    const Icon = s.icon;
+                    return (
+                      <a key={i} href={s.link} target="_blank" rel="noopener noreferrer" className="social-btn">
+                        <div className={`w-8 h-8 rounded-lg ${s.bg} flex items-center justify-center shrink-0`}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-400 leading-none">{s.name}</p>
+                          <p className="text-xs font-bold text-slate-700 mt-0.5">{s.handle}</p>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Quick FAQs */}
+              <div className="sidebar-card">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                  </div>
+                  <h3 className="heading text-base text-slate-900">Quick FAQs</h3>
+                </div>
+                <div className="space-y-3">
+                  {faqs.map((f,i) => (
+                    <div key={i} className="faq-item">
+                      <p className="text-xs font-bold text-slate-800 mb-1">{f.q}</p>
+                      <p className="text-xs text-slate-500">{f.a}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
       </section>
-      
+
+      {/* ══ MAP ═══════════════════════════════════════════════ */}
+      <section className="map-section py-20 bg-slate-50/60 border-y border-slate-100">
+        <div className="container max-w-5xl mx-auto px-6">
+          <div className="text-center mb-10">
+            <div className="section-pill bg-blue-50 text-blue-700 border border-blue-100 mb-4">📍 Lokasi Kami</div>
+            <h2 className="heading text-3xl text-slate-900 mb-2">Kantor Pusat</h2>
+            <p className="text-slate-500 text-sm">Mampir langsung? Kabarin dulu biar kita siapin kopi! ☕</p>
+          </div>
+          <div className="map-wrap bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-xl shadow-slate-100">
+            <div className="aspect-[16/7] relative">
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d126920.23949154248!2d106.68942984335937!3d-6.229386799999999!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69f3e945e34b9d%3A0x5371bf0fdad786a2!2sJakarta%2C%20Indonesia!5e0!3m2!1sen!2sid"
+                width="100%" height="100%" style={{ border:0 }} allowFullScreen loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade" className="absolute inset-0"
+              />
+            </div>
+            <div className="p-6 flex items-start gap-4">
+              <div className="w-11 h-11 bg-blue-600 rounded-xl flex items-center justify-center shrink-0">
+                <MapPin className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="heading text-base text-slate-900 mb-1">AmbilFoto.id Headquarters</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">Jl. Sudirman No. 123, Jakarta Selatan 12190, Indonesia</p>
+              </div>
+              <button
+                onClick={() => window.open("https://maps.google.com","_blank")}
+                className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-blue-600 border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors"
+              >
+                Buka di Maps <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ CTA ═══════════════════════════════════════════════ */}
+      <section className="cta-wrap py-20 bg-white">
+        <div className="container max-w-2xl mx-auto px-6 text-center">
+          <div className="relative overflow-hidden rounded-3xl p-12 shadow-2xl shadow-blue-100"
+            style={{ background:"linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)" }}>
+            <div className="absolute inset-0 opacity-10 pointer-events-none"
+              style={{ backgroundImage:"radial-gradient(circle, white 1px, transparent 1px)", backgroundSize:"32px 32px" }} />
+            <div className="absolute -top-14 -left-14 w-44 h-44 rounded-full bg-white/10 blur-2xl" />
+            <div className="absolute -bottom-14 -right-14 w-56 h-56 rounded-full bg-amber-300/10 blur-2xl" />
+            <div className="relative">
+              <MessageSquare className="cta-el w-12 h-12 text-amber-300 mx-auto mb-4" />
+              <h2 className="cta-el heading text-4xl text-white mb-3">Masih Bingung?<br />Gas Chat Aja!</h2>
+              <p className="cta-el text-blue-100 text-sm mb-8 max-w-md mx-auto leading-relaxed">
+                Tim support kami fast response dan super helpful. Jangan sungkan-sungkan ya! 🚀
+              </p>
+              <div className="cta-el flex gap-3 justify-center flex-wrap">
+                <button
+                  onClick={() => window.open("https://wa.me/6281234567890","_blank")}
+                  className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-white text-blue-700 font-bold text-sm hover:bg-blue-50 shadow-lg transition-all hover:-translate-y-0.5"
+                >
+                  <MessageSquare className="w-4 h-4" /> Chat Sekarang
+                </button>
+                <button
+                  onClick={() => window.location.href = "mailto:hello@ambilfoto.id"}
+                  className="btn-ghost inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-sm"
+                >
+                  Kirim Email <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <Footer />
     </div>
   );
