@@ -1,17 +1,16 @@
 /**
- * DeveloperDashboard.tsx (UPDATED — billing cycle + api_hit_limit)
+ * DeveloperDashboard.tsx
  *
  * Perubahan:
- *  - Ganti upload_limit → api_hit_limit
- *  - Ganti storage_gb → tidak lagi ditampilkan (plan baru tidak pakai storage)
- *  - Tambah billing_cycle badge (Monthly / Yearly) + savings info
- *  - Tampilkan sla_label dan support_channel di subscription card
+ *  - Improved API Hit usage card dengan visual progress ring + stats
+ *  - Support channel labels: email_wa → "Email & WhatsApp", call_center → "Call Center", dll.
+ *  - API Keys section dengan pagination per 5 data
+ *  - Normalise api_hits → uploads dari backend response baru
  */
 
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { DeveloperLayout } from "@/components/developer/DeveloperLayout";
-import { UsageBar } from "@/components/developer/UsageBar";
 import { developerService, DeveloperOverview } from "@/services/api/developer.service";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,13 +26,18 @@ import {
   Zap,
   Key,
   ChevronRight,
+  ChevronLeft,
   AlertTriangle,
   Headphones,
   Tag,
   RefreshCw,
+  Activity,
+  TrendingUp,
+  Wifi,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format, parseISO } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Format helpers
@@ -42,10 +46,24 @@ import { format, parseISO } from "date-fns";
 const fRp = (v: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(v);
 
+const fNum = (v: number) => new Intl.NumberFormat("id-ID").format(v);
+
+/** Map semua variant support_channel → label yang mudah dibaca */
 const SUPPORT_LABEL: Record<string, string> = {
-  email:            "Email Support",
-  whatsapp_email:   "WhatsApp & Email",
-  "24_7_call":      "24/7 Call Center",
+  // New keys
+  email:           "Email Support",
+  email_wa:        "Email & WhatsApp",
+  whatsapp_email:  "Email & WhatsApp",
+  call_center:     "Call Center 24/7",
+  "24_7_call":     "Call Center 24/7",
+  // Legacy
+  priority:        "Priority Support",
+  enterprise:      "Enterprise Support",
+};
+
+const getSupportLabel = (channel: string | undefined): string => {
+  if (!channel) return "Email Support";
+  return SUPPORT_LABEL[channel.toLowerCase()] ?? channel;
 };
 
 const CYCLE_LABEL: Record<string, string> = {
@@ -54,7 +72,279 @@ const CYCLE_LABEL: Record<string, string> = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main
+// UsageRing — circular progress untuk API Hit
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface UsageRingProps {
+  pct: number;
+  size?: number;
+  strokeWidth?: number;
+  color?: string;
+}
+
+const UsageRing = ({ pct, size = 64, strokeWidth = 6, color }: UsageRingProps) => {
+  const r       = (size - strokeWidth) / 2;
+  const circ    = 2 * Math.PI * r;
+  const filled  = circ * (Math.min(pct, 100) / 100);
+  const trackColor = "stroke-muted";
+
+  const ringColor =
+    color ??
+    (pct >= 90 ? "#ef4444" : pct >= 70 ? "#f97316" : "#8b5cf6");
+
+  return (
+    <svg width={size} height={size} className="-rotate-90">
+      <circle
+        cx={size / 2} cy={size / 2} r={r}
+        fill="none"
+        className={trackColor}
+        strokeWidth={strokeWidth}
+      />
+      <circle
+        cx={size / 2} cy={size / 2} r={r}
+        fill="none"
+        stroke={ringColor}
+        strokeWidth={strokeWidth}
+        strokeDasharray={`${filled} ${circ}`}
+        strokeLinecap="round"
+        style={{ transition: "stroke-dasharray 0.6s ease" }}
+      />
+    </svg>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ApiHitCard — improved card dengan ring + stats
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface ApiHitCardProps {
+  used: number;
+  limit: number;
+  pct: number;
+  todayRequests: number;
+  errorRate: number;
+  dashboardId: string;
+}
+
+const ApiHitCard = ({ used, limit, pct, todayRequests, errorRate, dashboardId }: ApiHitCardProps) => {
+  const remaining = Math.max(limit - used, 0);
+  const isWarning = pct >= 80;
+  const isDanger  = pct >= 90;
+
+  const ringColor = isDanger ? "#ef4444" : isWarning ? "#f97316" : "#8b5cf6";
+  const badgeVariant = isDanger ? "destructive" : isWarning ? "default" : "secondary";
+
+  return (
+    <Card className="shadow-soft overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <Activity className="h-4 w-4 text-primary" />
+          API Hit Usage Bulan Ini
+        </CardTitle>
+        <div className="flex items-center gap-2">
+          {isWarning && (
+            <Badge variant={badgeVariant} className="text-xs">
+              {isDanger ? "⚠ Hampir Habis" : "Perhatian"}
+            </Badge>
+          )}
+          <Link to={`/developer/${dashboardId}/usage`}>
+            <Button variant="ghost" size="sm" className="gap-1 text-xs">
+              Detail <ChevronRight className="h-3 w-3" />
+            </Button>
+          </Link>
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        <div className="flex items-center gap-6">
+          {/* Ring visual */}
+          <div className="relative shrink-0">
+            <UsageRing pct={pct} size={80} strokeWidth={7} color={ringColor} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-sm font-bold" style={{ color: ringColor }}>{pct}%</span>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="flex-1 space-y-2">
+            {/* Progress bar */}
+            <div className="w-full bg-muted rounded-full h-2">
+              <div
+                className="h-2 rounded-full transition-all duration-700"
+                style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: ringColor }}
+              />
+            </div>
+
+            {/* Numbers */}
+            <div className="flex justify-between text-sm">
+              <span className="font-semibold">{fNum(used)} <span className="text-muted-foreground font-normal">hit terpakai</span></span>
+              <span className="text-muted-foreground">dari {fNum(limit)}</span>
+            </div>
+
+            {/* 3 mini stats */}
+            <div className="grid grid-cols-3 gap-3 pt-1">
+              <div className="rounded-lg bg-muted/50 px-3 py-2 text-center">
+                <p className="text-xs text-muted-foreground">Sisa</p>
+                <p className="text-sm font-bold">{fNum(remaining)}</p>
+              </div>
+              <div className="rounded-lg bg-muted/50 px-3 py-2 text-center">
+                <p className="text-xs text-muted-foreground">Hari Ini</p>
+                <p className="text-sm font-bold">{fNum(todayRequests)}</p>
+              </div>
+              <div className={`rounded-lg px-3 py-2 text-center ${errorRate > 5 ? "bg-destructive/10" : "bg-muted/50"}`}>
+                <p className="text-xs text-muted-foreground">Error 24h</p>
+                <p className={`text-sm font-bold ${errorRate > 5 ? "text-destructive" : ""}`}>{errorRate}%</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ApiKeysPaginated — API Keys section dengan pagination per 5 data
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface ApiKeysPaginatedProps {
+  keys: DeveloperOverview["keys"];
+  dashboardId: string;
+}
+
+const KEYS_PER_PAGE = 5;
+
+const statusDot: Record<string, string> = {
+  active:   "bg-emerald-500",
+  expired:  "bg-amber-400",
+  revoked:  "bg-slate-400",
+  inactive: "bg-slate-400",
+};
+
+const statusBadge: Record<string, string> = {
+  active:   "text-emerald-700 bg-emerald-50 border-emerald-200",
+  expired:  "text-amber-700 bg-amber-50 border-amber-200",
+  revoked:  "text-slate-500 bg-slate-50 border-slate-200",
+  inactive: "text-slate-500 bg-slate-50 border-slate-200",
+};
+
+const ApiKeysPaginated = ({ keys, dashboardId }: ApiKeysPaginatedProps) => {
+  const [page, setPage] = useState(1);
+
+  const totalPages = Math.ceil(keys.length / KEYS_PER_PAGE);
+  const start      = (page - 1) * KEYS_PER_PAGE;
+  const pageKeys   = keys.slice(start, start + KEYS_PER_PAGE);
+
+  return (
+    <Card className="shadow-soft">
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <Key className="h-4 w-4 text-primary" />
+          API Keys
+          <span className="text-xs font-normal text-muted-foreground ml-1">
+            ({keys.length} total)
+          </span>
+        </CardTitle>
+        <Link to={`/developer/${dashboardId}/keys`}>
+          <Button variant="ghost" size="sm" className="gap-1 text-xs">
+            Kelola <ChevronRight className="h-3 w-3" />
+          </Button>
+        </Link>
+      </CardHeader>
+
+      <CardContent className="space-y-2">
+        {keys.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border p-6 text-center">
+            <Key className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
+            <p className="text-sm text-muted-foreground">Belum ada API key.</p>
+            <p className="text-xs text-muted-foreground mt-1">Key akan dibuat otomatis setelah pembayaran berhasil.</p>
+          </div>
+        ) : (
+          <>
+            {/* Key list */}
+            <div className="space-y-2">
+              {pageKeys.map((k) => (
+                <div
+                  key={k.id}
+                  className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-4 py-3 hover:bg-muted/40 transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`h-2 w-2 rounded-full shrink-0 ${statusDot[k.status] ?? "bg-slate-400"}`} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-mono font-medium truncate">
+                        {k.key_preview || `${k.key_prefix}••••••••`}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-muted-foreground capitalize">{k.key_type} key</span>
+                        <span
+                          className={`text-xs px-1.5 py-0.5 rounded border font-medium capitalize ${statusBadge[k.status] ?? statusBadge.inactive}`}
+                        >
+                          {k.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0 ml-4">
+                    <p className="text-sm font-medium">{fNum(k.request_count)} req</p>
+                    <p className="text-xs text-muted-foreground">
+                      {k.last_used_at
+                        ? `Terakhir: ${format(parseISO(k.last_used_at), "dd MMM", { locale: idLocale })}`
+                        : "Belum dipakai"}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-2">
+                <p className="text-xs text-muted-foreground">
+                  {start + 1}–{Math.min(start + KEYS_PER_PAGE, keys.length)} dari {keys.length} key
+                </p>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    disabled={page === 1}
+                    onClick={() => setPage((p) => p - 1)}
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <Button
+                      key={p}
+                      variant={p === page ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 w-7 p-0 text-xs"
+                      onClick={() => setPage(p)}
+                    >
+                      {p}
+                    </Button>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    disabled={page === totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Dashboard
 // ─────────────────────────────────────────────────────────────────────────────
 
 const DeveloperDashboard = () => {
@@ -69,7 +359,7 @@ const DeveloperDashboard = () => {
     developerService
       .getOverview(id)
       .then((res) => { if (res.success) setOverview(res.data); })
-      .catch(() => toast({ title: "Failed to load dashboard", variant: "destructive" }))
+      .catch(() => toast({ title: "Gagal memuat dashboard", variant: "destructive" }))
       .finally(() => setLoading(false));
   };
 
@@ -86,7 +376,7 @@ const DeveloperDashboard = () => {
             {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
           </div>
           <Skeleton className="h-56 rounded-xl" />
-          <Skeleton className="h-40 rounded-xl" />
+          <Skeleton className="h-48 rounded-xl" />
         </div>
       </DeveloperLayout>
     );
@@ -97,18 +387,17 @@ const DeveloperDashboard = () => {
   const keys  = overview?.keys ?? [];
   const dev   = overview?.developer;
 
-  const isActive    = sub?.status === "active";
-  const isYearly    = sub?.billing_cycle === "yearly";
-  const hasSavings  = isYearly && (sub?.savings_amount ?? 0) > 0;
+  const isActive   = sub?.status === "active";
+  const isYearly   = sub?.billing_cycle === "yearly";
+  const hasSavings = isYearly && (sub?.savings_amount ?? 0) > 0;
 
   const statusColor = isActive
     ? "bg-secondary text-secondary-foreground"
     : "bg-destructive text-destructive-foreground";
 
-  // Usage data — normalised
-  const hitUsed   = usage?.uploads?.used   ?? 0;
-  const hitLimit  = usage?.uploads?.limit  ?? sub?.api_hit_limit ?? 0;
-  const hitPct    = usage?.uploads?.pct    ?? (hitLimit > 0 ? Math.round(hitUsed / hitLimit * 100) : 0);
+  const hitUsed  = usage?.uploads?.used   ?? 0;
+  const hitLimit = usage?.uploads?.limit  ?? sub?.api_hit_limit ?? 0;
+  const hitPct   = usage?.uploads?.pct    ?? (hitLimit > 0 ? Math.round((hitUsed / hitLimit) * 100) : 0);
 
   return (
     <DeveloperLayout developerId={id}>
@@ -118,7 +407,7 @@ const DeveloperDashboard = () => {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-bold">
-              Welcome back, {dev?.full_name?.split(" ")[0] || "Developer"} 👋
+              Selamat datang, {dev?.full_name?.split(" ")[0] || "Developer"} 👋
             </h1>
             <p className="text-muted-foreground mt-1">
               {dev?.company_name || "Developer Account"} ·{" "}
@@ -128,14 +417,13 @@ const DeveloperDashboard = () => {
           <div className="flex items-center gap-2">
             {sub && (
               <Badge className={statusColor}>
-                {isActive ? "Active" : "Expired"}
+                {isActive ? "Aktif" : "Kadaluarsa"}
               </Badge>
             )}
-            {/* Billing cycle badge — NEW */}
             {sub && (
               <Badge variant="outline" className="gap-1.5">
                 <RefreshCw className="w-3 h-3" />
-                {CYCLE_LABEL[sub.billing_cycle ?? 'monthly']}
+                {CYCLE_LABEL[sub.billing_cycle ?? "monthly"]}
               </Badge>
             )}
             <Button variant="ghost" size="icon" onClick={load} title="Refresh">
@@ -149,18 +437,18 @@ const DeveloperDashboard = () => {
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 flex items-start gap-4">
             <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="font-semibold text-destructive">No active subscription</p>
+              <p className="font-semibold text-destructive">Belum ada langganan aktif</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Subscribe to a plan to get your API keys and start integrating.
+                Subscribe ke salah satu plan untuk mendapatkan API key dan mulai integrasi.
               </p>
             </div>
             <Link to="/developer/pricing">
-              <Button size="sm">View Plans</Button>
+              <Button size="sm">Lihat Plan</Button>
             </Link>
           </div>
         )}
 
-        {/* ── Yearly savings banner — NEW ── */}
+        {/* ── Yearly savings banner ── */}
         {hasSavings && (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 flex items-center gap-3">
             <Tag className="h-4 w-4 text-emerald-600 shrink-0" />
@@ -181,7 +469,7 @@ const DeveloperDashboard = () => {
                     <Zap className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Current Plan</p>
+                    <p className="text-xs text-muted-foreground">Plan Aktif</p>
                     <p className="font-bold">{sub.plan_name}</p>
                   </div>
                 </div>
@@ -196,8 +484,10 @@ const DeveloperDashboard = () => {
                     <CalendarDays className="h-4 w-4 text-secondary" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Expires</p>
-                    <p className="font-bold">{format(parseISO(sub.end_date), "dd MMM yyyy")}</p>
+                    <p className="text-xs text-muted-foreground">Berlaku Hingga</p>
+                    <p className="font-bold">
+                      {format(parseISO(sub.end_date), "dd MMM yyyy", { locale: idLocale })}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -211,8 +501,8 @@ const DeveloperDashboard = () => {
                     <Clock className="h-4 w-4 text-accent" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Days Remaining</p>
-                    <p className="font-bold">{sub.days_remaining} days</p>
+                    <p className="text-xs text-muted-foreground">Sisa Hari</p>
+                    <p className="font-bold">{sub.days_remaining} hari</p>
                   </div>
                 </div>
               </CardContent>
@@ -223,11 +513,11 @@ const DeveloperDashboard = () => {
               <CardContent className="pt-5">
                 <div className="flex items-center gap-3">
                   <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Server className="h-4 w-4 text-primary" />
+                    <Wifi className="h-4 w-4 text-primary" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Rate Limit</p>
-                    <p className="font-bold">{sub.rate_limit_rpm} req/min</p>
+                    <p className="font-bold">{sub.rate_limit_rpm} req/mnt</p>
                   </div>
                 </div>
               </CardContent>
@@ -235,25 +525,23 @@ const DeveloperDashboard = () => {
           </div>
         )}
 
-        {/* ── Subscription detail row — sla + support ── */}
+        {/* ── SLA + Support row ── */}
         {sub && (
           <div className="grid gap-4 sm:grid-cols-2">
-            {/* SLA info */}
             <Card className="shadow-soft">
               <CardContent className="pt-5">
                 <div className="flex items-center gap-3">
                   <div className="h-9 w-9 rounded-lg bg-blue-50 flex items-center justify-center">
-                    <Server className="h-4 w-4 text-blue-600" />
+                    <TrendingUp className="h-4 w-4 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">SLA</p>
-                    <p className="font-bold">{sub.sla_label || sub.support_level || '-'}</p>
+                    <p className="text-xs text-muted-foreground">SLA Response Time</p>
+                    <p className="font-bold">{sub.sla_label || sub.support_level || "-"}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Support channel */}
             <Card className="shadow-soft">
               <CardContent className="pt-5">
                 <div className="flex items-center gap-3">
@@ -261,9 +549,9 @@ const DeveloperDashboard = () => {
                     <Headphones className="h-4 w-4 text-violet-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Support Channel</p>
+                    <p className="text-xs text-muted-foreground">Saluran Support</p>
                     <p className="font-bold">
-                      {SUPPORT_LABEL[sub.support_channel ?? ''] ?? sub.support_channel ?? '-'}
+                      {getSupportLabel(sub.support_channel)}
                     </p>
                   </div>
                 </div>
@@ -272,108 +560,50 @@ const DeveloperDashboard = () => {
           </div>
         )}
 
-        {/* ── Usage ── */}
+        {/* ── API Hit Usage — IMPROVED ── */}
         {usage && (
+          <ApiHitCard
+            used={hitUsed}
+            limit={hitLimit}
+            pct={hitPct}
+            todayRequests={usage.today_requests}
+            errorRate={usage.error_rate_24h}
+            dashboardId={id}
+          />
+        )}
+
+        {/* ── Storage bar (legacy plans only) ── */}
+       {(sub?.storage_gb ?? 0) > 0 && usage?.storage != null && (
           <Card className="shadow-soft">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardHeader className="pb-2">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-primary" />
-                API Hit Usage This Month
+                <Server className="h-4 w-4 text-primary" />
+                Storage Usage
               </CardTitle>
-              <Link to={`/developer/${id}/usage`}>
-                <Button variant="ghost" size="sm" className="gap-1 text-xs">
-                  Details <ChevronRight className="h-3 w-3" />
-                </Button>
-              </Link>
             </CardHeader>
-            <CardContent className="space-y-5">
-              {/* API Hit bar — NEW (ganti storage + uploads) */}
-              <UsageBar
-                label="API Hit / bulan"
-                used={hitUsed}
-                limit={hitLimit}
-                unit=" hits"
-                pct={hitPct}
-              />
-              {/* Storage bar — tampilkan hanya jika plan masih punya storage_gb */}
-              {sub?.storage_gb && sub.storage_gb > 0 && usage.storage && (
-                <UsageBar
-                  label="Storage"
-                  used={Math.round((usage.storage.used_mb / 1024) * 10) / 10}
-                  limit={sub.storage_gb}
-                  unit=" GB"
-                  pct={usage.storage.pct}
-                />
-              )}
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium">
+                    {Math.round((usage.storage.used_mb / 1024) * 10) / 10} GB dipakai
+                  </span>
+                  <span className="text-muted-foreground">dari {sub.storage_gb} GB</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div
+                    className="h-2 rounded-full bg-primary transition-all duration-700"
+                    style={{ width: `${Math.min(usage.storage.pct, 100)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">{usage.storage.pct}% terpakai</p>
+              </div>
             </CardContent>
           </Card>
         )}
 
-        {/* ── Today stats ── */}
-        {usage && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Card className="shadow-soft">
-              <CardContent className="pt-5">
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Upload className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Requests Today</p>
-                    <p className="text-2xl font-bold">{usage.today_requests.toLocaleString()}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-soft">
-              <CardContent className="pt-5">
-                <div className="flex items-center gap-3">
-                  <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${usage.error_rate_24h > 5 ? "bg-destructive/10" : "bg-secondary/10"}`}>
-                    <BarChart3 className={`h-4 w-4 ${usage.error_rate_24h > 5 ? "text-destructive" : "text-secondary"}`} />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Error Rate (24h)</p>
-                    <p className="text-2xl font-bold">{usage.error_rate_24h}%</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        {/* ── API Keys dengan Pagination ── */}
+        <ApiKeysPaginated keys={keys} dashboardId={id} />
 
-        {/* ── API Keys quick view ── */}
-        <Card className="shadow-soft">
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Key className="h-4 w-4 text-primary" /> API Keys
-            </CardTitle>
-            <Link to={`/developer/${id}/keys`}>
-              <Button variant="ghost" size="sm" className="gap-1 text-xs">
-                Manage <ChevronRight className="h-3 w-3" />
-              </Button>
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {keys.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No keys yet. Keys will be generated after payment.</p>
-            ) : (
-              <div className="space-y-3">
-                {keys.map((k) => (
-                  <div key={k.id} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-2 w-2 rounded-full ${k.status === "active" ? "bg-secondary" : "bg-muted-foreground"}`} />
-                      <div>
-                        <p className="text-sm font-mono font-medium">{k.key_prefix}••••••••</p>
-                        <p className="text-xs text-muted-foreground capitalize">{k.key_type} key · {k.status}</p>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{k.request_count.toLocaleString()} requests</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </DeveloperLayout>
   );

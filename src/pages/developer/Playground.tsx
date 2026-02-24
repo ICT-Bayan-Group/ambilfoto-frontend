@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { DeveloperLayout } from "@/components/developer/DeveloperLayout";
 import { developerService, ApiKey } from "@/services/api/developer.service";
@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -32,14 +31,26 @@ import {
   Globe,
   Code2,
   Trash2,
-  Info,
   AlertTriangle,
   FileJson,
+  History,
+  Zap,
+  RefreshCw,
+  Eye,
+  EyeOff,
+  Info,
+  ChevronRight,
+  BookOpen,
+  Shield,
+  Terminal,
+  Sparkles,
 } from "lucide-react";
+import { format } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-interface Header {
+interface KVRow {
   id: string;
   key: string;
   value: string;
@@ -54,6 +65,7 @@ interface RequestHistory {
   duration: number | null;
   timestamp: Date;
   success: boolean;
+  label?: string;
 }
 
 interface ApiResponse {
@@ -65,129 +77,182 @@ interface ApiResponse {
   size: string;
 }
 
+type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
-type HttpMethod = (typeof HTTP_METHODS)[number];
+const HTTP_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
-const METHOD_COLORS: Record<HttpMethod, string> = {
-  GET: "text-emerald-400 bg-emerald-400/10 border-emerald-400/30",
-  POST: "text-blue-400 bg-blue-400/10 border-blue-400/30",
-  PUT: "text-amber-400 bg-amber-400/10 border-amber-400/30",
-  PATCH: "text-purple-400 bg-purple-400/10 border-purple-400/30",
-  DELETE: "text-red-400 bg-red-400/10 border-red-400/30",
+const METHOD_STYLES: Record<HttpMethod, { bg: string; text: string; border: string }> = {
+  GET:    { bg: "bg-emerald-500/10", text: "text-emerald-500", border: "border-emerald-500/30" },
+  POST:   { bg: "bg-blue-500/10",    text: "text-blue-500",    border: "border-blue-500/30"    },
+  PUT:    { bg: "bg-amber-500/10",   text: "text-amber-500",   border: "border-amber-500/30"   },
+  PATCH:  { bg: "bg-violet-500/10",  text: "text-violet-500",  border: "border-violet-500/30"  },
+  DELETE: { bg: "bg-red-500/10",     text: "text-red-500",     border: "border-red-500/30"     },
 };
 
 const PRESET_ENDPOINTS = [
   {
+    label: "Get Usage Stats",
+    method: "GET" as HttpMethod,
+    path: "/usage",
+    description: "Cek statistik penggunaan API kamu bulan ini",
+    body: "",
+    contentType: "application/json",
+    icon: "📊",
+  },
+  {
     label: "Analyze Photo",
     method: "POST" as HttpMethod,
     path: "/photo/analyze",
-    description: "Analyze a photo using AI — returns tags, labels, and metadata",
-    body: '{\n  "image_url": "https://example.com/photo.jpg",\n  "options": {\n    "tags": true,\n    "faces": false,\n    "nsfw": true\n  }\n}',
+    description: "Analisis foto menggunakan AI — tags, label, dan metadata",
+    body: JSON.stringify({
+      image_url: "https://example.com/photo.jpg",
+      options: { tags: true, faces: false, nsfw: true },
+    }, null, 2),
     contentType: "application/json",
-  },
-  {
-    label: "Upload Photo",
-    method: "POST" as HttpMethod,
-    path: "/photo/upload",
-    description: "Upload a photo (consumes upload quota). Send as multipart/form-data.",
-    body: '// This endpoint expects multipart/form-data.\n// Use a tool like Postman or attach a file.\n{\n  "title": "My Photo",\n  "description": "Optional description"\n}',
-    contentType: "multipart/form-data",
+    icon: "🔍",
   },
   {
     label: "Match Photos",
     method: "POST" as HttpMethod,
     path: "/photo/match",
-    description: "Find visually similar photos from the database",
-    body: '{\n  "image_url": "https://example.com/query.jpg",\n  "threshold": 0.8,\n  "limit": 10\n}',
+    description: "Cari foto yang mirip secara visual dari database",
+    body: JSON.stringify({
+      image_url: "https://example.com/query.jpg",
+      threshold: 0.8,
+      limit: 10,
+    }, null, 2),
     contentType: "application/json",
+    icon: "🖼️",
   },
   {
-    label: "Get Usage",
-    method: "GET" as HttpMethod,
-    path: "/usage",
-    description: "Retrieve current API usage stats for the authenticated key",
-    body: "",
-    contentType: "application/json",
+    label: "Upload Photo",
+    method: "POST" as HttpMethod,
+    path: "/photo/upload",
+    description: "Upload foto (menggunakan kuota upload). Gunakan multipart/form-data.",
+    body: JSON.stringify({ title: "My Photo", description: "Optional description" }, null, 2),
+    contentType: "multipart/form-data",
+    icon: "📤",
   },
-];
+] as const;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const generateId = () => Math.random().toString(36).slice(2, 9);
+const genId = () => Math.random().toString(36).slice(2, 9);
 
-const formatBytes = (bytes: number): string => {
+const formatBytes = (bytes: number) => {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 };
 
-const syntaxHighlight = (json: string): string => {
-  return json
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
+const syntaxHighlight = (json: string) =>
+  json
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(
       /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
       (match) => {
-        let cls = "text-amber-300"; // number
+        let cls = "text-amber-300";
         if (/^"/.test(match)) {
-          if (/:$/.test(match)) {
-            cls = "text-sky-300"; // key
-          } else {
-            cls = "text-emerald-300"; // string
-          }
-        } else if (/true|false/.test(match)) {
-          cls = "text-purple-300"; // boolean
-        } else if (/null/.test(match)) {
-          cls = "text-red-400"; // null
-        }
+          cls = /:$/.test(match) ? "text-sky-300" : "text-emerald-300";
+        } else if (/true|false/.test(match)) cls = "text-purple-300";
+        else if (/null/.test(match)) cls = "text-rose-400";
         return `<span class="${cls}">${match}</span>`;
       }
     );
+
+const getStatusMeta = (status: number | null) => {
+  if (!status || status === 0) return { color: "text-rose-400 border-rose-400/30 bg-rose-400/10", label: "ERR", emoji: "💥" };
+  if (status < 200) return { color: "text-sky-400 border-sky-400/30 bg-sky-400/10", label: `${status}`, emoji: "ℹ️" };
+  if (status < 300) return { color: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10", label: `${status}`, emoji: "✅" };
+  if (status < 400) return { color: "text-amber-400 border-amber-400/30 bg-amber-400/10", label: `${status}`, emoji: "↩️" };
+  if (status < 500) return { color: "text-orange-400 border-orange-400/30 bg-orange-400/10", label: `${status}`, emoji: "⚠️" };
+  return { color: "text-rose-400 border-rose-400/30 bg-rose-400/10", label: `${status}`, emoji: "🔥" };
 };
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+const MethodBadge = ({ method, size = "sm" }: { method: string; size?: "sm" | "xs" }) => {
+  const s = METHOD_STYLES[method as HttpMethod] ?? METHOD_STYLES.GET;
+  return (
+    <span className={`font-mono font-bold border rounded px-1.5 ${s.bg} ${s.text} ${s.border} ${size === "xs" ? "text-[10px] py-0" : "text-xs py-0.5"}`}>
+      {method}
+    </span>
+  );
+};
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 const DeveloperPlayground = () => {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
 
-  // API Keys
+  // Keys
   const [keys, setKeys] = useState<ApiKey[]>([]);
-  const [selectedKey, setSelectedKey] = useState<string>("");
+  const [selectedKeyId, setSelectedKeyId] = useState<string>("");
+  const [showRawKey, setShowRawKey] = useState(false);
   const [keysLoading, setKeysLoading] = useState(true);
+  // rawKey — key asli yang di-paste user. Disimpan di sessionStorage saja
+  // (otomatis hilang saat tab/browser ditutup, tidak pernah ke localStorage)
+  const [rawKey, setRawKey] = useState<string>(() =>
+    typeof window !== "undefined" ? (sessionStorage.getItem("pg_raw_key") ?? "") : ""
+  );
+  const [rawKeyVisible, setRawKeyVisible] = useState(false);
+  const [rawKeyError, setRawKeyError] = useState(false);
 
-  // Request state
+  const handleRawKeyChange = (val: string) => {
+    setRawKey(val);
+    setRawKeyError(false);
+    if (val.trim()) {
+      sessionStorage.setItem("pg_raw_key", val.trim());
+    } else {
+      sessionStorage.removeItem("pg_raw_key");
+    }
+  };
+
+  const clearRawKey = () => {
+    setRawKey("");
+    setRawKeyError(false);
+    sessionStorage.removeItem("pg_raw_key");
+  };
+
+  // Deteksi prefix dari key untuk cocokkan ke key object yang sesuai
+  const matchKeyFromRaw = (raw: string): ApiKey | null => {
+    if (!raw.trim()) return null;
+    return keys.find((k) => raw.trim().startsWith(k.key_prefix) && Boolean(k.is_active)) ?? null;
+  };
+
+  // Request
   const [method, setMethod] = useState<HttpMethod>("GET");
-  const [baseUrl, setBaseUrl] = useState(
+  const [baseUrl, setBaseUrl] = useState(() =>
     import.meta.env.VITE_API_BASE_URL
       ? `${import.meta.env.VITE_API_BASE_URL}/v1`
       : "http://localhost:5000/api/v1"
   );
   const [path, setPath] = useState("/usage");
-  const [headers, setHeaders] = useState<Header[]>([
-    { id: generateId(), key: "Content-Type", value: "application/json", enabled: true },
-    { id: generateId(), key: "Accept", value: "application/json", enabled: true },
+  const [headers, setHeaders] = useState<KVRow[]>([
+    { id: genId(), key: "Content-Type", value: "application/json", enabled: true },
+    { id: genId(), key: "Accept", value: "application/json", enabled: true },
+  ]);
+  const [params, setParams] = useState<KVRow[]>([
+    { id: genId(), key: "page", value: "1", enabled: false },
+    { id: genId(), key: "limit", value: "10", enabled: false },
   ]);
   const [body, setBody] = useState("");
-  const [queryParams, setQueryParams] = useState<Header[]>([
-    { id: generateId(), key: "page", value: "1", enabled: false },
-    { id: generateId(), key: "limit", value: "10", enabled: false },
-  ]);
+  const [isMultipart, setIsMultipart] = useState(false);
 
-  // Response state
+  // Response
   const [response, setResponse] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<RequestHistory[]>([]);
-  const [activeResponseTab, setActiveResponseTab] = useState("body");
   const [showHistory, setShowHistory] = useState(false);
-  const [copiedResponse, setCopiedResponse] = useState(false);
+  const [responseTab, setResponseTab] = useState("body");
+  const [copied, setCopied] = useState<string | null>(null);
 
   const responseRef = useRef<HTMLDivElement>(null);
 
-  // Load API keys
+  // ── Load keys ──
   useEffect(() => {
     if (!id) return;
     developerService
@@ -195,498 +260,570 @@ const DeveloperPlayground = () => {
       .then((res) => {
         if (res.success) {
           setKeys(res.data);
-          const activeKey = res.data.find((k) => k.is_active && k.key_type === "dev");
-          if (activeKey) setSelectedKey(activeKey.id);
+          // is_active bisa 0/1 integer dari backend — normalise ke boolean
+          const active = res.data.find((k) => Boolean(k.is_active) && k.key_type === "dev")
+            ?? res.data.find((k) => Boolean(k.is_active));
+          if (active) setSelectedKeyId(active.id);
         }
       })
-      .catch(() => toast({ title: "Failed to load API keys", variant: "destructive" }))
+      .catch(() => toast({ title: "Gagal memuat API keys", variant: "destructive" }))
       .finally(() => setKeysLoading(false));
   }, [id]);
 
-  const getActiveKeyPrefix = () => {
-    const k = keys.find((k) => k.id === selectedKey);
-    return k ? `${k.key_prefix}••••••••••` : null;
-  };
+  const selectedKey = keys.find((k) => k.id === selectedKeyId) ?? null;
+  const activeKeys  = keys.filter((k) => Boolean(k.is_active));
 
-  // Build full URL
-  const buildUrl = () => {
-    const activeParams = queryParams.filter((p) => p.enabled && p.key);
+  // ── URL builder ──
+  const buildUrl = useCallback(() => {
+    const activeParams = params.filter((p) => p.enabled && p.key.trim());
     const qs = activeParams.length
       ? "?" + activeParams.map((p) => `${encodeURIComponent(p.key)}=${encodeURIComponent(p.value)}`).join("&")
       : "";
-    return `${baseUrl}${path}${qs}`;
-  };
+    return `${baseUrl.replace(/\/$/, "")}${path}${qs}`;
+  }, [baseUrl, path, params]);
 
-  // Send request (simulated — real implementation would use the key's actual endpoint)
+  // ── cURL builder ──
+  const buildCurl = useCallback(() => {
+    const url = buildUrl();
+    const displayKey = rawKey.trim() ? rawKey.trim() : "YOUR_API_KEY";
+    const keyHeader = ` \\\n  -H "X-API-Key: ${displayKey}"`;
+    const hdrs = headers
+      .filter((h) => h.enabled && h.key.trim() && h.key !== "Content-Type")
+      .map((h) => ` \\\n  -H "${h.key}: ${h.value}"`).join("");
+    const bodyStr = isMultipart
+      ? ` \\\n  -F "file=@/path/to/photo.jpg" \\\n  -F "title=My Photo"`
+      : ["POST", "PUT", "PATCH"].includes(method) && body.trim()
+        ? ` \\\n  -H "Content-Type: application/json" \\\n  -d '${body.replace(/\n/g, " ").replace(/'/g, "\\'")}'`
+        : "";
+    return `curl -X ${method} "${url}"${keyHeader}${hdrs}${bodyStr}`;
+  }, [buildUrl, rawKey, headers, method, body, isMultipart]);
+
+  // ── Send request ──
   const sendRequest = async () => {
-    if (!selectedKey) {
-      toast({ title: "Select an API key first", variant: "destructive" });
+    if (!rawKey.trim()) {
+      setRawKeyError(true);
+      toast({ title: "Masukkan API key terlebih dahulu", description: "Paste key asli kamu di field Step 1.", variant: "destructive" });
       return;
     }
 
     setLoading(true);
     setResponse(null);
-
     const start = performance.now();
     const url = buildUrl();
 
-    const activeHeaders: Record<string, string> = {};
-    headers
-      .filter((h) => h.enabled && h.key)
-      .forEach((h) => (activeHeaders[h.key] = h.value));
+    const reqHeaders: Record<string, string> = {};
+    headers.filter((h) => h.enabled && h.key.trim()).forEach((h) => {
+      reqHeaders[h.key] = h.value;
+    });
 
-    // Inject API key
-    const selectedKeyObj = keys.find((k) => k.id === selectedKey);
-    if (selectedKeyObj) {
-      activeHeaders["X-API-Key"] = `${selectedKeyObj.key_prefix}[hidden]`;
-    }
+    // ✅ Gunakan key asli yang di-paste user — bukan key_preview
+    reqHeaders["X-API-Key"] = rawKey.trim();
 
     try {
-      const fetchOptions: RequestInit = {
-        method,
-        headers: activeHeaders,
-      };
-      if (["POST", "PUT", "PATCH"].includes(method) && body.trim()) {
-        fetchOptions.body = body;
+      const opts: RequestInit = { method, headers: reqHeaders };
+      if (["POST", "PUT", "PATCH"].includes(method) && body.trim() && !isMultipart) {
+        opts.body = body;
       }
 
-      const res = await fetch(url, fetchOptions);
+      const res = await fetch(url, opts);
       const duration = Math.round(performance.now() - start);
 
-      let responseBody: unknown;
-      const contentType = res.headers.get("content-type") || "";
-      if (contentType.includes("application/json")) {
-        responseBody = await res.json();
+      let resBody: unknown;
+      const ct = res.headers.get("content-type") ?? "";
+      if (ct.includes("application/json")) {
+        resBody = await res.json();
       } else {
-        responseBody = await res.text();
+        resBody = { _raw: await res.text() };
       }
 
-      const bodyStr = JSON.stringify(responseBody, null, 2);
+      const resHeaders: Record<string, string> = {};
+      res.headers.forEach((v, k) => (resHeaders[k] = v));
+
+      const bodyStr = JSON.stringify(resBody, null, 2);
       const size = formatBytes(new TextEncoder().encode(bodyStr).length);
 
-      const responseHeaders: Record<string, string> = {};
-      res.headers.forEach((v, k) => (responseHeaders[k] = v));
-
-      const apiResponse: ApiResponse = {
+      const apiRes: ApiResponse = {
         status: res.status,
         statusText: res.statusText,
-        headers: responseHeaders,
-        body: responseBody,
+        headers: resHeaders,
+        body: resBody,
         duration,
         size,
       };
 
-      setResponse(apiResponse);
-      setActiveResponseTab("body");
+      setResponse(apiRes);
+      setResponseTab("body");
 
-      const historyEntry: RequestHistory = {
-        id: generateId(),
-        method,
-        url,
-        status: res.status,
-        duration,
-        timestamp: new Date(),
-        success: res.ok,
-      };
-      setHistory((prev) => [historyEntry, ...prev].slice(0, 20));
+      setHistory((prev) => [
+        { id: genId(), method, url, status: res.status, duration, timestamp: new Date(), success: res.ok },
+        ...prev,
+      ].slice(0, 30));
 
-      setTimeout(() => responseRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
-    } catch (err: unknown) {
+      setTimeout(() => responseRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 80);
+    } catch (err) {
       const duration = Math.round(performance.now() - start);
-      const errorMessage = err instanceof Error ? err.message : "Network error";
+      const msg = err instanceof Error ? err.message : "Network error";
 
+      // CORS / network error — tunjukkan info yang berguna
       setResponse({
         status: 0,
         statusText: "Network Error",
         headers: {},
-        body: { error: errorMessage },
+        body: {
+          error: msg,
+          hint: msg.includes("CORS") || msg.includes("fetch")
+            ? "CORS error: Pastikan server API mengizinkan origin browser kamu, atau gunakan proxy. Lihat dokumentasi API untuk setup CORS."
+            : "Pastikan server API berjalan dan URL sudah benar.",
+        },
         duration,
         size: "—",
       });
 
-      setHistory((prev) =>
-        [
-          {
-            id: generateId(),
-            method,
-            url,
-            status: null,
-            duration,
-            timestamp: new Date(),
-            success: false,
-          } as RequestHistory,
-          ...prev,
-        ].slice(0, 20)
-      );
+      setHistory((prev) => [
+        { id: genId(), method, url, status: null, duration, timestamp: new Date(), success: false },
+        ...prev,
+      ].slice(0, 30));
     } finally {
       setLoading(false);
     }
   };
 
-  const [isMultipart, setIsMultipart] = useState(false);
-
-  const applyPreset = (preset: (typeof PRESET_ENDPOINTS)[0]) => {
+  const applyPreset = (preset: typeof PRESET_ENDPOINTS[number]) => {
     setMethod(preset.method);
     setPath(preset.path);
     setBody(preset.body ?? "");
-
-    const isMultipartPreset = preset.contentType === "multipart/form-data";
-    setIsMultipart(isMultipartPreset);
-
-    // Update Content-Type header to match preset
+    const mp = preset.contentType === "multipart/form-data";
+    setIsMultipart(mp);
     setHeaders((prev) =>
       prev.map((h) =>
         h.key === "Content-Type"
-          ? { ...h, value: isMultipartPreset ? "multipart/form-data" : "application/json", enabled: true }
+          ? { ...h, value: mp ? "multipart/form-data" : "application/json", enabled: true }
           : h
       )
     );
+    toast({ title: `Preset "${preset.label}" diterapkan` });
   };
 
-  const copyResponse = () => {
-    if (response) {
-      navigator.clipboard.writeText(JSON.stringify(response.body, null, 2));
-      setCopiedResponse(true);
-      setTimeout(() => setCopiedResponse(false), 2000);
+  const copyText = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  // ── KV row helpers ──
+  const addRow    = (setter: React.Dispatch<React.SetStateAction<KVRow[]>>) =>
+    setter((p) => [...p, { id: genId(), key: "", value: "", enabled: true }]);
+  const removeRow = (setter: React.Dispatch<React.SetStateAction<KVRow[]>>, rid: string) =>
+    setter((p) => p.filter((r) => r.id !== rid));
+  const updateRow = (setter: React.Dispatch<React.SetStateAction<KVRow[]>>, rid: string, field: keyof KVRow, val: string | boolean) =>
+    setter((p) => p.map((r) => r.id === rid ? { ...r, [field]: val } : r));
+
+  const formatJSON = () => {
+    try {
+      const clean = body.split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
+      setBody(JSON.stringify(JSON.parse(clean), null, 2));
+    } catch {
+      toast({ title: "JSON tidak valid", variant: "destructive" });
     }
-  };
-
-  const addHeader = () =>
-    setHeaders((prev) => [...prev, { id: generateId(), key: "", value: "", enabled: true }]);
-  const removeHeader = (hid: string) => setHeaders((prev) => prev.filter((h) => h.id !== hid));
-  const updateHeader = (hid: string, field: "key" | "value" | "enabled", val: string | boolean) =>
-    setHeaders((prev) => prev.map((h) => (h.id === hid ? { ...h, [field]: val } : h)));
-
-  const addParam = () =>
-    setQueryParams((prev) => [...prev, { id: generateId(), key: "", value: "", enabled: true }]);
-  const removeParam = (pid: string) => setQueryParams((prev) => prev.filter((p) => p.id !== pid));
-  const updateParam = (pid: string, field: "key" | "value" | "enabled", val: string | boolean) =>
-    setQueryParams((prev) => prev.map((p) => (p.id === pid ? { ...p, [field]: val } : p)));
-
-  const getStatusColor = (status: number | null) => {
-    if (!status) return "text-red-400 bg-red-400/10 border-red-400/30";
-    if (status < 300) return "text-emerald-400 bg-emerald-400/10 border-emerald-400/30";
-    if (status < 400) return "text-amber-400 bg-amber-400/10 border-amber-400/30";
-    return "text-red-400 bg-red-400/10 border-red-400/30";
   };
 
   if (!id) return null;
 
+  const statusMeta = response ? getStatusMeta(response.status) : null;
+
   return (
     <DeveloperLayout developerId={id}>
       <div className="space-y-5">
-        {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
+
+        {/* ── Header ── */}
+        <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              <FlaskConical className="h-6 w-6 text-primary" /> API Playground
+              <FlaskConical className="h-6 w-6 text-primary" />
+              API Playground
             </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Test your API endpoints directly using your developer keys.
+            <p className="text-muted-foreground text-sm mt-1">
+              Test endpoint API langsung dari browser — seperti Postman, tanpa install apapun.
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5 text-muted-foreground"
-              onClick={() => setShowHistory((p) => !p)}
-            >
-              <Clock className="h-4 w-4" />
-              History ({history.length})
-              {showHistory ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            </Button>
+            {history.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={() => setShowHistory((p) => !p)}
+              >
+                <History className="h-3.5 w-3.5" />
+                Riwayat ({history.length})
+                {showHistory ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </Button>
+            )}
           </div>
         </div>
 
-        {/* History panel */}
+        {/* ── CORS notice ── */}
+        <div className="rounded-xl border border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-sky-950/30 px-4 py-3 flex items-start gap-3">
+          <Info className="h-4 w-4 text-sky-500 shrink-0 mt-0.5" />
+          <div className="text-sm text-sky-700 dark:text-sky-300 space-y-0.5">
+            <p className="font-medium">Cara penggunaan Playground</p>
+            <p className="text-xs opacity-80">
+              Request dikirim langsung dari browser. Pastikan server API kamu mengaktifkan <code className="bg-sky-100 dark:bg-sky-900 px-1 rounded">CORS</code> untuk origin ini, atau jalankan dari localhost yang sama. Key kamu dikirim via header <code className="bg-sky-100 dark:bg-sky-900 px-1 rounded">X-API-Key</code>.
+            </p>
+          </div>
+        </div>
+
+        {/* ── Request History ── */}
         {showHistory && history.length > 0 && (
           <Card className="shadow-soft">
-            <CardHeader className="pb-2 pt-4">
+            <CardHeader className="pb-2 pt-4 flex flex-row items-center justify-between">
               <CardTitle className="text-sm flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" /> Request History
+                <History className="h-4 w-4 text-muted-foreground" />
+                Riwayat Request
               </CardTitle>
+              <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground"
+                onClick={() => setHistory([])}>
+                Hapus semua
+              </Button>
             </CardHeader>
             <CardContent className="pb-4">
-              <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
-                {history.map((h) => (
-                  <button
-                    key={h.id}
-                    className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-xs hover:bg-muted/60 transition-colors text-left"
-                    onClick={() => {
-                      setMethod(h.method as HttpMethod);
-                      const urlObj = new URL(h.url);
-                      setBaseUrl(urlObj.origin);
-                      setPath(urlObj.pathname);
-                    }}
-                  >
-                    <span className={`font-mono font-bold text-[10px] px-1.5 py-0.5 rounded border ${METHOD_COLORS[h.method as HttpMethod]}`}>
-                      {h.method}
-                    </span>
-                    <span className="flex-1 truncate text-muted-foreground font-mono">{h.url}</span>
-                    {h.status && (
-                      <span className={`px-1.5 py-0.5 rounded border text-[10px] font-bold ${getStatusColor(h.status)}`}>
-                        {h.status}
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {history.map((h) => {
+                  const s = getStatusMeta(h.status);
+                  return (
+                    <button
+                      key={h.id}
+                      className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs hover:bg-muted/50 transition-colors text-left group"
+                      onClick={() => {
+                        setMethod(h.method as HttpMethod);
+                        try {
+                          const u = new URL(h.url);
+                          setBaseUrl(u.origin);
+                          setPath(u.pathname);
+                        } catch {}
+                      }}
+                    >
+                      <MethodBadge method={h.method} size="xs" />
+                      <span className="flex-1 truncate font-mono text-muted-foreground group-hover:text-foreground">
+                        {h.url}
                       </span>
-                    )}
-                    {h.duration !== null && (
-                      <span className="text-muted-foreground">{h.duration}ms</span>
-                    )}
-                    <span className="text-muted-foreground/60">
-                      {h.timestamp.toLocaleTimeString()}
-                    </span>
-                  </button>
-                ))}
+                      {h.status ? (
+                        <span className={`px-1.5 py-0.5 rounded border text-[10px] font-bold ${s.color}`}>
+                          {h.status}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-rose-400">ERR</span>
+                      )}
+                      {h.duration !== null && (
+                        <span className="text-muted-foreground/60 tabular-nums">{h.duration}ms</span>
+                      )}
+                      <span className="text-muted-foreground/40 tabular-nums hidden sm:block">
+                        {format(h.timestamp, "HH:mm:ss")}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
         )}
 
-        <div className="grid gap-5 xl:grid-cols-[1fr_420px]">
-          {/* LEFT: Request Builder */}
+        {/* ── Main grid ── */}
+        <div className="grid gap-5 xl:grid-cols-[1fr_440px]">
+
+          {/* ═══════ LEFT: Request Builder ═══════ */}
           <div className="space-y-4">
-            {/* Key selector */}
-            <Card className="shadow-soft">
-              <CardContent className="pt-4 pb-4">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <Key className="h-4 w-4 text-primary shrink-0" />
-                  <Label className="text-sm font-medium shrink-0">API Key</Label>
-                  {keysLoading ? (
-                    <Skeleton className="h-9 w-64 rounded-md" />
+
+            {/* Step 1 — API Key Input */}
+            <Card className={`shadow-soft transition-all ${rawKeyError ? "ring-2 ring-destructive/50 border-destructive/50" : ""}`}>
+              <CardContent className="pt-4 pb-4 space-y-3">
+                {/* Title */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-5 w-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center shrink-0">1</div>
+                    <span className="text-sm font-semibold">Masukkan API Key</span>
+                    {rawKey.trim() && (
+                      <span className="flex items-center gap-1 text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full dark:bg-emerald-900/20 dark:border-emerald-800">
+                        <CheckCircle2 className="h-2.5 w-2.5" /> Siap
+                      </span>
+                    )}
+                  </div>
+                  {rawKey.trim() && (
+                    <button onClick={clearRawKey} className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1 transition-colors">
+                      <Trash2 className="h-3 w-3" /> Hapus key
+                    </button>
+                  )}
+                </div>
+
+                {/* Info box */}
+                <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-900/10 dark:border-amber-800">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                    Paste <strong>key asli</strong> kamu di sini — key asli hanya ditampilkan <strong>sekali saat pertama dibuat atau di-regenerate</strong> di halaman API Keys. Key tidak disimpan permanen, hanya di memory tab ini.
+                  </p>
+                </div>
+
+                {/* Input */}
+                <div className="relative">
+                  <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <input
+                    type={rawKeyVisible ? "text" : "password"}
+                    value={rawKey}
+                    onChange={(e) => handleRawKeyChange(e.target.value)}
+                    placeholder="af_dev_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                    spellCheck={false}
+                    autoComplete="off"
+                    className={`w-full pl-9 pr-20 py-2.5 rounded-lg border font-mono text-sm bg-background transition-colors
+                      focus:outline-none focus:ring-2 focus:ring-primary/30
+                      ${rawKeyError ? "border-destructive bg-destructive/5" : "border-input hover:border-muted-foreground/40"}
+                    `}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setRawKeyVisible((p) => !p)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {rawKeyVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {rawKeyError && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <XCircle className="h-3.5 w-3.5" /> API key wajib diisi sebelum mengirim request.
+                  </p>
+                )}
+
+                {/* Key info panel — tampil jika key cocok dengan salah satu key di akun */}
+                {rawKey.trim() && (() => {
+                  const matched = matchKeyFromRaw(rawKey);
+                  return matched ? (
+                    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800">
+                      <div className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${matched.key_type === "prod" ? "bg-amber-100 dark:bg-amber-900/30" : "bg-sky-100 dark:bg-sky-900/30"}`}>
+                        <Key className={`h-3.5 w-3.5 ${matched.key_type === "prod" ? "text-amber-600" : "text-sky-600"}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                          ✓ Cocok dengan {matched.key_type.toUpperCase()} key di akun kamu
+                        </p>
+                        <p className="font-mono text-[11px] text-muted-foreground truncate">{matched.key_preview}</p>
+                      </div>
+                      {matched.key_type === "prod" && (
+                        <Badge variant="outline" className="text-[9px] px-1 py-0 shrink-0 text-amber-600 border-amber-300">PROD</Badge>
+                      )}
+                    </div>
                   ) : (
-                    <Select value={selectedKey} onValueChange={setSelectedKey}>
-                      <SelectTrigger className="w-72 font-mono text-sm h-9">
-                        <SelectValue placeholder="Select an API key…" />
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30 border border-border">
+                      <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <p className="text-[11px] text-muted-foreground">
+                        Key dikenali. Header <code className="bg-muted px-1 rounded font-mono">X-API-Key</code> akan dikirim dengan value ini.
+                      </p>
+                    </div>
+                  );
+                })()}
+
+                {/* Keys di akun (referensi) */}
+                {!keysLoading && activeKeys.length > 0 && (
+                  <div>
+                    <p className="text-[11px] text-muted-foreground mb-1.5 flex items-center gap-1">
+                      <Shield className="h-3 w-3" /> Key aktif di akunmu (untuk referensi prefix):
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {activeKeys.map((k) => (
+                        <div key={k.id} className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/40 border border-border text-[11px] font-mono">
+                          <span className={`h-1.5 w-1.5 rounded-full ${k.key_type === "prod" ? "bg-amber-500" : "bg-sky-500"}`} />
+                          {k.key_preview}
+                          <span className="text-muted-foreground/60 capitalize">({k.key_type})</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Step 2 — Preset & URL */}
+            <Card className="shadow-soft">
+              <CardContent className="pt-4 pb-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-5 w-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center shrink-0">2</div>
+                  <span className="text-sm font-semibold">Pilih Endpoint</span>
+                </div>
+
+                {/* Presets */}
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" /> Quick start — klik untuk langsung isi form:
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {PRESET_ENDPOINTS.map((preset) => (
+                      <button
+                        key={preset.label}
+                        onClick={() => applyPreset(preset)}
+                        className={`flex items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all hover:shadow-sm ${
+                          path === preset.path && method === preset.method
+                            ? "border-primary/40 bg-primary/5"
+                            : "border-border hover:border-muted-foreground/30 hover:bg-muted/30"
+                        }`}
+                      >
+                        <span className="text-base shrink-0 mt-0.5">{preset.icon}</span>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <MethodBadge method={preset.method} size="xs" />
+                            <span className="text-xs font-medium">{preset.label}</span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{preset.description}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* URL Bar */}
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Select value={method} onValueChange={(v) => setMethod(v as HttpMethod)}>
+                      <SelectTrigger className={`w-28 font-mono font-bold text-xs h-10 border ${METHOD_STYLES[method].bg} ${METHOD_STYLES[method].text} ${METHOD_STYLES[method].border}`}>
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {keys.length === 0 && (
-                          <SelectItem value="none" disabled>
-                            No active keys found
-                          </SelectItem>
-                        )}
-                        {keys.map((k) => (
-                          <SelectItem key={k.id} value={k.id} disabled={!k.is_active}>
-                            <span className="flex items-center gap-2">
-                              <span
-                                className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                                  k.is_active ? "bg-emerald-400" : "bg-muted-foreground"
-                                }`}
-                              />
-                              <span className="font-mono text-xs">{k.key_prefix}••••</span>
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] py-0 px-1 h-4 capitalize"
-                              >
-                                {k.key_type}
-                              </Badge>
-                            </span>
+                        {HTTP_METHODS.map((m) => (
+                          <SelectItem key={m} value={m}>
+                            <MethodBadge method={m} />
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                  )}
-                  {selectedKey && (
-                    <span className="text-xs text-muted-foreground font-mono flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 inline-block" />
-                      {getActiveKeyPrefix()}
-                    </span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
 
-            {/* Presets */}
-            <div>
-              <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                <Info className="h-3 w-3" /> Quick presets
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {PRESET_ENDPOINTS.map((preset) => (
-                  <button
-                    key={preset.label}
-                    onClick={() => applyPreset(preset)}
-                    className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground"
-                    title={preset.description}
-                  >
-                    <span className={`font-mono font-bold text-[10px] ${METHOD_COLORS[preset.method].split(" ")[0]}`}>
-                      {preset.method}
-                    </span>
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+                    <div className="flex flex-1 min-w-0">
+                      <Input
+                        value={baseUrl}
+                        onChange={(e) => setBaseUrl(e.target.value)}
+                        className="rounded-r-none h-10 font-mono text-xs border-r-0 text-muted-foreground bg-muted/30 w-48 shrink-0"
+                        placeholder="Base URL"
+                      />
+                      <Input
+                        value={path}
+                        onChange={(e) => setPath(e.target.value)}
+                        className="rounded-l-none h-10 font-mono text-xs flex-1 min-w-0"
+                        placeholder="/endpoint"
+                      />
+                    </div>
 
-            {/* URL bar */}
-            <Card className="shadow-soft">
-              <CardContent className="pt-4 pb-4 space-y-3">
-                <div className="flex gap-2">
-                  {/* Method */}
-                  <Select value={method} onValueChange={(v) => setMethod(v as HttpMethod)}>
-                    <SelectTrigger
-                      className={`w-28 font-mono font-bold text-sm h-10 border ${METHOD_COLORS[method]}`}
+                    <Button
+                      className="h-10 px-5 gap-2 shrink-0 font-semibold"
+                      onClick={sendRequest}
+                      disabled={loading || !selectedKeyId}
                     >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {HTTP_METHODS.map((m) => (
-                        <SelectItem key={m} value={m}>
-                          <span className={`font-mono font-bold text-sm ${METHOD_COLORS[m].split(" ")[0]}`}>
-                            {m}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {/* Base URL */}
-                  <div className="flex flex-1 gap-0">
-                    <Input
-                      value={baseUrl}
-                      onChange={(e) => setBaseUrl(e.target.value)}
-                      placeholder="https://api.example.com/v1"
-                      className="rounded-r-none h-10 font-mono text-sm border-r-0 text-muted-foreground bg-muted/30"
-                    />
-                    <Input
-                      value={path}
-                      onChange={(e) => setPath(e.target.value)}
-                      placeholder="/endpoint"
-                      className="rounded-l-none h-10 font-mono text-sm flex-1"
-                    />
+                      {loading
+                        ? <><Loader2 className="h-4 w-4 animate-spin" /> Mengirim…</>
+                        : <><Play className="h-4 w-4 fill-current" /> Kirim</>
+                      }
+                    </Button>
                   </div>
-                  {/* Send */}
-                  <Button
-                    className="h-10 px-5 gap-2 shrink-0"
-                    onClick={sendRequest}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Play className="h-4 w-4 fill-current" />
-                    )}
-                    {loading ? "Sending…" : "Send"}
-                  </Button>
-                </div>
 
-                {/* Full URL preview */}
-                <div className="flex items-center gap-2 px-3 py-2 bg-muted/40 rounded-lg">
-                  <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <code className="text-xs text-muted-foreground truncate flex-1 font-mono">
-                    {buildUrl()}
-                  </code>
+                  {/* URL preview */}
+                  <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 rounded-lg">
+                    <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <code className="text-[11px] text-muted-foreground truncate flex-1 font-mono">{buildUrl()}</code>
+                    <button onClick={() => copyText(buildUrl(), "url")} className="text-muted-foreground hover:text-foreground shrink-0">
+                      {copied === "url" ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Tabs: Headers / Params / Body */}
+            {/* Step 3 — Headers / Params / Body */}
             <Card className="shadow-soft">
               <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="h-5 w-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center shrink-0">3</div>
+                  <span className="text-sm font-semibold">Konfigurasi Request</span>
+                </div>
+
                 <Tabs defaultValue="headers">
-                  <TabsList className="mb-4 h-8">
-                    <TabsTrigger value="headers" className="text-xs h-7">
+                  <TabsList className="h-8 w-full">
+                    <TabsTrigger value="headers" className="text-xs h-7 flex-1">
                       Headers
-                      <Badge variant="secondary" className="ml-1.5 text-[10px] px-1 py-0 h-4">
-                        {headers.filter((h) => h.enabled && h.key).length}
-                      </Badge>
+                      {headers.filter((h) => h.enabled && h.key).length > 0 && (
+                        <Badge variant="secondary" className="ml-1.5 text-[10px] px-1 py-0 h-4">
+                          {headers.filter((h) => h.enabled && h.key).length}
+                        </Badge>
+                      )}
                     </TabsTrigger>
-                    <TabsTrigger value="params" className="text-xs h-7">
-                      Query Params
-                      <Badge variant="secondary" className="ml-1.5 text-[10px] px-1 py-0 h-4">
-                        {queryParams.filter((p) => p.enabled && p.key).length}
-                      </Badge>
+                    <TabsTrigger value="params" className="text-xs h-7 flex-1">
+                      Params
+                      {params.filter((p) => p.enabled && p.key).length > 0 && (
+                        <Badge variant="secondary" className="ml-1.5 text-[10px] px-1 py-0 h-4">
+                          {params.filter((p) => p.enabled && p.key).length}
+                        </Badge>
+                      )}
                     </TabsTrigger>
-                    <TabsTrigger value="body" className="text-xs h-7" disabled={method === "GET" || method === "DELETE"}>
+                    <TabsTrigger value="body" className="text-xs h-7 flex-1" disabled={method === "GET" || method === "DELETE"}>
                       Body
+                      {body.trim() && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-primary inline-block" />}
                     </TabsTrigger>
                   </TabsList>
 
-                  {/* Headers tab */}
-                  <TabsContent value="headers" className="space-y-2 mt-0">
+                  {/* Headers */}
+                  <TabsContent value="headers" className="mt-4 space-y-2">
                     {headers.map((h) => (
                       <div key={h.id} className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={h.enabled}
-                          onChange={(e) => updateHeader(h.id, "enabled", e.target.checked)}
-                          className="accent-primary"
-                        />
-                        <Input
-                          value={h.key}
-                          onChange={(e) => updateHeader(h.id, "key", e.target.value)}
-                          placeholder="Header name"
-                          className="h-8 text-xs font-mono flex-1"
-                        />
-                        <Input
-                          value={h.value}
-                          onChange={(e) => updateHeader(h.id, "value", e.target.value)}
-                          placeholder="Value"
-                          className="h-8 text-xs font-mono flex-1"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-                          onClick={() => removeHeader(h.id)}
-                        >
+                        <input type="checkbox" checked={h.enabled}
+                          onChange={(e) => updateRow(setHeaders, h.id, "enabled", e.target.checked)}
+                          className="accent-primary h-3.5 w-3.5 shrink-0" />
+                        <Input value={h.key} onChange={(e) => updateRow(setHeaders, h.id, "key", e.target.value)}
+                          placeholder="Header name" className="h-8 text-xs font-mono flex-1" />
+                        <Input value={h.value} onChange={(e) => updateRow(setHeaders, h.id, "value", e.target.value)}
+                          placeholder="Value" className="h-8 text-xs font-mono flex-1" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => removeRow(setHeaders, h.id)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     ))}
-                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={addHeader}>
-                      + Add Header
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1"
+                      onClick={() => addRow(setHeaders)}>
+                      + Tambah Header
                     </Button>
-                    <div className="flex items-start gap-2 mt-2 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                    <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-900/10 dark:border-amber-800">
                       <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">
-                        The <code className="bg-muted px-1 rounded">X-API-Key</code> header will be injected automatically from your selected key. Do not add it manually.
+                      <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                        Header <code className="bg-amber-100 dark:bg-amber-900 px-1 rounded">X-API-Key</code> sudah otomatis dikirim dari key yang kamu pilih di atas. Tidak perlu tambah manual.
                       </p>
                     </div>
                   </TabsContent>
 
-                  {/* Query Params tab */}
-                  <TabsContent value="params" className="space-y-2 mt-0">
-                    {queryParams.map((p) => (
+                  {/* Query Params */}
+                  <TabsContent value="params" className="mt-4 space-y-2">
+                    {params.map((p) => (
                       <div key={p.id} className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={p.enabled}
-                          onChange={(e) => updateParam(p.id, "enabled", e.target.checked)}
-                          className="accent-primary"
-                        />
-                        <Input
-                          value={p.key}
-                          onChange={(e) => updateParam(p.id, "key", e.target.value)}
-                          placeholder="Parameter"
-                          className="h-8 text-xs font-mono flex-1"
-                        />
-                        <Input
-                          value={p.value}
-                          onChange={(e) => updateParam(p.id, "value", e.target.value)}
-                          placeholder="Value"
-                          className="h-8 text-xs font-mono flex-1"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-                          onClick={() => removeParam(p.id)}
-                        >
+                        <input type="checkbox" checked={p.enabled}
+                          onChange={(e) => updateRow(setParams, p.id, "enabled", e.target.checked)}
+                          className="accent-primary h-3.5 w-3.5 shrink-0" />
+                        <Input value={p.key} onChange={(e) => updateRow(setParams, p.id, "key", e.target.value)}
+                          placeholder="Parameter" className="h-8 text-xs font-mono flex-1" />
+                        <Input value={p.value} onChange={(e) => updateRow(setParams, p.id, "value", e.target.value)}
+                          placeholder="Value" className="h-8 text-xs font-mono flex-1" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => removeRow(setParams, p.id)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     ))}
-                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={addParam}>
-                      + Add Parameter
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1"
+                      onClick={() => addRow(setParams)}>
+                      + Tambah Parameter
                     </Button>
                   </TabsContent>
 
-                  {/* Body tab */}
-                  <TabsContent value="body" className="mt-0 space-y-2">
+                  {/* Body */}
+                  <TabsContent value="body" className="mt-4 space-y-2">
                     {isMultipart && (
-                      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-900/10 dark:border-amber-800">
                         <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">
-                          <span className="font-medium text-amber-500">multipart/form-data</span> — endpoint ini menggunakan file upload. Gunakan tool seperti Postman atau implementasi langsung di kode untuk mengirim file. Preview di bawah hanya untuk referensi field yang dibutuhkan.
+                        <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                          Endpoint ini menggunakan <strong>multipart/form-data</strong> untuk upload file.
+                          Preview di bawah hanya referensi field — gunakan Postman atau kode langsung untuk kirim file.
                         </p>
                       </div>
                     )}
@@ -694,40 +831,24 @@ const DeveloperPlayground = () => {
                       <Textarea
                         value={body}
                         onChange={(e) => setBody(e.target.value)}
-                        placeholder='{\n  "key": "value"\n}'
-                        className="font-mono text-sm min-h-40 resize-y"
+                        placeholder={'{\n  "key": "value"\n}'}
+                        className="font-mono text-xs min-h-48 resize-y leading-relaxed"
                         spellCheck={false}
                       />
                       <div className="absolute top-2 right-2 flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 text-[10px] px-2 text-muted-foreground"
-                          onClick={() => {
-                            try {
-                              const lines = body.split("\n").filter((l) => !l.trim().startsWith("//"));
-                              const parsed = JSON.parse(lines.join("\n"));
-                              setBody(JSON.stringify(parsed, null, 2));
-                            } catch {
-                              toast({ title: "Invalid JSON", variant: "destructive" });
-                            }
-                          }}
-                        >
-                          <Code2 className="h-3 w-3 mr-1" /> Format
+                        <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 text-muted-foreground bg-background/80 backdrop-blur-sm"
+                          onClick={formatJSON}>
+                          <Code2 className="h-3 w-3 mr-1" /> Format JSON
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 text-[10px] px-2 text-muted-foreground"
-                          onClick={() => setBody("")}
-                        >
-                          Clear
+                        <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 text-muted-foreground bg-background/80 backdrop-blur-sm"
+                          onClick={() => setBody("")}>
+                          Hapus
                         </Button>
                       </div>
                     </div>
                     <p className="text-[11px] text-muted-foreground flex items-center gap-1">
                       <FileJson className="h-3 w-3" />
-                      {isMultipart ? "Reference fields (actual request harus multipart/form-data)" : "Expected: JSON body"}
+                      {isMultipart ? "Referensi field (gunakan multipart/form-data untuk file)" : "Format: JSON body"}
                     </p>
                   </TabsContent>
                 </Tabs>
@@ -735,62 +856,70 @@ const DeveloperPlayground = () => {
             </Card>
           </div>
 
-          {/* RIGHT: Response panel */}
+          {/* ═══════ RIGHT: Response ═══════ */}
           <div ref={responseRef} className="space-y-4">
-            <Card className="shadow-soft min-h-[400px]">
+
+            {/* Response Card */}
+            <Card className="shadow-soft min-h-[440px]">
               <CardHeader className="pb-2 pt-4">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base flex items-center gap-2">
+                  <CardTitle className="text-base flex items-center gap-2.5">
                     Response
-                    {response && (
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full border font-bold ${getStatusColor(response.status)}`}
-                      >
-                        {response.status || "ERR"} {response.statusText}
+                    {statusMeta && response && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full border font-bold ${statusMeta.color}`}>
+                        {statusMeta.emoji} {response.status || "ERR"} {response.statusText}
                       </span>
                     )}
                   </CardTitle>
                   {response && (
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {response.duration}ms
+                      <span className="flex items-center gap-1 tabular-nums">
+                        <Clock className="h-3 w-3" /> {response.duration}ms
                       </span>
                       <span>{response.size}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={copyResponse}
-                      >
-                        {copiedResponse ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                        ) : (
-                          <Copy className="h-3.5 w-3.5" />
-                        )}
+                      <Button variant="ghost" size="icon" className="h-7 w-7"
+                        onClick={() => copyText(JSON.stringify(response.body, null, 2), "response")}>
+                        {copied === "response"
+                          ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                          : <Copy className="h-3.5 w-3.5" />}
                       </Button>
                     </div>
                   )}
                 </div>
               </CardHeader>
+
               <CardContent>
+                {/* Loading */}
                 {loading && (
-                  <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="text-sm">Sending request…</p>
+                  <div className="flex flex-col items-center justify-center py-24 gap-3 text-muted-foreground">
+                    <div className="relative">
+                      <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                    </div>
+                    <p className="text-sm font-medium">Mengirim request…</p>
+                    <p className="text-xs opacity-50">Menunggu respons dari server</p>
                   </div>
                 )}
 
+                {/* Empty state */}
                 {!loading && !response && (
-                  <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
-                    <FlaskConical className="h-10 w-10 opacity-20" />
-                    <p className="text-sm">Hit Send to see the response</p>
-                    <p className="text-xs opacity-60">Configure your request on the left</p>
+                  <div className="flex flex-col items-center justify-center py-24 gap-3 text-muted-foreground">
+                    <div className="h-16 w-16 rounded-2xl bg-muted/50 flex items-center justify-center">
+                      <Terminal className="h-8 w-8 opacity-30" />
+                    </div>
+                    <p className="text-sm font-medium">Respons akan muncul di sini</p>
+                    <p className="text-xs opacity-50">Klik tombol <strong>Kirim</strong> untuk memulai</p>
+                    <div className="flex flex-col items-start gap-1.5 mt-2 p-3 rounded-xl bg-muted/30 text-xs text-muted-foreground max-w-xs">
+                      <p className="font-medium text-foreground flex items-center gap-1.5"><BookOpen className="h-3.5 w-3.5" /> Tips</p>
+                      <p>① Paste API key asli di Step 1</p>
+                      <p>② Klik preset endpoint atau isi manual</p>
+                      <p>③ Klik Kirim dan lihat respons</p>
+                    </div>
                   </div>
                 )}
 
+                {/* Response content */}
                 {!loading && response && (
-                  <Tabs value={activeResponseTab} onValueChange={setActiveResponseTab}>
+                  <Tabs value={responseTab} onValueChange={setResponseTab}>
                     <TabsList className="mb-3 h-8">
                       <TabsTrigger value="body" className="text-xs h-7">Body</TabsTrigger>
                       <TabsTrigger value="headers" className="text-xs h-7">
@@ -802,47 +931,49 @@ const DeveloperPlayground = () => {
                     </TabsList>
 
                     <TabsContent value="body" className="mt-0">
-                      <div className="relative rounded-lg overflow-hidden bg-zinc-950 border border-border">
-                        {/* Status bar */}
-                        <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-900">
+                      <div className="rounded-xl overflow-hidden bg-zinc-950 border border-zinc-800">
+                        <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-900/80">
                           <div className="flex items-center gap-2">
-                            {response.status >= 200 && response.status < 300 ? (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                            ) : (
-                              <XCircle className="h-3.5 w-3.5 text-red-400" />
-                            )}
-                            <span className="text-xs text-zinc-400 font-mono">JSON</span>
+                            {response.status >= 200 && response.status < 300
+                              ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                              : <XCircle className="h-3.5 w-3.5 text-rose-400" />
+                            }
+                            <span className="text-xs text-zinc-400 font-mono">JSON Response</span>
                           </div>
                           <span className="text-[10px] text-zinc-500">{response.size}</span>
                         </div>
                         <pre
-                          className="p-4 text-xs font-mono overflow-auto max-h-96 text-zinc-100 leading-relaxed"
-                          dangerouslySetInnerHTML={{
-                            __html: syntaxHighlight(
-                              JSON.stringify(response.body, null, 2)
-                            ),
-                          }}
+                          className="p-4 text-xs font-mono overflow-auto max-h-80 text-zinc-100 leading-relaxed"
+                          dangerouslySetInnerHTML={{ __html: syntaxHighlight(JSON.stringify(response.body, null, 2)) }}
                         />
                       </div>
+
+                      {/* Error hint */}
+                      {(response.status === 0 || response.status >= 400) && (
+                        <div className="mt-3 flex items-start gap-2 p-3 rounded-lg bg-rose-50 border border-rose-200 dark:bg-rose-900/10 dark:border-rose-800">
+                          <AlertTriangle className="h-3.5 w-3.5 text-rose-500 shrink-0 mt-0.5" />
+                          <div className="text-[11px] text-rose-700 dark:text-rose-300 space-y-1">
+                            {response.status === 401 && <p><strong>401 Unauthorized:</strong> API key tidak valid atau tidak dikirim. Cek header X-API-Key.</p>}
+                            {response.status === 403 && <p><strong>403 Forbidden:</strong> Key aktif tapi tidak punya akses ke endpoint ini.</p>}
+                            {response.status === 429 && <p><strong>429 Too Many Requests:</strong> Rate limit tercapai. Tunggu sebentar.</p>}
+                            {response.status === 0 && <p><strong>Network Error:</strong> Tidak bisa connect ke server. Cek apakah server berjalan dan CORS sudah dikonfigurasi.</p>}
+                            {response.status >= 500 && <p><strong>Server Error:</strong> Ada masalah di server API. Hubungi tim support.</p>}
+                          </div>
+                        </div>
+                      )}
                     </TabsContent>
 
                     <TabsContent value="headers" className="mt-0">
-                      <div className="rounded-lg border overflow-hidden bg-muted/20">
-                        {Object.entries(response.headers).map(([k, v], i) => (
-                          <div
-                            key={k}
-                            className={`flex items-start gap-3 px-3 py-2 text-xs font-mono ${
-                              i % 2 === 0 ? "" : "bg-muted/30"
-                            }`}
-                          >
-                            <span className="text-sky-400 shrink-0 min-w-[140px] truncate">{k}</span>
-                            <span className="text-muted-foreground break-all">{v}</span>
-                          </div>
-                        ))}
-                        {Object.keys(response.headers).length === 0 && (
-                          <div className="text-xs text-muted-foreground text-center py-6">
-                            No response headers
-                          </div>
+                      <div className="rounded-xl border overflow-hidden">
+                        {Object.entries(response.headers).length === 0 ? (
+                          <p className="text-xs text-muted-foreground text-center py-8">Tidak ada response headers</p>
+                        ) : (
+                          Object.entries(response.headers).map(([k, v], i) => (
+                            <div key={k} className={`flex items-start gap-3 px-3 py-2 text-xs font-mono ${i % 2 === 0 ? "bg-background" : "bg-muted/20"}`}>
+                              <span className="text-sky-500 shrink-0 min-w-[160px] truncate">{k}</span>
+                              <span className="text-muted-foreground break-all">{v}</span>
+                            </div>
+                          ))
                         )}
                       </div>
                     </TabsContent>
@@ -851,56 +982,46 @@ const DeveloperPlayground = () => {
               </CardContent>
             </Card>
 
-            {/* cURL snippet */}
-            {selectedKey && (
-              <Card className="shadow-soft">
-                <CardHeader className="pb-2 pt-4">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Code2 className="h-4 w-4 text-muted-foreground" /> cURL Snippet
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="relative rounded-lg bg-zinc-950 border border-border overflow-hidden">
-                    <pre className="p-3 text-[11px] font-mono text-zinc-300 overflow-auto whitespace-pre-wrap break-all leading-relaxed">
-                      <span className="text-emerald-400">curl</span>
-                      {` -X ${method} \\\n`}
-                      {`  "${buildUrl()}" \\\n`}
-                      {`  -H "X-API-Key: ${getActiveKeyPrefix()}" \\\n`}
-                      {headers
-                        .filter((h) => h.enabled && h.key && h.key !== "Content-Type")
-                        .map((h) => `  -H "${h.key}: ${h.value}" \\\n`)
-                        .join("")}
-                      {isMultipart
-                        ? `  -F "file=@/path/to/photo.jpg" \\\n  -F "title=My Photo"`
-                        : ["POST", "PUT", "PATCH"].includes(method) && body
-                        ? `  -H "Content-Type: application/json" \\\n  -d '${body.replace(/\n/g, " ").replace(/'/g, "\\'")}'`
-                        : ""}
-                    </pre>
+            {/* cURL Snippet */}
+            <Card className="shadow-soft">
+              <CardHeader className="pb-2 pt-4">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Terminal className="h-4 w-4 text-muted-foreground" />
+                  cURL Command
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="relative rounded-xl bg-zinc-950 border border-zinc-800 overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
+                    <span className="text-[10px] text-zinc-500 font-mono">Terminal / bash</span>
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      className="absolute top-2 right-2 h-6 text-[10px] px-2 text-zinc-400 hover:text-zinc-100"
-                      onClick={() => {
-                        const headerStr = headers
-                          .filter((h) => h.enabled && h.key && h.key !== "Content-Type")
-                          .map((h) => ` -H "${h.key}: ${h.value}"`)
-                          .join("");
-                        const bodyStr = isMultipart
-                          ? ` -F "file=@/path/to/photo.jpg" -F "title=My Photo"`
-                          : ["POST", "PUT", "PATCH"].includes(method) && body
-                          ? ` -H "Content-Type: application/json" -d '${body.replace(/\n/g, " ")}'`
-                          : "";
-                        const curl = `curl -X ${method} "${buildUrl()}" -H "X-API-Key: ${getActiveKeyPrefix()}"${headerStr}${bodyStr}`;
-                        navigator.clipboard.writeText(curl);
-                        toast({ title: "cURL copied!" });
-                      }}
+                      variant="ghost" size="sm"
+                      className="h-6 text-[10px] px-2 text-zinc-400 hover:text-zinc-100"
+                      onClick={() => { copyText(buildCurl(), "curl"); toast({ title: "cURL disalin!" }); }}
                     >
-                      <Copy className="h-3 w-3 mr-1" /> Copy
+                      {copied === "curl" ? <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-400" /> : <Copy className="h-3 w-3 mr-1" />}
+                      {copied === "curl" ? "Tersalin!" : "Salin"}
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                  <pre className="p-4 text-[11px] font-mono text-zinc-300 overflow-auto whitespace-pre-wrap break-all leading-relaxed max-h-48">
+                    <span className="text-emerald-400">curl</span>{" "}
+                    <span className="text-sky-300">-X {method}</span>{" \\\n"}
+                    {"  "}<span className="text-amber-300">"{buildUrl()}"</span>{" \\\n"}
+                    {"  "}<span className="text-zinc-400">-H</span>{" "}
+                    <span className="text-emerald-300">"X-API-Key: {rawKey.trim() ? (rawKeyVisible ? rawKey.trim() : rawKey.trim().slice(0, 12) + "••••••••") : "YOUR_API_KEY"}"</span>
+                    {headers.filter((h) => h.enabled && h.key.trim() && h.key !== "Content-Type").map((h) => (
+                      <span key={h.id}>{" \\\n  "}<span className="text-zinc-400">-H</span>{" "}<span className="text-emerald-300">"{h.key}: {h.value}"</span></span>
+                    ))}
+                    {isMultipart
+                      ? <span>{" \\\n  "}<span className="text-zinc-400">-F</span>{" "}<span className="text-purple-300">"file=@/path/to/photo.jpg"</span>{" \\\n  "}<span className="text-zinc-400">-F</span>{" "}<span className="text-purple-300">"title=My Photo"</span></span>
+                      : ["POST", "PUT", "PATCH"].includes(method) && body.trim()
+                        ? <span>{" \\\n  "}<span className="text-zinc-400">-H</span>{" "}<span className="text-emerald-300">"Content-Type: application/json"</span>{" \\\n  "}<span className="text-zinc-400">-d</span>{" "}<span className="text-purple-300">'{body.replace(/\n/g, " ").replace(/'/g, "\\'")}'</span></span>
+                        : null
+                    }
+                  </pre>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
