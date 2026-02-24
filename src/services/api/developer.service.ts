@@ -28,26 +28,22 @@ export interface Plan {
   color_tag: string;
   target_segment: string;
   positioning: string;
-  // Pricing (NEW — replaces single `price`)
   price_monthly: number;
   price_yearly: number;
   discount_yearly_pct: number;
   price_monthly_formatted: string;
   price_yearly_formatted: string | null;
-  // Limits
-  api_hit_limit: number;         // replaces upload_limit
-  upload_limit_monthly?: number; // alias jika backend masih kirim keduanya
+  api_hit_limit: number;
+  upload_limit_monthly?: number;
   rate_limit_rpm: number;
   sla_hours: number;
-  sla_label: string;             // NEW
-  support_channel: string;       // NEW: "email" | "whatsapp_email" | "24_7_call"
+  sla_label: string;
+  support_channel: string;
   support_level: string;
-  // Display labels
   upload_label: string;
   is_custom: number;
   sort_order: number;
   features: string[];
-  // Legacy compat (may still come from backend for old plans)
   storage_gb?: number;
   upload_limit?: number;
   price?: number;
@@ -73,19 +69,16 @@ export interface Subscription {
   end_date: string;
   days_remaining: number;
   features: string[];
-  // Billing cycle info (NEW)
   billing_cycle: BillingCycle;
   cycle_price: number;
   total_billed_amount: number;
   savings_amount: number;
-  // Limits (flat after normalisation)
   api_hit_limit: number;
   rate_limit_rpm: number;
   sla_label: string;
   support_channel: string;
   sla_hours: number;
   support_level: string;
-  // Legacy flat fields (kept for compat)
   storage_gb?: number;
   upload_limit?: number;
   limits?: {
@@ -144,7 +137,6 @@ export interface Invoice {
   plan_slug: string;
   amount: number;
   total_amount: number;
-  // Billing cycle info (NEW)
   billing_cycle: BillingCycle;
   price_per_month: number;
   savings_amount: number;
@@ -205,7 +197,6 @@ export interface RealtimeUsage {
   expires_in_days: number;
 }
 
-// NEW: billing_cycle aware breakdown
 export interface OrderBreakdown {
   plan: {
     id: string;
@@ -218,7 +209,6 @@ export interface OrderBreakdown {
     support_channel: string;
     support_level: string;
     features: string[];
-    // Legacy compat
     storage_gb?: number;
     upload_limit?: number;
   };
@@ -232,7 +222,6 @@ export interface OrderBreakdown {
     service_fee_formatted: string;
     total: number;
     total_formatted: string;
-    // NEW
     billing_cycle: BillingCycle;
     price_per_month: number;
     price_per_month_formatted: string;
@@ -310,6 +299,24 @@ export async function downloadInvoicePdf(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Normalise key fields: backend returns type/prefix/preview, frontend expects
+// key_type/key_prefix/key_preview + is_active
+// ─────────────────────────────────────────────────────────────────────────────
+
+function normaliseKey(k: any): ApiKey {
+  return {
+    ...k,
+    key_type:   k.key_type   ?? k.type    ?? 'dev',
+    key_prefix: k.key_prefix ?? k.prefix  ?? '',
+    key_preview: k.key_preview ?? k.preview ?? '',
+    is_active:  k.is_active  ?? (k.status === 'active'),
+    request_count: k.request_count ?? 0,
+    last_used_at:  k.last_used_at  ?? null,
+    created_at:    k.created_at    ?? '',
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Service
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -321,13 +328,6 @@ export const developerService = {
     const res = await authApi.get('/developer/plans');
     const raw = res.data;
 
-    // ── Normalise plan fields from actual API response shape:
-    //    plan.pricing.monthly.price  → plan.price_monthly
-    //    plan.pricing.yearly.price   → plan.price_yearly
-    //    plan.limits.api_hit_limit   → plan.api_hit_limit
-    //    plan.limits.rate_limit_rpm  → plan.rate_limit_rpm
-    //    plan.limits.sla_label       → plan.sla_label
-    //    plan.limits.support_channel → plan.support_channel
     if (raw?.success && Array.isArray(raw?.data)) {
       raw.data = raw.data.map((p: any) => {
         const pricing = p.pricing ?? {};
@@ -335,7 +335,6 @@ export const developerService = {
         const yearly  = pricing.yearly  ?? {};
         const limits  = p.limits        ?? {};
 
-        // Hitung diskon yearly
         const priceMonthly = monthly.price ?? p.price ?? 0;
         const priceYearly  = yearly.price  ?? priceMonthly;
         const discountPct  = priceMonthly > 0 && priceYearly < priceMonthly
@@ -344,20 +343,17 @@ export const developerService = {
 
         return {
           ...p,
-          // Pricing flat fields
           price_monthly:           priceMonthly,
           price_yearly:            priceYearly,
           discount_yearly_pct:     discountPct,
           price_monthly_formatted: monthly.price_formatted ?? p.price_formatted ?? `Rp ${priceMonthly.toLocaleString('id-ID')}`,
           price_yearly_formatted:  yearly.price_formatted  ?? null,
-          // Limits flat fields
           api_hit_limit:    limits.api_hit_limit   ?? p.api_hit_limit   ?? 0,
           rate_limit_rpm:   limits.rate_limit_rpm  ?? p.rate_limit_rpm  ?? 0,
           sla_hours:        limits.sla_hours        ?? p.sla_hours       ?? 0,
           sla_label:        limits.sla_label        ?? p.sla_label       ?? '-',
           support_channel:  limits.support_channel  ?? p.support_channel ?? 'email',
           support_level:    limits.support_level    ?? p.support_level   ?? 'email',
-          // is_custom as number (normalise boolean → number)
           is_custom: p.is_custom === true ? 1 : (p.is_custom === false ? 0 : (p.is_custom ?? 0)),
         };
       });
@@ -366,9 +362,6 @@ export const developerService = {
     return raw;
   },
 
-  /**
-   * NEW: billing_cycle param untuk kalkulasi harga yearly/monthly
-   */
   async calculateOrder(
     planId: string,
     billingCycle: BillingCycle = 'monthly'
@@ -392,9 +385,6 @@ export const developerService = {
 
   // ── Subscription ──────────────────────────────────────────────────────────
 
-  /**
-   * NEW: billing_cycle param — 'monthly' | 'yearly'
-   */
   async subscribe(
     planId: string,
     billingCycle: BillingCycle = 'monthly',
@@ -408,9 +398,6 @@ export const developerService = {
     return res.data;
   },
 
-  /**
-   * NEW: billing_cycle param untuk renewal
-   */
   async renew(
     planId: string,
     billingCycle: BillingCycle = 'monthly'
@@ -436,38 +423,51 @@ export const developerService = {
     const res = await authApi.get(`/developer/${developerId}`);
     const raw = res.data;
 
-    // Normalise subscription.limits → top-level fields
+    // Normalise subscription
     if (raw?.data?.subscription) {
       const sub = raw.data.subscription;
       const lim = sub.limits ?? {};
+      const billing = sub.billing ?? {};
+
       raw.data.subscription = {
         ...sub,
-        // NEW fields (prioritize top-level, fallback to limits)
         api_hit_limit:   sub.api_hit_limit   ?? lim.api_hit_limit   ?? sub.upload_limit ?? lim.upload_limit ?? 0,
         rate_limit_rpm:  sub.rate_limit_rpm  ?? lim.rate_limit_rpm  ?? 60,
         sla_label:       sub.sla_label       ?? lim.sla_label       ?? '-',
         support_channel: sub.support_channel ?? lim.support_channel ?? 'email',
         sla_hours:       sub.sla_hours       ?? lim.sla_hours       ?? 0,
         support_level:   sub.support_level   ?? lim.support_level   ?? '-',
-        // Billing cycle
-        billing_cycle:        sub.billing_cycle        ?? 'monthly',
-        cycle_price:          sub.cycle_price          ?? 0,
-        total_billed_amount:  sub.total_billed_amount  ?? 0,
-        savings_amount:       sub.savings_amount       ?? 0,
+        // Billing — normalise from nested billing object or top-level
+        billing_cycle:       sub.billing_cycle       ?? billing.cycle         ?? 'monthly',
+        cycle_price:         sub.cycle_price         ?? billing.price_per_month ?? 0,
+        total_billed_amount: sub.total_billed_amount ?? billing.total_billed  ?? 0,
+        savings_amount:      sub.savings_amount      ?? billing.savings       ?? 0,
         // Legacy compat
         storage_gb:    sub.storage_gb   ?? lim.storage_gb   ?? 0,
         upload_limit:  sub.upload_limit ?? lim.upload_limit ?? sub.api_hit_limit ?? 0,
       };
     }
 
-    // Ensure usage fields normalised (storage may not exist in new plans)
+    // Normalise usage — backend may return api_hits instead of uploads
     if (raw?.data?.usage) {
       const u = raw.data.usage;
+
+      // Handle api_hits field (new backend) → uploads (frontend expects)
+      if (!u.uploads && u.api_hits) {
+        const { used, limit } = u.api_hits;
+        u.uploads = {
+          used:  used  ?? 0,
+          limit: limit ?? raw.data.subscription?.api_hit_limit ?? 0,
+          pct:   u.api_hits.pct ?? (limit > 0 ? Math.round((used / limit) * 100) : 0),
+        };
+      }
+
       if (u.storage) {
         u.storage.used_gb  = u.storage.used_gb  ?? Math.round((u.storage.used_mb / 1024) * 100) / 100;
         u.storage.limit_gb = u.storage.limit_gb ?? (raw.data.subscription?.storage_gb ?? 0);
       }
-      // Normalise uploads field name (backend may send upload_used/upload_limit)
+
+      // Normalise legacy upload_used/upload_limit
       if (!u.uploads && u.upload_used !== undefined) {
         const used  = u.upload_used  ?? 0;
         const limit = u.upload_limit ?? raw.data.subscription?.api_hit_limit ?? 0;
@@ -477,6 +477,21 @@ export const developerService = {
           pct: limit > 0 ? Math.round((used / limit) * 100) : 0,
         };
       }
+
+      // Fallback empty uploads
+      if (!u.uploads) {
+        u.uploads = { used: 0, limit: raw.data.subscription?.api_hit_limit ?? 0, pct: 0 };
+      }
+
+      // Ensure this_month exists
+      if (!u.this_month) {
+        u.this_month = { used_mb: 0, upload_count: u.uploads.used };
+      }
+    }
+
+    // Normalise keys — backend may return type/prefix/preview instead of key_type/key_prefix/key_preview
+    if (Array.isArray(raw?.data?.keys)) {
+      raw.data.keys = raw.data.keys.map(normaliseKey);
     }
 
     return raw;
@@ -545,7 +560,11 @@ export const developerService = {
 
   async getKeys(developerId: string): Promise<{ success: boolean; data: ApiKey[] }> {
     const res = await authApi.get(`/developer/${developerId}/keys`);
-    return res.data;
+    const raw = res.data;
+    if (raw?.success && Array.isArray(raw?.data)) {
+      raw.data = raw.data.map(normaliseKey);
+    }
+    return raw;
   },
 
   async regenerateKey(
