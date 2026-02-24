@@ -14,6 +14,12 @@ import { BarChart3, TrendingUp, CheckCircle2, AlertTriangle, Zap } from "lucide-
 
 const DAYS_OPTIONS = [7, 14, 30, 90];
 
+// ✅ Helper: safe number — kembalikan 0 jika undefined/null/NaN
+const safe = (val: any): number => {
+  const n = Number(val);
+  return isNaN(n) ? 0 : n;
+};
+
 const DeveloperUsage = () => {
   const { id } = useParams<{ id: string }>();
   const [analytics, setAnalytics] = useState<UsageAnalytics | null>(null);
@@ -30,8 +36,8 @@ const DeveloperUsage = () => {
       developerService.getRealtimeUsage(id),
     ])
       .then(([aRes, rRes]) => {
-        if (aRes.success) setAnalytics(aRes.data);
-        if (rRes.success) setRealtime(rRes.data);
+        if (aRes.success && aRes.data) setAnalytics(aRes.data);
+        if (rRes.success && rRes.data) setRealtime(rRes.data);
       })
       .catch(() => toast({ title: "Failed to load usage data", variant: "destructive" }))
       .finally(() => setLoading(false));
@@ -39,8 +45,17 @@ const DeveloperUsage = () => {
 
   if (!id) return null;
 
-  // Guard: realtime data valid only when uploads & storage are both present
-  const hasRealtime = realtime && realtime.uploads && realtime.storage;
+  // Guard: realtime data valid only when uploads is present
+  const hasRealtime = realtime && realtime.uploads;
+
+  // ✅ Safe totals — fallback ke 0 jika field undefined
+  const totals = {
+    requests:     safe(analytics?.totals?.requests),
+    success:      safe(analytics?.totals?.success),
+    errors:       safe(analytics?.totals?.errors),
+    success_rate: safe(analytics?.totals?.success_rate),
+    avg_ms:       safe(analytics?.totals?.avg_response_ms),
+  };
 
   return (
     <DeveloperLayout developerId={id}>
@@ -76,25 +91,29 @@ const DeveloperUsage = () => {
               <CardTitle className="text-base flex items-center gap-2">
                 <Zap className="h-4 w-4 text-primary" /> Current Month Quota
                 <span className="ml-auto text-xs font-normal text-muted-foreground">
-                  {realtime.expires_in_days} days remaining
+                  {safe(realtime.expires_in_days)} days remaining
                 </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
+              {/* ✅ API Hits (pakai api_hits jika ada, fallback ke uploads) */}
               <UsageBar
-                label="Photo Uploads"
-                used={realtime.uploads.used}
-                limit={realtime.uploads.limit}
+                label="API Hits"
+                used={safe(realtime.uploads?.used)}
+                limit={safe(realtime.uploads?.limit)}
                 unit=""
-                pct={realtime.uploads.pct}
+                pct={safe(realtime.uploads?.pct)}
               />
-              <UsageBar
-                label="Storage Used"
-                used={Math.round(realtime.storage.used_mb / 1024 * 10) / 10}
-                limit={Math.round(realtime.storage.limit_mb / 1024)}
-                unit=" GB"
-                pct={realtime.storage.pct}
-              />
+              {/* ✅ Storage hanya tampil jika data ada */}
+              {realtime.storage && (
+                <UsageBar
+                  label="Storage Used"
+                  used={Math.round(safe(realtime.storage.used_mb) / 1024 * 10) / 10}
+                  limit={Math.round(safe(realtime.storage.limit_mb) / 1024)}
+                  unit=" GB"
+                  pct={safe(realtime.storage.pct)}
+                />
+              )}
             </CardContent>
           </Card>
         ) : !loading && (
@@ -107,13 +126,38 @@ const DeveloperUsage = () => {
         )}
 
         {/* Summary stats */}
+        {/* ✅ Tampil selalu jika analytics ada, menggunakan safe totals */}
         {analytics && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { label: "Total Requests", value: analytics.totals.requests.toLocaleString(), icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
-              { label: "Successful", value: analytics.totals.success.toLocaleString(), icon: CheckCircle2, color: "text-secondary", bg: "bg-secondary/10" },
-              { label: "Errors", value: analytics.totals.errors.toLocaleString(), icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10" },
-              { label: "Success Rate", value: `${analytics.totals.success_rate}%`, icon: BarChart3, color: "text-primary", bg: "bg-primary/10" },
+              {
+                label: "Total Requests",
+                value: totals.requests.toLocaleString(),
+                icon: TrendingUp,
+                color: "text-primary",
+                bg: "bg-primary/10",
+              },
+              {
+                label: "Successful",
+                value: totals.success.toLocaleString(),
+                icon: CheckCircle2,
+                color: "text-secondary",
+                bg: "bg-secondary/10",
+              },
+              {
+                label: "Errors",
+                value: totals.errors.toLocaleString(),
+                icon: AlertTriangle,
+                color: "text-destructive",
+                bg: "bg-destructive/10",
+              },
+              {
+                label: "Success Rate",
+                value: `${totals.success_rate}%`,
+                icon: BarChart3,
+                color: "text-primary",
+                bg: "bg-primary/10",
+              },
             ].map(({ label, value, icon: Icon, color, bg }) => (
               <Card key={label} className="shadow-soft">
                 <CardContent className="pt-5">
@@ -133,19 +177,22 @@ const DeveloperUsage = () => {
         )}
 
         {/* Daily trend chart */}
-        {analytics && analytics.daily_trend.length > 0 && (
+        {analytics && (analytics.daily_trend?.length ?? 0) > 0 && (
           <Card className="shadow-soft">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Daily Request Trend</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={analytics.daily_trend} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <BarChart
+                  data={analytics.daily_trend}
+                  margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis
                     dataKey="date"
                     tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                    tickFormatter={(v) => v.slice(5)}
+                    tickFormatter={(v) => v?.slice(5) ?? v}
                   />
                   <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
                   <Tooltip
@@ -166,7 +213,7 @@ const DeveloperUsage = () => {
         )}
 
         {/* Endpoint breakdown */}
-        {analytics && analytics.by_endpoint.length > 0 && (
+        {analytics && (analytics.by_endpoint?.length ?? 0) > 0 && (
           <Card className="shadow-soft">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Requests by Endpoint</CardTitle>
@@ -174,16 +221,25 @@ const DeveloperUsage = () => {
             <CardContent>
               <div className="space-y-3">
                 {analytics.by_endpoint.map((ep) => {
-                  const total = analytics.totals.requests || 1;
-                  const pct = Math.round((ep.count / total) * 100);
+                  // ✅ safe division — hindari division by zero
+                  const total = totals.requests || 1;
+                  const count = safe(ep.count);
+                  const pct   = Math.round((count / total) * 100);
                   return (
                     <div key={ep.endpoint} className="space-y-1">
                       <div className="flex items-center justify-between text-sm">
-                        <code className="text-xs bg-muted px-2 py-0.5 rounded font-mono">{ep.endpoint}</code>
-                        <span className="text-muted-foreground text-xs">{ep.count.toLocaleString()} req · {ep.errors} errors</span>
+                        <code className="text-xs bg-muted px-2 py-0.5 rounded font-mono">
+                          {ep.endpoint}
+                        </code>
+                        <span className="text-muted-foreground text-xs">
+                          {count.toLocaleString()} req · {safe(ep.errors)} errors
+                        </span>
                       </div>
                       <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                        <div
+                          className="h-full rounded-full bg-primary"
+                          style={{ width: `${pct}%` }}
+                        />
                       </div>
                     </div>
                   );
@@ -193,8 +249,10 @@ const DeveloperUsage = () => {
           </Card>
         )}
 
-        {/* Empty state when no analytics data */}
-        {!loading && analytics && analytics.daily_trend.length === 0 && analytics.by_endpoint.length === 0 && (
+        {/* Empty state */}
+        {!loading && analytics &&
+          (analytics.daily_trend?.length ?? 0) === 0 &&
+          (analytics.by_endpoint?.length ?? 0) === 0 && (
           <Card className="shadow-soft">
             <CardContent className="pt-6 pb-6 text-center text-muted-foreground text-sm">
               <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-30" />

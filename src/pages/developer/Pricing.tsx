@@ -1,13 +1,9 @@
 /**
- * DeveloperPricing.tsx (UPDATED — billing cycle toggle)
- *
- * Perubahan dari versi sebelumnya:
- *  - Tambah toggle Monthly / Yearly di atas grid plan
- *  - billingCycle state dikirim ke DeveloperCheckout via URL param
- *  - navigate ke /developer/checkout?plan_id=xxx&billing_cycle=yearly
- *  - Semua logic hero, stats, features, GSAP, canvas TETAP sama
+ * DeveloperPricing.tsx — AmbilFoto design system
+ * Palette: blue + amber + orange | Font: Sora
+ * Animations: CSS IntersectionObserver + MutationObserver for async cards
+ *             fast easing (0.45s cubic-bezier), threshold 5%, unobserve after fire
  */
-
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
@@ -18,153 +14,208 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Code2,
-  Zap,
-  Shield,
-  BarChart3,
-  Headphones,
-  ArrowRight,
-  Check,
-  Sparkles,
-  Globe,
-  Lock,
+  Code2, Zap, Shield, BarChart3, Headphones,
+  ArrowRight, Check, Sparkles, Globe, Lock, Key,
 } from "lucide-react";
 
-declare global {
-  interface Window {
-    gsap: any;
-    ScrollTrigger: any;
+/* ─────────────────────────────────────────────────────────
+   STYLES
+───────────────────────────────────────────────────────── */
+const STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+  * { box-sizing: border-box; }
+  .pg { font-family:'Sora',system-ui,sans-serif; }
+  .mono { font-family:'DM Mono',monospace; }
+  .fw8 { font-weight:800; letter-spacing:-0.03em; }
+  .g-blue { background:linear-gradient(135deg,#1d4ed8,#2563eb); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+
+  /* Buttons */
+  .btn-b { display:inline-flex;align-items:center;gap:8px;padding:13px 26px;border-radius:14px;border:none;cursor:pointer;font-weight:700;font-size:14px;font-family:inherit;background:linear-gradient(135deg,#1d4ed8,#2563eb);color:white;box-shadow:0 6px 20px rgba(29,78,216,0.28);transition:transform .2s,box-shadow .2s; }
+  .btn-b:hover { transform:translateY(-2px);box-shadow:0 12px 32px rgba(29,78,216,0.38); }
+  .btn-o { display:inline-flex;align-items:center;gap:8px;padding:13px 26px;border-radius:14px;cursor:pointer;font-weight:700;font-size:14px;font-family:inherit;background:white;color:#1e40af;border:1.5px solid rgba(29,78,216,0.22);transition:all .2s; }
+  .btn-o:hover { background:#eff6ff;border-color:rgba(29,78,216,0.45);transform:translateY(-1px); }
+  .btn-g { display:inline-flex;align-items:center;gap:8px;padding:13px 26px;border-radius:14px;cursor:pointer;font-weight:700;font-size:14px;font-family:inherit;background:rgba(255,255,255,0.13);color:white;border:1.5px solid rgba(255,255,255,0.28);transition:all .2s; }
+  .btn-g:hover { background:rgba(255,255,255,0.22);transform:translateY(-1px); }
+
+  /* Pill */
+  .pill { display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase; }
+
+  /* Cards */
+  .af-card { background:white;border:1.5px solid #f1f5f9;border-radius:20px;padding:24px;transition:border-color .28s,box-shadow .28s,transform .28s; }
+  .af-card:hover { border-color:rgba(59,130,246,.2);box-shadow:0 8px 28px rgba(59,130,246,.09);transform:translateY(-3px); }
+
+  .fpill { display:flex;align-items:center;gap:12px;padding:14px 18px;background:white;border:1.5px solid #f1f5f9;border-radius:16px;transition:border-color .25s,box-shadow .25s; }
+  .fpill:hover { border-color:rgba(59,130,246,.2);box-shadow:0 4px 16px rgba(59,130,246,.08); }
+
+  /* ── Scroll reveal ─────────────────────────────────────
+     0.45s duration, ease-out-quart, fires at 5% visibility
+     unobserve after first fire → no flickering on scroll-up
+  ─────────────────────────────────────────────────────── */
+  .rv { opacity:0; will-change:opacity,transform; }
+  .rv.rv-u  { transform:translateY(28px); }
+  .rv.rv-l  { transform:translateX(-36px); }
+  .rv.rv-r  { transform:translateX(36px); }
+  .rv.rv-s  { transform:scale(0.94); }
+  .rv.in    {
+    opacity:1 !important; transform:none !important;
+    transition: opacity .45s cubic-bezier(0.22,1,0.36,1),
+                transform .45s cubic-bezier(0.22,1,0.36,1);
   }
+  .rv[data-i="1"] { transition-delay:.06s; }
+  .rv[data-i="2"] { transition-delay:.12s; }
+  .rv[data-i="3"] { transition-delay:.18s; }
+
+  /* Hero */
+  .h-in { opacity:0; animation:hIn .65s cubic-bezier(0.22,1,0.36,1) forwards; }
+  @keyframes hIn { to { opacity:1; transform:none; } }
+  .from-y { transform:translateY(24px); }
+  .h-d0{animation-delay:.04s} .h-d1{animation-delay:.16s} .h-d2{animation-delay:.28s} .h-d3{animation-delay:.38s} .h-d4{animation-delay:.48s}
+
+  /* Toggle */
+  .tgl-track { width:52px;height:28px;border-radius:999px;border:none;cursor:pointer;padding:3px;display:flex;align-items:center;outline:none;flex-shrink:0;transition:background-color .3s cubic-bezier(.4,0,.2,1); }
+  .tgl-thumb { width:22px;height:22px;border-radius:50%;background:white;box-shadow:0 1px 4px rgba(0,0,0,.18);transition:transform .3s cubic-bezier(.4,0,.2,1);flex-shrink:0;display:block; }
+
+  /* Code block */
+  .code-blk { background:#0f172a;border-radius:20px;overflow:hidden;border:1px solid rgba(255,255,255,.08); }
+  .code-bar { display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.08); }
+  .cdot { width:12px;height:12px;border-radius:50%; }
+  .code-body { padding:20px;font-family:'DM Mono',monospace;font-size:12px;line-height:1.9; }
+
+  /* Live dot */
+  @keyframes ld { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.78)} }
+  .ldot { display:inline-block;width:7px;height:7px;border-radius:50%;background:#3b82f6;animation:ld 1.8s ease-in-out infinite; }
+
+  /* Trust check */
+  .chk { display:flex;align-items:center;gap:8px;font-size:13px;color:#64748b; }
+`;
+
+/* ─────────────────────────────────────────────────────────
+   HOOKS
+───────────────────────────────────────────────────────── */
+
+/**
+ * useReveal: IntersectionObserver + MutationObserver
+ * - threshold: 0.05 → triggers very early (5% visible)
+ * - rootMargin: -20px → slight offset from bottom edge
+ * - unobserve after fire → no reverse/flicker on scroll-up
+ * - MutationObserver re-scans for newly added .rv elements
+ *   (needed because plan cards render after async fetch)
+ */
+function useReveal() {
+  useEffect(() => {
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add("in");
+            obs.unobserve(e.target);
+          }
+        });
+      },
+      { threshold: 0.05, rootMargin: "0px 0px -20px 0px" }
+    );
+
+    const scan = () =>
+      document.querySelectorAll(".rv:not(.in)").forEach((el) => obs.observe(el));
+
+    scan();
+
+    const mut = new MutationObserver(scan);
+    mut.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      obs.disconnect();
+      mut.disconnect();
+    };
+  }, []);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-function StatCard({ value, label, sub }: { value: string; label: string; sub: string }) {
-  return (
-    <div className="stat-card flex flex-col items-center text-center p-6 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
-      <p className="text-3xl font-extrabold text-blue-600 mb-1">{value}</p>
-      <p className="text-sm font-semibold text-slate-800">{label}</p>
-      <p className="text-xs text-slate-500 mt-0.5">{sub}</p>
-    </div>
-  );
+/** Canvas dot network */
+function useCanvas(ref: React.RefObject<HTMLCanvasElement>) {
+  useEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    let id: number;
+    const rs = () => { c.width = c.offsetWidth; c.height = c.offsetHeight; };
+    rs();
+    window.addEventListener("resize", rs);
+    const N = 50;
+    const dots = Array.from({ length: N }, () => ({
+      x: Math.random() * c.width, y: Math.random() * c.height,
+      r: Math.random() * 1.8 + 0.4,
+      vx: (Math.random() - 0.5) * 0.32, vy: (Math.random() - 0.5) * 0.32,
+      a: Math.random() * 0.22 + 0.06,
+    }));
+    const draw = () => {
+      ctx.clearRect(0, 0, c.width, c.height);
+      dots.forEach((d) => {
+        d.x += d.vx; d.y += d.vy;
+        if (d.x < 0 || d.x > c.width) d.vx *= -1;
+        if (d.y < 0 || d.y > c.height) d.vy *= -1;
+        ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(59,130,246,${d.a})`; ctx.fill();
+      });
+      for (let i = 0; i < N; i++)
+        for (let j = i + 1; j < N; j++) {
+          const dx = dots[i].x - dots[j].x, dy = dots[i].y - dots[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 100) {
+            ctx.beginPath(); ctx.moveTo(dots[i].x, dots[i].y); ctx.lineTo(dots[j].x, dots[j].y);
+            ctx.strokeStyle = `rgba(59,130,246,${0.055 * (1 - dist / 100)})`;
+            ctx.lineWidth = 1; ctx.stroke();
+          }
+        }
+      id = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => { cancelAnimationFrame(id); window.removeEventListener("resize", rs); };
+  }, []);
 }
 
-function FeaturePill({ icon: Icon, label, desc }: { icon: React.ElementType; label: string; desc: string }) {
-  return (
-    <div className="feature-pill flex items-center gap-3 px-5 py-3.5 bg-white rounded-2xl border border-slate-200 shadow-sm hover:border-blue-200 hover:shadow-md transition-all duration-200">
-      <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-        <Icon className="w-4 h-4 text-blue-600" />
-      </div>
-      <div>
-        <p className="text-sm font-semibold text-slate-800">{label}</p>
-        <p className="text-xs text-slate-500">{desc}</p>
-      </div>
-    </div>
-  );
-}
-
-function TrustBadge({ text }: { text: string }) {
-  return (
-    <div className="trust-badge flex items-center gap-2 text-sm text-slate-600">
-      <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-        <Check className="w-3 h-3 text-emerald-600" />
-      </div>
-      {text}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Billing Cycle Toggle Component
-// ─────────────────────────────────────────────────────────────────────────────
-
-function BillingCycleToggle({
-  value,
-  onChange,
-  plans,
-}: {
-  value: BillingCycle;
-  onChange: (v: BillingCycle) => void;
-  plans: Plan[];
+/* ─────────────────────────────────────────────────────────
+   BILLING TOGGLE
+───────────────────────────────────────────────────────── */
+function BillingToggle({ value, onChange, plans }: {
+  value: BillingCycle; onChange: (v: BillingCycle) => void; plans: Plan[];
 }) {
-  // Ambil rata-rata discount yearly dari plan yang ada
-  const avgDiscount = plans.length > 0
+  const avg = plans.length > 0
     ? Math.round(
-        plans
-          .filter((p) => !p.is_custom && p.discount_yearly_pct > 0)
-          .reduce((sum, p) => sum + p.discount_yearly_pct, 0) /
-        Math.max(plans.filter((p) => !p.is_custom && p.discount_yearly_pct > 0).length, 1)
+        plans.filter(p => !p.is_custom && p.discount_yearly_pct > 0)
+          .reduce((s, p) => s + p.discount_yearly_pct, 0) /
+        Math.max(plans.filter(p => !p.is_custom && p.discount_yearly_pct > 0).length, 1)
       )
     : 8;
 
   return (
     <div className="flex items-center justify-center gap-4 mb-10">
-      {/* Label Bulanan */}
       <span
-        onClick={() => onChange('monthly')}
-        className={`text-sm font-semibold cursor-pointer select-none transition-all duration-200 ${
-          value === 'monthly' ? 'text-slate-800 scale-105' : 'text-slate-400'
-        }`}
+        onClick={() => onChange("monthly")}
+        className={`text-sm font-bold cursor-pointer select-none transition-colors ${value === "monthly" ? "text-slate-900" : "text-slate-400"}`}
       >
         Bulanan
       </span>
-
-      {/* Toggle switch — smooth iOS-style */}
       <button
-        type="button"
-        role="switch"
-        aria-checked={value === 'yearly'}
-        onClick={() => onChange(value === 'monthly' ? 'yearly' : 'monthly')}
-        style={{
-          width: 52,
-          height: 28,
-          borderRadius: 999,
-          padding: 3,
-          border: 'none',
-          cursor: 'pointer',
-          outline: 'none',
-          transition: 'background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          backgroundColor: value === 'yearly' ? '#2563EB' : '#CBD5E1',
-          display: 'flex',
-          alignItems: 'center',
-          position: 'relative',
-          flexShrink: 0,
-        }}
+        type="button" role="switch" aria-checked={value === "yearly"}
+        onClick={() => onChange(value === "monthly" ? "yearly" : "monthly")}
+        className="tgl-track"
+        style={{ backgroundColor: value === "yearly" ? "#1d4ed8" : "#cbd5e1" }}
       >
-        <span
-          style={{
-            width: 22,
-            height: 22,
-            borderRadius: '50%',
-            backgroundColor: '#fff',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.10)',
-            transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: value === 'yearly' ? 'translateX(24px)' : 'translateX(0px)',
-            display: 'block',
-            flexShrink: 0,
-          }}
-        />
+        <span className="tgl-thumb" style={{ transform: value === "yearly" ? "translateX(24px)" : "translateX(0)" }} />
       </button>
-
-      {/* Label Tahunan */}
       <span
-        onClick={() => onChange('yearly')}
-        className={`text-sm font-semibold cursor-pointer select-none transition-all duration-200 flex items-center gap-2 ${
-          value === 'yearly' ? 'text-slate-800 scale-105' : 'text-slate-400'
-        }`}
+        onClick={() => onChange("yearly")}
+        className={`text-sm font-bold cursor-pointer select-none transition-colors flex items-center gap-2 ${value === "yearly" ? "text-slate-900" : "text-slate-400"}`}
       >
         Tahunan
-        {avgDiscount > 0 && (
-          <span
-            className="px-2 py-0.5 rounded-full text-xs font-bold transition-all duration-300"
+        {avg > 0 && (
+          <span className="px-2 py-0.5 rounded-full text-xs font-bold transition-all duration-300"
             style={{
-              backgroundColor: value === 'yearly' ? '#d1fae5' : '#f1f5f9',
-              color: value === 'yearly' ? '#065f46' : '#94a3b8',
-            }}
-          >
-            Hemat s/d {avgDiscount}%
+              backgroundColor: value === "yearly" ? "#d1fae5" : "#f1f5f9",
+              color: value === "yearly" ? "#065f46" : "#94a3b8",
+            }}>
+            Hemat s/d {avg}%
           </span>
         )}
       </span>
@@ -172,230 +223,172 @@ function BillingCycleToggle({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main Component
-// ─────────────────────────────────────────────────────────────────────────────
-
+/* ─────────────────────────────────────────────────────────
+   MAIN COMPONENT
+───────────────────────────────────────────────────────── */
 const DeveloperPricing = () => {
-  const [plans,        setPlans]        = useState<Plan[]>([]);
-  const [loading,      setLoading]      = useState(true);
-  // NEW: billing cycle toggle state
-  const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
-
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const { isAuthenticated } = useAuth();
-  const navigate            = useNavigate();
-  const { toast }           = useToast();
-  const heroRef             = useRef<HTMLElement>(null);
-  const canvasRef           = useRef<HTMLCanvasElement>(null);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  /* ── Load plans ── */
+  useCanvas(canvasRef);
+  useReveal();
+
   useEffect(() => {
-    developerService
-      .getPlans()
-      .then((res) => { if (res.success) setPlans(res.data); })
+    developerService.getPlans()
+      .then(res => { if (res.success) setPlans(res.data); })
       .catch(() => toast({ title: "Gagal memuat paket", variant: "destructive" }))
       .finally(() => setLoading(false));
   }, []);
 
-  /* ── Canvas particle bg ── */
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    let animId: number;
-    const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; };
-    resize();
-    window.addEventListener("resize", resize);
-    const dots: { x: number; y: number; r: number; vx: number; vy: number; alpha: number }[] = [];
-    for (let i = 0; i < 55; i++) {
-      dots.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, r: Math.random() * 2 + 1, vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4, alpha: Math.random() * 0.4 + 0.1 });
-    }
-    const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      dots.forEach((d) => {
-        d.x += d.vx; d.y += d.vy;
-        if (d.x < 0 || d.x > canvas.width) d.vx *= -1;
-        if (d.y < 0 || d.y > canvas.height) d.vy *= -1;
-        ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(99,102,241,${d.alpha})`; ctx.fill();
-      });
-      for (let i = 0; i < dots.length; i++) {
-        for (let j = i + 1; j < dots.length; j++) {
-          const dx = dots[i].x - dots[j].x, dy = dots[i].y - dots[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 100) {
-            ctx.beginPath(); ctx.moveTo(dots[i].x, dots[i].y); ctx.lineTo(dots[j].x, dots[j].y);
-            ctx.strokeStyle = `rgba(99,102,241,${0.07 * (1 - dist / 100)})`; ctx.lineWidth = 1; ctx.stroke();
-          }
-        }
-      }
-      animId = requestAnimationFrame(draw);
-    };
-    draw();
-    return () => { cancelAnimationFrame(animId); window.removeEventListener("resize", resize); };
-  }, []);
-
-  /* ── GSAP ── */
-  useEffect(() => {
-    const loadGSAP = () => new Promise<void>((resolve) => {
-      if (window.gsap) { resolve(); return; }
-      const s = document.createElement("script");
-      s.src = "https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js";
-      s.onload = () => resolve(); document.head.appendChild(s);
-    });
-    const loadST = () => new Promise<void>((resolve) => {
-      if (window.ScrollTrigger) { resolve(); return; }
-      const s = document.createElement("script");
-      s.src = "https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js";
-      s.onload = () => resolve(); document.head.appendChild(s);
-    });
-    Promise.all([loadGSAP(), loadST()]).then(() => {
-      const { gsap, ScrollTrigger } = window;
-      gsap.registerPlugin(ScrollTrigger);
-      const tl = gsap.timeline({ delay: 0.1 });
-      tl.fromTo(".hero-badge",  { opacity: 0, y: 16, scale: 0.9 }, { opacity: 1, y: 0, scale: 1,  duration: 0.5,  ease: "back.out(1.4)" })
-        .fromTo(".hero-title",  { opacity: 0, y: 24 },              { opacity: 1, y: 0,            duration: 0.55, ease: "power3.out"    }, "-=0.2")
-        .fromTo(".hero-sub",    { opacity: 0, y: 16 },              { opacity: 1, y: 0,            duration: 0.45, ease: "power2.out"    }, "-=0.25")
-        .fromTo(".hero-cta",    { opacity: 0, y: 12 },              { opacity: 1, y: 0,            duration: 0.4,  ease: "power2.out"    }, "-=0.2")
-        .fromTo(".trust-badge", { opacity: 0, x: -10 },             { opacity: 1, x: 0,            duration: 0.35, stagger: 0.08, ease: "power2.out" }, "-=0.15");
-      gsap.fromTo(".stat-card",      { opacity: 0, y: 30, scale: 0.95 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, stagger: 0.1, ease: "back.out(1.2)", scrollTrigger: { trigger: ".stats-section", start: "top 80%" } });
-      gsap.fromTo(".feature-pill",   { opacity: 0, x: -20 },            { opacity: 1, x: 0,           duration: 0.4, stagger: 0.07, ease: "power2.out",    scrollTrigger: { trigger: ".features-section", start: "top 80%" } });
-      gsap.fromTo(".plans-heading",  { opacity: 0, y: 20 },             { opacity: 1, y: 0,           duration: 0.5, ease: "power2.out",                    scrollTrigger: { trigger: ".plans-section", start: "top 80%" } });
-      gsap.fromTo(".plan-card-wrap", { opacity: 0, y: 40, scale: 0.96 },{ opacity: 1, y: 0, scale: 1, duration: 0.5, stagger: 0.1, ease: "back.out(1.1)",  scrollTrigger: { trigger: ".plans-grid", start: "top 80%" } });
-      gsap.fromTo(".cta-section-inner", { opacity: 0, y: 30 },          { opacity: 1, y: 0,           duration: 0.6, ease: "power2.out",                    scrollTrigger: { trigger: ".cta-section", start: "top 80%" } });
-      gsap.to(".orb-1", { y: -40, duration: 6, repeat: -1, yoyo: true, ease: "sine.inOut" });
-      gsap.to(".orb-2", { y: 30, x: 20, duration: 8, repeat: -1, yoyo: true, ease: "sine.inOut" });
-      gsap.to(".orb-3", { y: -25, x: -15, duration: 7, repeat: -1, yoyo: true, ease: "sine.inOut" });
-    });
-  }, []);
-
-  /* ── Handle select plan — kirim billing_cycle ke checkout ── */
   const handleSelect = (plan: Plan) => {
-    if (plan.is_custom) {
-      window.open("mailto:support@ambilfoto.id?subject=Custom API Plan", "_blank");
-      return;
-    }
+    if (plan.is_custom) { window.open("mailto:support@ambilfoto.id?subject=Custom API Plan", "_blank"); return; }
     if (!isAuthenticated) {
       sessionStorage.setItem("pending_plan_id", plan.id);
       sessionStorage.setItem("pending_billing_cycle", billingCycle);
       navigate(`/login?redirect=${encodeURIComponent(`/developer/checkout?plan_id=${plan.id}&billing_cycle=${billingCycle}`)}`);
       return;
     }
-    // NEW: sertakan billing_cycle di URL
     navigate(`/developer/checkout?plan_id=${plan.id}&billing_cycle=${billingCycle}`);
   };
 
-  const popularIndex = plans.findIndex((p) => p.slug === "developer" || p.slug === "super-2");
+  const popularIndex = plans.findIndex(p => p.slug === "developer" || p.slug === "super-2");
+
+  const features = [
+    { Icon: Code2,      l: "API Dual Key",      d: "Dev + Production key"   },
+    { Icon: Shield,     l: "99.9% Uptime",      d: "SLA terjamin"           },
+    { Icon: BarChart3,  l: "Usage Dashboard",   d: "Monitor real-time"      },
+    { Icon: Headphones, l: "Support Prioritas", d: "Email & WhatsApp"       },
+    { Icon: Lock,       l: "Enkripsi AES-256",  d: "Data wajah aman"        },
+    { Icon: Zap,        l: "Aktivasi Instan",   d: "Langsung setelah bayar" },
+    { Icon: Globe,      l: "REST API",           d: "JSON standar industri"  },
+    { Icon: Sparkles,   l: "AI Model Terbaru",  d: "Diperbarui otomatis"    },
+  ];
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 font-sans">
+    <div className="pg flex min-h-screen flex-col bg-white">
+      <style>{STYLES}</style>
       <Header />
 
-      {/* ── HERO ── */}
-      <section ref={heroRef} className="relative overflow-hidden bg-white border-b border-slate-100 py-24 md:py-32">
+      {/* ══ HERO ════════════════════════════════════════════ */}
+      <section className="relative overflow-hidden bg-white border-b border-slate-100 py-24 md:py-32">
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
-        <div className="orb-1 absolute -top-24 -left-24 w-96 h-96 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 opacity-60 blur-3xl pointer-events-none" />
-        <div className="orb-2 absolute -bottom-16 -right-16 w-80 h-80 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 opacity-50 blur-3xl pointer-events-none" />
-        <div className="orb-3 absolute top-1/3 right-1/4 w-48 h-48 rounded-full bg-gradient-to-br from-sky-100 to-blue-100 opacity-40 blur-2xl pointer-events-none" />
 
-        <div className="container relative max-w-3xl text-center mx-auto px-6">
-          <div className="hero-badge inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-1.5 text-sm font-semibold text-blue-700 mb-6">
-            <Sparkles className="w-3.5 h-3.5" /> Developer API Platform
+        {/* Static gradient blobs — no CSS animation to avoid GPU thrash */}
+        <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full pointer-events-none"
+          style={{ background: "radial-gradient(circle, rgba(219,234,254,0.55) 0%, transparent 70%)" }} />
+        <div className="absolute -bottom-24 -right-24 w-[400px] h-[400px] rounded-full pointer-events-none"
+          style={{ background: "radial-gradient(circle, rgba(254,243,199,0.4) 0%, transparent 70%)" }} />
+
+        <div className="container max-w-3xl mx-auto px-6 text-center relative">
+          <div className="h-in h-d0 from-y pill bg-blue-50 text-blue-700 border border-blue-200 mb-7 mx-auto w-fit">
+            <span className="ldot" /> Developer API Platform
           </div>
-          <h1 className="hero-title text-4xl md:text-5xl lg:text-6xl font-extrabold text-slate-900 leading-tight tracking-tight mb-5">
-            Integrasikan{" "}
-            <span className="relative">
-              <span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">AI Face Recognition</span>
-              <span className="absolute -bottom-1 left-0 right-0 h-3 bg-blue-100 rounded-full -z-10 opacity-70" />
-            </span>{" "}
+
+          <h1 className="fw8 h-in h-d1 from-y text-5xl md:text-6xl lg:text-7xl text-slate-900 leading-[1.05] mb-6">
+            Integrasikan<br />
+            <span className="g-blue">AI Face Recognition</span><br />
             ke Aplikasimu
           </h1>
-          <p className="hero-sub text-lg text-slate-500 max-w-xl mx-auto leading-relaxed mb-8">
-            API berbasis subscription bulanan atau tahunan. Dual key (dev &amp; prod), API hit limit, dan support level berbeda tiap paket.
+
+          <p className="h-in h-d2 from-y text-lg text-slate-500 max-w-xl mx-auto leading-relaxed mb-8">
+            REST API berbasis subscription dengan dual key, usage analytics, dan support level berbeda tiap paket. Aktif instan setelah pembayaran.
           </p>
-          <div className="hero-cta flex flex-wrap gap-3 justify-center mb-10">
-            <button
-              onClick={() => document.getElementById("plans")?.scrollIntoView({ behavior: "smooth" })}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-lg shadow-blue-200 transition-all duration-200 cursor-pointer"
-            >
+
+          <div className="h-in h-d3 from-y flex flex-wrap gap-3 justify-center mb-10">
+            <button onClick={() => document.getElementById("plans")?.scrollIntoView({ behavior: "smooth" })} className="btn-b">
               Lihat Paket <ArrowRight className="w-4 h-4" />
             </button>
             <a href="/docs">
-              <button className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold border border-slate-200 shadow-sm transition-all duration-200 cursor-pointer">
-                <Code2 className="w-4 h-4 text-blue-600" /> Baca Dokumentasi
-              </button>
+              <button className="btn-o"><Code2 className="w-4 h-4 text-blue-600" /> Baca Dokumentasi</button>
             </a>
           </div>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 justify-center">
-            {["Aktif instan setelah bayar", "Hemat s/d 8% dengan tahunan", "Enkripsi end-to-end", "99.9% uptime SLA"].map((t) => (
-              <TrustBadge key={t} text={t} />
+
+          <div className="h-in h-d4 from-y flex flex-wrap gap-x-6 gap-y-2 justify-center">
+            {["Aktif instan setelah bayar", "Hemat s/d 8% tahunan", "Enkripsi end-to-end", "99.9% uptime SLA"].map(t => (
+              <div key={t} className="chk">
+                <div className="w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                  <Check className="w-2.5 h-2.5 text-emerald-600" />
+                </div>
+                {t}
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── STATS ── */}
-      <section className="stats-section py-12 bg-slate-50">
+      {/* ══ STATS ═══════════════════════════════════════════ */}
+      <section className="py-12 bg-white border-b border-slate-100">
         <div className="container max-w-4xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { value: "512-dim", label: "Face Embedding",  sub: "Akurasi tinggi"       },
-              { value: "< 200ms", label: "Response Time",   sub: "API latency rata-rata" },
-              { value: "40K+",    label: "Hit API/bulan",   sub: "Paket Enterprise"      },
-              { value: "99.9%",   label: "Uptime SLA",      sub: "Terjamin kontrak"      },
-            ].map((s) => <StatCard key={s.label} {...s} />)}
+              { val: "512-dim", label: "Face Embedding",  sub: "Akurasi tinggi",       c: "text-blue-600",    bg: "bg-blue-50",    Icon: Key       },
+              { val: "<200ms",  label: "Response Time",   sub: "API latency rata-rata", c: "text-amber-600",   bg: "bg-amber-50",   Icon: Zap       },
+              { val: "40K+",    label: "Hit API/bulan",   sub: "Paket Enterprise",      c: "text-blue-600",    bg: "bg-blue-50",    Icon: BarChart3 },
+              { val: "99.9%",   label: "Uptime SLA",      sub: "Terjamin kontrak",      c: "text-emerald-600", bg: "bg-emerald-50", Icon: Shield    },
+            ].map(({ val, label, sub, c, bg, Icon }, i) => (
+              <div key={i} className="rv rv-u af-card text-center" data-i={i}>
+                <div className={`w-10 h-10 ${bg} rounded-xl flex items-center justify-center mx-auto mb-3`}>
+                  <Icon className={`w-5 h-5 ${c}`} />
+                </div>
+                <p className={`text-2xl font-black mb-0.5 ${c}`}>{val}</p>
+                <p className="text-xs font-bold text-slate-800">{label}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{sub}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ── FEATURES ── */}
-      <section className="features-section py-12 bg-white border-y border-slate-100">
+      {/* ══ FEATURES INCLUDED ═══════════════════════════════ */}
+      <section className="py-14 bg-white border-b border-slate-100">
         <div className="container max-w-4xl mx-auto px-6">
-          <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Semua paket sudah termasuk</p>
+          <p className="rv rv-u text-center text-xs font-black text-slate-400 uppercase tracking-widest mb-8">
+            Semua paket sudah termasuk
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {[
-              { icon: Code2,      label: "API Dual Key",      desc: "Dev + Production key"     },
-              { icon: Shield,     label: "99.9% Uptime",      desc: "SLA terjamin"             },
-              { icon: BarChart3,  label: "Usage Dashboard",   desc: "Monitor real-time"        },
-              { icon: Headphones, label: "Support Prioritas", desc: "Email & WhatsApp"         },
-              { icon: Lock,       label: "Enkripsi AES-256",  desc: "Data wajah aman"          },
-              { icon: Zap,        label: "Aktivasi Instan",   desc: "Langsung setelah bayar"   },
-              { icon: Globe,      label: "REST API",          desc: "JSON standar industri"    },
-              { icon: Sparkles,   label: "AI Model Terbaru",  desc: "Diperbarui otomatis"      },
-            ].map((f) => <FeaturePill key={f.label} {...f} />)}
+            {features.map(({ Icon, l, d }, i) => (
+              <div key={i} className="rv rv-u fpill" data-i={i % 4}>
+                <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
+                  <Icon className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-800">{l}</p>
+                  <p className="text-xs text-slate-500">{d}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ── PLANS ── */}
-      <section id="plans" className="plans-section py-20 bg-slate-50">
+      {/* ══ PLANS ═══════════════════════════════════════════ */}
+      <section id="plans" className="py-20 bg-slate-50/60 border-b border-slate-100">
         <div className="container max-w-6xl mx-auto px-6">
-          <div className="plans-heading text-center mb-8">
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-full px-3 py-1 mb-3">
-              💡 Transparan tanpa biaya tersembunyi
-            </span>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-3">Pilih Paket yang Tepat</h2>
-            <p className="text-slate-500 max-w-md mx-auto text-sm mb-6">
-              Pilih siklus pembayaran yang sesuai. Paket tahunan lebih hemat hingga 8%.
-            </p>
+
+          <div className="rv rv-u text-center mb-8">
+            <div className="pill bg-blue-50 text-blue-700 border border-blue-100 mb-4">💡 Transparan tanpa biaya tersembunyi</div>
+            <h2 className="fw8 text-4xl md:text-5xl text-slate-900 mb-3">
+              Pilih Paket yang <span className="g-blue">Tepat</span>
+            </h2>
+            <p className="text-slate-500 text-sm max-w-md mx-auto">Bayar sesuai kebutuhan, upgrade kapan saja tanpa penalti.</p>
           </div>
 
-          {/* ── Billing cycle toggle ── */}
-          <BillingCycleToggle
-            value={billingCycle}
-            onChange={setBillingCycle}
-            plans={plans}
-          />
+          <BillingToggle value={billingCycle} onChange={setBillingCycle} plans={plans} />
 
           {loading ? (
-            <div className="plans-grid grid gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-[420px] rounded-2xl" />)}
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-[420px] rounded-2xl" />)}
             </div>
           ) : (
-            <div className="plans-grid grid gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {plans.map((plan, i) => (
-                <div key={plan.id} className="plan-card-wrap">
+                // Each wrapper gets .rv — MutationObserver will pick it up
+                <div key={plan.id} className="rv rv-u" data-i={i % 4}>
                   <PlanCard
                     plan={plan}
                     billingCycle={billingCycle}
@@ -410,32 +403,105 @@ const DeveloperPricing = () => {
 
           <p className="text-center text-xs text-slate-400 mt-8">
             Butuh lebih dari 40.000 hit/bulan atau SLA khusus?{" "}
-            <a href="mailto:support@ambilfoto.id?subject=Custom API Plan" className="text-blue-600 hover:underline font-medium">
+            <a href="mailto:support@ambilfoto.id?subject=Custom API Plan" className="text-blue-600 hover:underline font-bold">
               Hubungi kami untuk paket Custom →
             </a>
           </p>
         </div>
       </section>
 
-      {/* ── CTA BOTTOM ── */}
-      <section className="cta-section py-20 bg-white border-t border-slate-100">
-        <div className="container max-w-3xl mx-auto px-6">
-          <div className="cta-section-inner relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 p-10 md:p-14 text-center shadow-xl shadow-blue-200">
-            <div className="absolute top-0 left-0 w-48 h-48 rounded-full bg-white/10 -translate-x-1/2 -translate-y-1/2 blur-2xl" />
-            <div className="absolute bottom-0 right-0 w-64 h-64 rounded-full bg-white/10 translate-x-1/3 translate-y-1/3 blur-2xl" />
+      {/* ══ CODE PREVIEW ════════════════════════════════════ */}
+      <section className="py-20 bg-slate-900">
+        <div className="container max-w-5xl mx-auto px-6">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+
+            <div className="rv rv-l">
+              <div className="pill bg-blue-500/10 text-blue-300 border border-blue-500/20 mb-6">
+                <Code2 className="w-3.5 h-3.5" /> Quick Integration
+              </div>
+              <h2 className="fw8 text-4xl text-white mb-4 leading-tight">
+                Integrasi dalam{" "}
+                <span style={{ background: "linear-gradient(135deg,#60a5fa,#fbbf24)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                  Hitungan Menit
+                </span>
+              </h2>
+              <p className="text-slate-400 text-sm leading-relaxed mb-8">
+                SDK tersedia untuk Node.js, Python, PHP, dan Go. Dokumentasi lengkap dengan contoh kode untuk setiap endpoint.
+              </p>
+              <div className="grid grid-cols-2 gap-3 mb-8">
+                {[
+                  { Icon: Key,       l: "Dual Key",      d: "Dev + Production"   },
+                  { Icon: BarChart3, l: "Analytics",     d: "Real-time dashboard" },
+                  { Icon: Shield,    l: "SLA 99.9%",     d: "Uptime terjamin"    },
+                  { Icon: Globe,     l: "500+ Developer", d: "Sudah menggunakan"  },
+                ].map(({ Icon, l, d }, i) => (
+                  <div key={i} className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3 hover:bg-white/10 transition-colors">
+                    <Icon className="w-4 h-4 text-blue-400 shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-white">{l}</p>
+                      <p className="text-xs text-slate-500">{d}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-3 flex-wrap">
+                <button onClick={() => document.getElementById("plans")?.scrollIntoView({ behavior: "smooth" })} className="btn-b">
+                  Lihat Paket <ArrowRight className="w-4 h-4" />
+                </button>
+                <a href="/docs"><button className="btn-g"><Code2 className="w-4 h-4" /> Dokumentasi</button></a>
+              </div>
+            </div>
+
+            <div className="rv rv-r code-blk">
+              <div className="code-bar">
+                <div className="cdot" style={{ background: "#ef4444" }} />
+                <div className="cdot" style={{ background: "#f59e0b" }} />
+                <div className="cdot" style={{ background: "#10b981" }} />
+                <span className="ml-3 text-xs text-slate-500 mono">ambilfoto-api.js</span>
+              </div>
+              <div className="code-body">
+                <div><span style={{ color: "#60a5fa" }}>const</span> <span style={{ color: "#93c5fd" }}>client</span> <span style={{ color: "#e2e8f0" }}>=</span> <span style={{ color: "#34d399" }}>AmbilFoto</span><span style={{ color: "#e2e8f0" }}>{"({"}</span></div>
+                <div className="pl-4"><span style={{ color: "#fcd34d" }}>apiKey</span><span style={{ color: "#e2e8f0" }}>:</span> <span style={{ color: "#6ee7b7" }}>'af_live_xxxxxxxx'</span><span style={{ color: "#e2e8f0" }}>,</span></div>
+                <div className="pl-4"><span style={{ color: "#fcd34d" }}>version</span><span style={{ color: "#e2e8f0" }}>:</span> <span style={{ color: "#6ee7b7" }}>'v2'</span></div>
+                <div><span style={{ color: "#e2e8f0" }}>{"})"}</span></div>
+                <div className="mt-2 text-slate-600">{"// Search faces from event"}</div>
+                <div><span style={{ color: "#60a5fa" }}>const</span> <span style={{ color: "#93c5fd" }}>result</span> <span style={{ color: "#e2e8f0" }}>=</span> <span style={{ color: "#60a5fa" }}>await</span> <span style={{ color: "#93c5fd" }}>client</span><span style={{ color: "#e2e8f0" }}>.</span></div>
+                <div className="pl-4"><span style={{ color: "#fde68a" }}>faceSearch</span><span style={{ color: "#e2e8f0" }}>{"({"}</span></div>
+                <div className="pl-8"><span style={{ color: "#fcd34d" }}>image</span><span style={{ color: "#e2e8f0" }}>:</span> <span style={{ color: "#93c5fd" }}>faceBuffer</span><span style={{ color: "#e2e8f0" }}>,</span></div>
+                <div className="pl-8"><span style={{ color: "#fcd34d" }}>eventId</span><span style={{ color: "#e2e8f0" }}>:</span> <span style={{ color: "#6ee7b7" }}>'wisuda-ui-2025'</span><span style={{ color: "#e2e8f0" }}>,</span></div>
+                <div className="pl-8"><span style={{ color: "#fcd34d" }}>limit</span><span style={{ color: "#e2e8f0" }}>:</span> <span style={{ color: "#fbbf24" }}>50</span></div>
+                <div className="pl-4"><span style={{ color: "#e2e8f0" }}>{"})"}</span></div>
+                <div className="mt-2 text-slate-600">{"// ✅ { photos: 24, confidence: 0.97 }"}</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ══ CTA ═════════════════════════════════════════════ */}
+      <section className="py-20 bg-white border-t border-slate-100">
+        <div className="container max-w-2xl mx-auto px-6 text-center">
+          <div className="rv rv-s relative overflow-hidden rounded-3xl p-12 shadow-2xl shadow-blue-100"
+            style={{ background: "linear-gradient(135deg,#1d4ed8 0%,#1e40af 100%)" }}>
+            <div className="absolute inset-0 opacity-10 pointer-events-none"
+              style={{ backgroundImage: "radial-gradient(circle,white 1px,transparent 1px)", backgroundSize: "28px 28px" }} />
+            <div className="absolute -top-14 -left-14 w-44 h-44 rounded-full bg-white/10 blur-2xl" />
+            <div className="absolute -bottom-14 -right-14 w-56 h-56 rounded-full bg-amber-300/10 blur-2xl" />
             <div className="relative">
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-100 bg-white/10 rounded-full px-3 py-1 mb-5">
+              <span className="pill bg-white/10 text-blue-100 border border-white/20 mb-5 inline-flex">
                 🚀 Sudah 500+ developer aktif
               </span>
-              <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4 leading-tight">Sudah punya akun developer?</h2>
-              <p className="text-blue-100 text-sm mb-8 max-w-md mx-auto">
+              <h2 className="fw8 text-4xl text-white mt-3 mb-3 leading-tight">Sudah Punya Akun Developer?</h2>
+              <p className="text-blue-100 text-sm mb-8 max-w-md mx-auto leading-relaxed">
                 Masuk ke dashboard untuk kelola API keys, monitor quota, dan lihat riwayat penggunaan secara real-time.
               </p>
               <div className="flex flex-wrap gap-3 justify-center">
-                <button onClick={() => navigate("/login")} className="inline-flex items-center gap-2 px-7 py-3 rounded-xl bg-white text-blue-700 text-sm font-bold hover:bg-blue-50 shadow-lg transition-all duration-200 cursor-pointer">
+                <button onClick={() => navigate("/developer/login")}
+                  className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-white text-blue-700 font-bold text-sm hover:bg-blue-50 shadow-lg transition-all hover:-translate-y-0.5">
                   Masuk ke Dashboard <ArrowRight className="w-4 h-4" />
                 </button>
-                <button onClick={() => navigate("/register")} className="inline-flex items-center gap-2 px-7 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-sm font-semibold transition-all duration-200 cursor-pointer">
+                <button onClick={() => navigate("/register")} className="btn-g text-sm">
                   Daftar Gratis
                 </button>
               </div>

@@ -4,18 +4,19 @@ const LANGUAGES = ["cURL", "JavaScript", "TypeScript", "PHP", "Go", "Rust", "Jav
 type Language = typeof LANGUAGES[number];
 type Endpoint = "analyze" | "upload" | "match" | "usage";
 
+// ✅ FIXED: Semua /api/v1/* menggunakan X-Api-Key header, BUKAN Authorization: Bearer
 const CODE_EXAMPLES: Record<Endpoint, Record<Language, string>> = {
   analyze: {
-    cURL: `curl -X POST https://api.ambilfoto.id/v1/photo/analyze \\
-  -H "Authorization: Bearer af_prod_xxx" \\
+    cURL: `curl -X POST https://api.ambilfoto.id/api/v1/photo/analyze \\
+  -H "X-Api-Key: af_prod_xxx" \\
   -H "Content-Type: application/json" \\
   -d '{"image": "data:image/jpeg;base64,/9j/4AAQ..."}'`,
     JavaScript: `const response = await fetch(
-  "https://api.ambilfoto.id/v1/photo/analyze",
+  "https://api.ambilfoto.id/api/v1/photo/analyze",
   {
     method: "POST",
     headers: {
-      Authorization: "Bearer af_prod_xxx",
+      "X-Api-Key": "af_prod_xxx",
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -37,11 +38,11 @@ const analyzePhoto = async (
   imageBase64: string
 ): Promise<AnalyzeResponse> => {
   const response = await fetch(
-    "https://api.ambilfoto.id/v1/photo/analyze",
+    "https://api.ambilfoto.id/api/v1/photo/analyze",
     {
       method: "POST",
       headers: {
-        Authorization: "Bearer af_prod_xxx",
+        "X-Api-Key": "af_prod_xxx",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ image: imageBase64 }),
@@ -52,11 +53,11 @@ const analyzePhoto = async (
     PHP: `<?php
 $client = new \\GuzzleHttp\\Client();
 $response = $client->post(
-  "https://api.ambilfoto.id/v1/photo/analyze",
+  "https://api.ambilfoto.id/api/v1/photo/analyze",
   [
     "headers" => [
-      "Authorization" => "Bearer af_prod_xxx",
-      "Content-Type"  => "application/json",
+      "X-Api-Key"    => "af_prod_xxx",
+      "Content-Type" => "application/json",
     ],
     "json" => [
       "image" => "data:image/jpeg;base64,/9j/4AAQ...",
@@ -79,10 +80,10 @@ func analyzePhoto(imageBase64 string) (map[string]any, error) {
   })
   req, _ := http.NewRequest(
     "POST",
-    "https://api.ambilfoto.id/v1/photo/analyze",
+    "https://api.ambilfoto.id/api/v1/photo/analyze",
     bytes.NewBuffer(body),
   )
-  req.Header.Set("Authorization", "Bearer af_prod_xxx")
+  req.Header.Set("X-Api-Key", "af_prod_xxx")
   req.Header.Set("Content-Type", "application/json")
 
   client := &http.Client{}
@@ -114,8 +115,8 @@ struct AnalyzeResponse {
 async fn main() -> Result<(), reqwest::Error> {
   let client = Client::new();
   let resp: AnalyzeResponse = client
-    .post("https://api.ambilfoto.id/v1/photo/analyze")
-    .bearer_auth("af_prod_xxx")
+    .post("https://api.ambilfoto.id/api/v1/photo/analyze")
+    .header("X-Api-Key", "af_prod_xxx")
     .json(&AnalyzeRequest {
       image: "data:image/jpeg;base64,...".into(),
     })
@@ -128,7 +129,7 @@ import java.net.URI;
 
 public class AmbilFotoClient {
   private static final String BASE =
-    "https://api.ambilfoto.id/v1";
+    "https://api.ambilfoto.id/api/v1";
   private final HttpClient http = HttpClient.newHttpClient();
 
   public String analyzePhoto(String imageBase64)
@@ -138,7 +139,7 @@ public class AmbilFotoClient {
       """.formatted(imageBase64);
     var req = HttpRequest.newBuilder()
       .uri(URI.create(BASE + "/photo/analyze"))
-      .header("Authorization", "Bearer af_prod_xxx")
+      .header("X-Api-Key", "af_prod_xxx")
       .header("Content-Type", "application/json")
       .POST(HttpRequest.BodyPublishers.ofString(body))
       .build();
@@ -150,8 +151,8 @@ public class AmbilFotoClient {
 
 def analyze_photo(image_base64: str) -> dict:
     response = httpx.post(
-        "https://api.ambilfoto.id/v1/photo/analyze",
-        headers={"Authorization": "Bearer af_prod_xxx"},
+        "https://api.ambilfoto.id/api/v1/photo/analyze",
+        headers={"X-Api-Key": "af_prod_xxx"},
         json={"image": image_base64},
     )
     response.raise_for_status()
@@ -160,9 +161,10 @@ def analyze_photo(image_base64: str) -> dict:
 data = analyze_photo("data:image/jpeg;base64,...")
 print(data["embedding"])`,
   },
+
   upload: {
-    cURL: `curl -X POST https://api.ambilfoto.id/v1/photo/upload \\
-  -H "Authorization: Bearer af_prod_xxx" \\
+    cURL: `curl -X POST https://api.ambilfoto.id/api/v1/photo/upload \\
+  -H "X-Api-Key: af_prod_xxx" \\
   -H "Content-Type: application/json" \\
   -d '{
     "image": "data:image/jpeg;base64,/9j/4AAQ...",
@@ -173,11 +175,11 @@ print(data["embedding"])`,
     }
   }'`,
     JavaScript: `const response = await fetch(
-  "https://api.ambilfoto.id/v1/photo/upload",
+  "https://api.ambilfoto.id/api/v1/photo/upload",
   {
     method: "POST",
     headers: {
-      Authorization: "Bearer af_prod_xxx",
+      "X-Api-Key": "af_prod_xxx",
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -206,7 +208,6 @@ interface UploadResponse {
   success: boolean;
   photo_id: string;
   faces_detected: number;
-  file_size_kb: number;
   quota: { used: number; limit: number; remaining: number };
 }
 
@@ -214,11 +215,11 @@ const uploadPhoto = async (
   payload: UploadRequest
 ): Promise<UploadResponse> => {
   const response = await fetch(
-    "https://api.ambilfoto.id/v1/photo/upload",
+    "https://api.ambilfoto.id/api/v1/photo/upload",
     {
       method: "POST",
       headers: {
-        Authorization: "Bearer af_prod_xxx",
+        "X-Api-Key": "af_prod_xxx",
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
@@ -229,11 +230,11 @@ const uploadPhoto = async (
     PHP: `<?php
 $client = new \\GuzzleHttp\\Client();
 $response = $client->post(
-  "https://api.ambilfoto.id/v1/photo/upload",
+  "https://api.ambilfoto.id/api/v1/photo/upload",
   [
     "headers" => [
-      "Authorization" => "Bearer af_prod_xxx",
-      "Content-Type"  => "application/json",
+      "X-Api-Key"    => "af_prod_xxx",
+      "Content-Type" => "application/json",
     ],
     "json" => [
       "image"    => "data:image/jpeg;base64,/9j/4AAQ...",
@@ -256,10 +257,10 @@ echo "Photo ID: " . $data["photo_id"];`,
   },
 })
 req, _ := http.NewRequest("POST",
-  "https://api.ambilfoto.id/v1/photo/upload",
+  "https://api.ambilfoto.id/api/v1/photo/upload",
   bytes.NewBuffer(body),
 )
-req.Header.Set("Authorization", "Bearer af_prod_xxx")
+req.Header.Set("X-Api-Key", "af_prod_xxx")
 req.Header.Set("Content-Type", "application/json")`,
     Rust: `#[derive(Serialize)]
 struct UploadRequest {
@@ -273,8 +274,8 @@ meta.insert("event_name".into(), "Wisuda 2025".into());
 meta.insert("taken_at".into(), "2025-01-18T10:00:00Z".into());
 
 let resp = client
-  .post("https://api.ambilfoto.id/v1/photo/upload")
-  .bearer_auth("af_prod_xxx")
+  .post("https://api.ambilfoto.id/api/v1/photo/upload")
+  .header("X-Api-Key", "af_prod_xxx")
   .json(&UploadRequest {
     image: image_base64,
     filename: "graduation-2025.jpg".into(),
@@ -293,13 +294,13 @@ let resp = client
 
 var req = HttpRequest.newBuilder()
   .uri(URI.create(BASE + "/photo/upload"))
-  .header("Authorization", "Bearer af_prod_xxx")
+  .header("X-Api-Key", "af_prod_xxx")
   .header("Content-Type", "application/json")
   .POST(HttpRequest.BodyPublishers.ofString(body))
   .build();`,
     Python: `response = httpx.post(
-    "https://api.ambilfoto.id/v1/photo/upload",
-    headers={"Authorization": "Bearer af_prod_xxx"},
+    "https://api.ambilfoto.id/api/v1/photo/upload",
+    headers={"X-Api-Key": "af_prod_xxx"},
     json={
         "image": image_base64,
         "filename": "graduation-2025.jpg",
@@ -312,17 +313,18 @@ var req = HttpRequest.newBuilder()
 data = response.json()
 print(f"Photo ID: {data['photo_id']}")`,
   },
+
   match: {
-    cURL: `curl -X POST https://api.ambilfoto.id/v1/photo/match \\
-  -H "Authorization: Bearer af_prod_xxx" \\
+    cURL: `curl -X POST https://api.ambilfoto.id/api/v1/photo/match \\
+  -H "X-Api-Key: af_prod_xxx" \\
   -H "Content-Type: application/json" \\
   -d '{"embedding": [0.123, -0.456, 0.789, ...]}'`,
     JavaScript: `const response = await fetch(
-  "https://api.ambilfoto.id/v1/photo/match",
+  "https://api.ambilfoto.id/api/v1/photo/match",
   {
     method: "POST",
     headers: {
-      Authorization: "Bearer af_prod_xxx",
+      "X-Api-Key": "af_prod_xxx",
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ embedding }),
@@ -344,11 +346,11 @@ const matchFace = async (
   embedding: number[]
 ): Promise<MatchResult[]> => {
   const res = await fetch(
-    "https://api.ambilfoto.id/v1/photo/match",
+    "https://api.ambilfoto.id/api/v1/photo/match",
     {
       method: "POST",
       headers: {
-        Authorization: "Bearer af_prod_xxx",
+        "X-Api-Key": "af_prod_xxx",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ embedding }),
@@ -358,11 +360,11 @@ const matchFace = async (
   return data.photos;
 };`,
     PHP: `$response = $client->post(
-  "https://api.ambilfoto.id/v1/photo/match",
+  "https://api.ambilfoto.id/api/v1/photo/match",
   [
     "headers" => [
-      "Authorization" => "Bearer af_prod_xxx",
-      "Content-Type"  => "application/json",
+      "X-Api-Key"    => "af_prod_xxx",
+      "Content-Type" => "application/json",
     ],
     "json" => ["embedding" => $embedding],
   ]
@@ -374,14 +376,14 @@ $photos = json_decode(
   map[string]any{"embedding": embedding},
 )
 req, _ := http.NewRequest("POST",
-  "https://api.ambilfoto.id/v1/photo/match",
+  "https://api.ambilfoto.id/api/v1/photo/match",
   bytes.NewBuffer(body),
 )
-req.Header.Set("Authorization", "Bearer af_prod_xxx")
+req.Header.Set("X-Api-Key", "af_prod_xxx")
 req.Header.Set("Content-Type", "application/json")`,
     Rust: `let resp = client
-  .post("https://api.ambilfoto.id/v1/photo/match")
-  .bearer_auth("af_prod_xxx")
+  .post("https://api.ambilfoto.id/api/v1/photo/match")
+  .header("X-Api-Key", "af_prod_xxx")
   .json(&json!({ "embedding": embedding }))
   .send().await?
   .json::<serde_json::Value>().await?;`,
@@ -390,65 +392,70 @@ req.Header.Set("Content-Type", "application/json")`,
 
 var req = HttpRequest.newBuilder()
   .uri(URI.create(BASE + "/photo/match"))
-  .header("Authorization", "Bearer af_prod_xxx")
+  .header("X-Api-Key", "af_prod_xxx")
   .header("Content-Type", "application/json")
   .POST(HttpRequest.BodyPublishers.ofString(body))
   .build();`,
     Python: `response = httpx.post(
-    "https://api.ambilfoto.id/v1/photo/match",
-    headers={"Authorization": "Bearer af_prod_xxx"},
+    "https://api.ambilfoto.id/api/v1/photo/match",
+    headers={"X-Api-Key": "af_prod_xxx"},
     json={"embedding": embedding},
 )
 photos = response.json()["photos"]
 for p in photos:
     print(p["filename"], p["similarity"])`,
   },
+
   usage: {
-    cURL: `curl https://api.ambilfoto.id/v1/usage \\
-  -H "Authorization: Bearer af_prod_xxx"`,
+    cURL: `curl https://api.ambilfoto.id/api/v1/usage \\
+  -H "X-Api-Key: af_prod_xxx"`,
     JavaScript: `const response = await fetch(
-  "https://api.ambilfoto.id/v1/usage",
-  { headers: { Authorization: "Bearer af_prod_xxx" } }
+  "https://api.ambilfoto.id/api/v1/usage",
+  { headers: { "X-Api-Key": "af_prod_xxx" } }
 );
 const { data } = await response.json();
-console.log(\`\${data.uploads.remaining} uploads left\`);`,
+console.log(\`\${data.api_hits.remaining} hits remaining\`);`,
     TypeScript: `interface UsageData {
   plan: { name: string; rate_limit_rpm: number };
   days_remaining: number;
-  uploads: { used: number; limit: number; remaining: number };
-  storage: { used_mb: number; limit_mb: number; pct: number };
+  api_hits: {
+    used: number;
+    limit: number;
+    remaining: number;
+    pct: number;
+  };
 }
 
 const res = await fetch(
-  "https://api.ambilfoto.id/v1/usage",
-  { headers: { Authorization: "Bearer af_prod_xxx" } }
+  "https://api.ambilfoto.id/api/v1/usage",
+  { headers: { "X-Api-Key": "af_prod_xxx" } }
 );
 const { data }: { data: UsageData } = await res.json();`,
     PHP: `$response = $client->get(
-  "https://api.ambilfoto.id/v1/usage",
-  ["headers" => ["Authorization" => "Bearer af_prod_xxx"]]
+  "https://api.ambilfoto.id/api/v1/usage",
+  ["headers" => ["X-Api-Key" => "af_prod_xxx"]]
 );
 $data = json_decode(
   $response->getBody(), true
 )["data"];`,
     Go: `req, _ := http.NewRequest("GET",
-  "https://api.ambilfoto.id/v1/usage", nil)
-req.Header.Set("Authorization", "Bearer af_prod_xxx")
+  "https://api.ambilfoto.id/api/v1/usage", nil)
+req.Header.Set("X-Api-Key", "af_prod_xxx")
 resp, _ := client.Do(req)`,
     Rust: `let resp = client
-  .get("https://api.ambilfoto.id/v1/usage")
-  .bearer_auth("af_prod_xxx")
+  .get("https://api.ambilfoto.id/api/v1/usage")
+  .header("X-Api-Key", "af_prod_xxx")
   .send().await?
   .json::<serde_json::Value>().await?;`,
     Java: `var req = HttpRequest.newBuilder()
   .uri(URI.create(BASE + "/usage"))
-  .header("Authorization", "Bearer af_prod_xxx")
+  .header("X-Api-Key", "af_prod_xxx")
   .GET().build();
 var resp = http.send(req,
   HttpResponse.BodyHandlers.ofString());`,
     Python: `response = httpx.get(
-    "https://api.ambilfoto.id/v1/usage",
-    headers={"Authorization": "Bearer af_prod_xxx"},
+    "https://api.ambilfoto.id/api/v1/usage",
+    headers={"X-Api-Key": "af_prod_xxx"},
 )
 data = response.json()["data"]`,
   },
@@ -466,7 +473,6 @@ const RESPONSES: Record<Endpoint, string> = {
   "success": true,
   "photo_id": "e3f2a1b4-...",
   "faces_detected": 3,
-  "file_size_kb": 245,
   "quota": {
     "used": 251,
     "limit": 1000,
@@ -488,23 +494,27 @@ const RESPONSES: Record<Endpoint, string> = {
   "success": true,
   "data": {
     "plan": { "name": "Super 1", "rate_limit_rpm": 60 },
+    "billing": { "cycle": "monthly", "price_month": 99000 },
     "days_remaining": 12,
-    "uploads": { "used": 250, "limit": 1000 },
-    "storage": { "used_mb": 1024, "limit_mb": 10240 }
+    "api_hits": {
+      "used": 250,
+      "limit": 1000,
+      "remaining": 750,
+      "pct": 25
+    }
   }
 }`,
 };
 
-// Tailwind color classes per language
 const LANG_STYLE: Record<Language, { pill: string; active: string; dot: string }> = {
-  cURL:       { pill: "border-orange-200 text-orange-600 bg-orange-50",        active: "border-orange-400 bg-orange-100 text-orange-700 font-semibold",   dot: "bg-orange-400" },
-  JavaScript: { pill: "border-yellow-200 text-yellow-600 bg-yellow-50",        active: "border-yellow-400 bg-yellow-100 text-yellow-700 font-semibold",   dot: "bg-yellow-400" },
-  TypeScript: { pill: "border-blue-200 text-blue-600 bg-blue-50",              active: "border-blue-500 bg-blue-100 text-blue-700 font-semibold",         dot: "bg-blue-500"   },
-  PHP:        { pill: "border-indigo-200 text-indigo-600 bg-indigo-50",        active: "border-indigo-400 bg-indigo-100 text-indigo-700 font-semibold",   dot: "bg-indigo-400" },
-  Go:         { pill: "border-cyan-200 text-cyan-600 bg-cyan-50",              active: "border-cyan-500 bg-cyan-100 text-cyan-700 font-semibold",         dot: "bg-cyan-500"   },
-  Rust:       { pill: "border-red-200 text-red-600 bg-red-50",                 active: "border-red-400 bg-red-100 text-red-700 font-semibold",            dot: "bg-red-500"    },
-  Java:       { pill: "border-amber-200 text-amber-600 bg-amber-50",           active: "border-amber-400 bg-amber-100 text-amber-700 font-semibold",      dot: "bg-amber-500"  },
-  Python:     { pill: "border-sky-200 text-sky-600 bg-sky-50",                 active: "border-sky-500 bg-sky-100 text-sky-700 font-semibold",            dot: "bg-sky-500"    },
+  cURL:       { pill: "border-orange-200 text-orange-600 bg-orange-50",       active: "border-orange-400 bg-orange-100 text-orange-700 font-semibold",  dot: "bg-orange-400" },
+  JavaScript: { pill: "border-yellow-200 text-yellow-600 bg-yellow-50",       active: "border-yellow-400 bg-yellow-100 text-yellow-700 font-semibold",  dot: "bg-yellow-400" },
+  TypeScript: { pill: "border-blue-200 text-blue-600 bg-blue-50",             active: "border-blue-500 bg-blue-100 text-blue-700 font-semibold",        dot: "bg-blue-500"   },
+  PHP:        { pill: "border-indigo-200 text-indigo-600 bg-indigo-50",       active: "border-indigo-400 bg-indigo-100 text-indigo-700 font-semibold",  dot: "bg-indigo-400" },
+  Go:         { pill: "border-cyan-200 text-cyan-600 bg-cyan-50",             active: "border-cyan-500 bg-cyan-100 text-cyan-700 font-semibold",        dot: "bg-cyan-500"   },
+  Rust:       { pill: "border-red-200 text-red-600 bg-red-50",                active: "border-red-400 bg-red-100 text-red-700 font-semibold",           dot: "bg-red-500"    },
+  Java:       { pill: "border-amber-200 text-amber-600 bg-amber-50",          active: "border-amber-400 bg-amber-100 text-amber-700 font-semibold",     dot: "bg-amber-500"  },
+  Python:     { pill: "border-sky-200 text-sky-600 bg-sky-50",                active: "border-sky-500 bg-sky-100 text-sky-700 font-semibold",           dot: "bg-sky-500"    },
 };
 
 const SECTIONS = [
@@ -527,12 +537,10 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const dotClass =
-    LANG_STYLE[lang as Language]?.dot ?? "bg-slate-400";
+  const dotClass = LANG_STYLE[lang as Language]?.dot ?? "bg-slate-400";
 
   return (
     <div className="rounded-xl overflow-hidden border border-slate-200 shadow-sm">
-      {/* Bar atas — tetap gelap agar kode terbaca */}
       <div className="flex items-center justify-between px-4 py-2 bg-slate-800 border-b border-slate-700">
         <div className="flex items-center gap-2">
           <span className={`w-2.5 h-2.5 rounded-full ${dotClass}`} />
@@ -615,6 +623,10 @@ function EndpointSection({ method, path, description, endpoint }: EndpointProps)
           <code className="text-sm font-mono text-slate-700 bg-slate-100 border border-slate-200 px-3 py-0.5 rounded-md">
             {path}
           </code>
+          {/* ✅ Badge X-Api-Key untuk semua endpoint v1 */}
+          <span className="text-xs font-mono font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+            X-Api-Key
+          </span>
         </div>
         <p className="text-sm text-slate-500 leading-relaxed">{description}</p>
       </div>
@@ -640,13 +652,11 @@ export default function DeveloperDocs() {
   const [activeSection, setActiveSection] = useState("quickstart");
 
   useEffect(() => {
-    // Load Google Font
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap";
     document.head.appendChild(link);
 
-    // Load GSAP
     const script = document.createElement("script");
     script.src = "https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js";
     script.onload = () => {
@@ -657,7 +667,6 @@ export default function DeveloperDocs() {
     };
     document.head.appendChild(script);
 
-    // IntersectionObserver untuk active nav
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => { if (e.isIntersecting) setActiveSection(e.target.id); });
@@ -690,7 +699,7 @@ export default function DeveloperDocs() {
           <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-0.5">
             v1
           </span>
-          <a href="/pricing">
+          <a href="/developer/pricing">
             <button className="text-sm font-semibold px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer">
               Get API Key →
             </button>
@@ -773,25 +782,66 @@ export default function DeveloperDocs() {
               <h2 className="text-2xl font-bold text-slate-900">Authentication</h2>
             </div>
             <p className="text-sm text-slate-500 mb-5 leading-relaxed">
-              All API requests must include your API key in the <code className="text-xs bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded font-mono">Authorization</code> header using Bearer token format.
+              AmbilFoto menggunakan <strong>dua jenis autentikasi</strong> yang berbeda tergantung endpoint yang diakses.
             </p>
 
-            <div className="grid gap-3 mb-4">
-              <div>
-                <p className="text-xs font-semibold text-amber-600 uppercase tracking-widest mb-1.5">Development (sandbox)</p>
-                <CodeBlock code="Authorization: Bearer af_dev_xxxxxxxxxxxxxxxxxxxxxxxx" lang="HTTP" />
+            {/* ✅ Dua kolom: JWT vs X-Api-Key */}
+            <div className="grid md:grid-cols-2 gap-4 mb-5">
+              <div className="border border-violet-200 rounded-xl p-4 bg-violet-50/40">
+                <p className="text-xs font-bold text-violet-600 uppercase tracking-widest mb-2">
+                  🔐 JWT Bearer Token
+                </p>
+                <p className="text-xs text-slate-500 mb-3">
+                  Untuk <code className="font-mono bg-white border border-slate-200 px-1 rounded">/api/auth/*</code> dan <code className="font-mono bg-white border border-slate-200 px-1 rounded">/api/developer/*</code>
+                </p>
+                <CodeBlock code="Authorization: Bearer eyJhbGci..." lang="HTTP" />
+                <p className="text-xs text-slate-400 mt-2">Dapatkan dari <code className="font-mono">POST /api/auth/login</code></p>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-widest mb-1.5">Production (live)</p>
-                <CodeBlock code="Authorization: Bearer af_prod_xxxxxxxxxxxxxxxxxxxxxxxx" lang="HTTP" />
+
+              <div className="border border-emerald-200 rounded-xl p-4 bg-emerald-50/40">
+                <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-2">
+                  🗝️ X-Api-Key Header
+                </p>
+                <p className="text-xs text-slate-500 mb-3">
+                  Khusus untuk <code className="font-mono bg-white border border-slate-200 px-1 rounded">/api/v1/*</code> saja
+                </p>
+                <CodeBlock code="X-Api-Key: af_prod_xxx" lang="HTTP" />
+                <p className="text-xs text-slate-400 mt-2">Dapatkan dari Developer Dashboard setelah subscribe</p>
               </div>
             </div>
 
-            <div className="flex gap-3 p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+            {/* Key format */}
+            <div className="grid gap-2 mb-4">
+              <div>
+                <p className="text-xs font-semibold text-amber-600 uppercase tracking-widest mb-1.5">
+                  Development (sandbox)
+                </p>
+                <CodeBlock code="X-Api-Key: af_dev_xxxxxxxxxxxxxxxxxxxxxxxx" lang="HTTP" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-widest mb-1.5">
+                  Production (live)
+                </p>
+                <CodeBlock code="X-Api-Key: af_prod_xxxxxxxxxxxxxxxxxxxxxxxx" lang="HTTP" />
+              </div>
+            </div>
+
+            {/* ✅ Warning jangan pakai Bearer di v1 */}
+            <div className="flex gap-3 p-3.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
+              <span className="shrink-0">🚫</span>
+              <p>
+                <strong>Jangan</strong> gunakan{" "}
+                <code className="text-xs bg-white border border-red-200 px-1.5 rounded font-mono">Authorization: Bearer</code>{" "}
+                untuk endpoint <code className="text-xs bg-white border border-red-200 px-1.5 rounded font-mono">/api/v1/*</code>.
+                {" "}Akan ditolak dengan error 401 dan pesan yang mengarahkan ke <code className="text-xs bg-white border border-red-200 px-1.5 rounded font-mono">X-Api-Key</code>.
+              </p>
+            </div>
+
+            <div className="flex gap-3 p-3.5 mt-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
               <span className="shrink-0">💡</span>
               <p>
-                Use <code className="text-xs bg-white border border-amber-200 px-1.5 rounded font-mono">af_dev_xxx</code> for testing — same features, no production impact. Switch to{" "}
-                <code className="text-xs bg-white border border-amber-200 px-1.5 rounded font-mono">af_prod_xxx</code> for live traffic.
+                Gunakan <code className="text-xs bg-white border border-amber-200 px-1.5 rounded font-mono">af_dev_xxx</code> untuk testing — fitur sama, tidak berdampak ke produksi.
+                Switch ke <code className="text-xs bg-white border border-amber-200 px-1.5 rounded font-mono">af_prod_xxx</code> untuk live traffic.
               </p>
             </div>
           </section>
@@ -799,10 +849,30 @@ export default function DeveloperDocs() {
           {/* Endpoint sections */}
           {(
             [
-              { id: "analyze", method: "POST", path: "/api/v1/photo/analyze", description: "Detect faces in an image and extract a 512-dimension face embedding vector for later matching." },
-              { id: "upload",  method: "POST", path: "/api/v1/photo/upload",  description: "Upload a photo to the index. Faces are automatically detected, embedded, and indexed for similarity search." },
-              { id: "match",   method: "POST", path: "/api/v1/photo/match",   description: "Search all indexed photos for a given face embedding. Use the embedding returned from /analyze." },
-              { id: "usage",   method: "GET",  path: "/api/v1/usage",         description: "Check your current quota usage, subscription status, storage consumption, and rate limits." },
+              {
+                id: "analyze",
+                method: "POST",
+                path: "/api/v1/photo/analyze",
+                description: "Detect faces in an image and extract a 512-dimension face embedding vector for later matching.",
+              },
+              {
+                id: "upload",
+                method: "POST",
+                path: "/api/v1/photo/upload",
+                description: "Upload a photo to the index. Faces are automatically detected, embedded, and indexed for similarity search.",
+              },
+              {
+                id: "match",
+                method: "POST",
+                path: "/api/v1/photo/match",
+                description: "Search all indexed photos for a given face embedding. Use the embedding returned from /analyze.",
+              },
+              {
+                id: "usage",
+                method: "GET",
+                path: "/api/v1/usage",
+                description: "Check your current API hit quota, subscription status, billing cycle, and rate limits.",
+              },
             ] as { id: Endpoint; method: "POST" | "GET"; path: string; description: string }[]
           ).map(({ id, method, path, description }) => (
             <section key={id} id={id} className="content-block mb-12 pb-12 border-b border-slate-100">
@@ -823,16 +893,17 @@ export default function DeveloperDocs() {
 
               <CodeBlock lang="JSON" code={`{
   "success": false,
-  "code": "RATE_LIMIT_EXCEEDED",
-  "error": "Rate limit exceeded. Max 60 req/min.",
-  "retry_after": 45
+  "code": 429,
+  "error": "Rate limit exceeded. Slow down and retry.",
+  "retry_after": "60 seconds",
+  "limit_rpm": 60
 }`} />
 
               <div className="mt-5 overflow-x-auto rounded-xl border border-slate-200">
                 <table className="w-full text-sm border-collapse">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
-                      {["HTTP", "Error Code", "Description"].map((h) => (
+                      {["HTTP", "Penyebab", "Solusi"].map((h) => (
                         <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                           {h}
                         </th>
@@ -841,14 +912,13 @@ export default function DeveloperDocs() {
                   </thead>
                   <tbody>
                     {[
-                      ["401", "INVALID_KEY",           "API Key not found or invalid format",    "amber"],
-                      ["401", "KEY_EXPIRED",            "API Key expired — renew subscription",   "amber"],
-                      ["401", "KEY_REVOKED",            "API Key manually revoked",               "amber"],
-                      ["402", "SUBSCRIPTION_EXPIRED",   "Subscription is not active",             "red"],
-                      ["429", "RATE_LIMIT_EXCEEDED",    "Too many requests per minute",           "violet"],
-                      ["507", "QUOTA_EXCEEDED",         "Monthly upload quota reached",           "rose"],
-                      ["507", "STORAGE_EXCEEDED",       "Storage GB quota reached",              "rose"],
-                    ].map(([code, name, desc, color]) => {
+                      ["401", "API Key tidak ada atau format salah (bukan af_prod_/af_dev_)",     "Gunakan header X-Api-Key dengan format yang benar",                     "amber"],
+                      ["401", "Menggunakan Authorization: Bearer di /api/v1/*",                  "Ganti ke X-Api-Key header — Bearer hanya untuk /api/auth/* dan /api/developer/*", "amber"],
+                      ["401", "JWT token expired atau tidak valid",                              "Login ulang untuk mendapat token baru",                                "amber"],
+                      ["402", "Subscription tidak aktif atau expired",                          "Renew subscription di Developer Dashboard",                             "red"],
+                      ["429", "Rate limit exceeded (per menit per API key)",                    "Tunggu 60 detik, cek field retry_after di response",                    "violet"],
+                      ["507", "API hit limit bulan ini habis",                                  "Upgrade plan atau tunggu billing period berikutnya",                    "rose"],
+                    ].map(([code, desc, fix, color]) => {
                       const codeCls: Record<string, string> = {
                         amber:  "text-amber-700 bg-amber-50 border-amber-200",
                         red:    "text-red-700 bg-red-50 border-red-200",
@@ -856,18 +926,14 @@ export default function DeveloperDocs() {
                         rose:   "text-rose-700 bg-rose-50 border-rose-200",
                       };
                       return (
-                        <tr key={name} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                        <tr key={desc} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                           <td className="px-4 py-3">
                             <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded border ${codeCls[color]}`}>
                               {code}
                             </span>
                           </td>
-                          <td className="px-4 py-3">
-                            <code className="text-xs text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-mono">
-                              {name}
-                            </code>
-                          </td>
-                          <td className="px-4 py-3 text-slate-500 text-sm">{desc}</td>
+                          <td className="px-4 py-3 text-slate-600 text-sm">{desc}</td>
+                          <td className="px-4 py-3 text-slate-400 text-xs">{fix}</td>
                         </tr>
                       );
                     })}
@@ -881,17 +947,19 @@ export default function DeveloperDocs() {
           <div className="content-block text-center px-8 py-12 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100">
             <p className="text-3xl font-extrabold text-slate-900 mb-2">Ready to integrate?</p>
             <p className="text-sm text-slate-500 mb-7">
-              Choose a plan and get your API keys in minutes. Start with the free sandbox tier.
+              Choose a plan and get your API keys in minutes. Start with the development sandbox key.
             </p>
             <div className="flex gap-3 justify-center flex-wrap">
-              <a href="/pricing">
+              <a href="/developer/pricing">
                 <button className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-colors cursor-pointer shadow-sm">
                   View Pricing Plans →
                 </button>
               </a>
-              <button className="px-6 py-2.5 bg-white hover:bg-slate-50 text-slate-600 text-sm font-medium rounded-xl border border-slate-200 transition-colors cursor-pointer">
-                Read Changelog
-              </button>
+              <a href="/developer/dashboard">
+                <button className="px-6 py-2.5 bg-white hover:bg-slate-50 text-slate-600 text-sm font-medium rounded-xl border border-slate-200 transition-colors cursor-pointer">
+                  Go to Dashboard
+                </button>
+              </a>
             </div>
           </div>
 
