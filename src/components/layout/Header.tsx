@@ -88,10 +88,13 @@ export const Header = () => {
               Fitur
             </Link>
             <Link to="/pricing" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
-              Harga
+              Harga AI
             </Link>
             <Link to="/about" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
               Tentang
+            </Link>
+            <Link to="/contact" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-smooth">
+              Kontak
             </Link>
           </nav>
         )}
