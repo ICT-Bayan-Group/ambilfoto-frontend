@@ -401,7 +401,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* ═══ STATS ══════════════════════════════════════════════ */}
+      {/* ═══ STATS ══════════════════════════════════════════════
       <section className="py-12 bg-white border-y border-slate-100">
         <div className="stats-row container max-w-5xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-6">
           {[
@@ -419,7 +419,7 @@ const Index = () => {
             </div>
           ))}
         </div>
-      </section>
+      </section> */}
 
       {/* ═══ HOW IT WORKS ═══════════════════════════════════════ */}
      <section className="how-section py-20 bg-white">
@@ -500,7 +500,7 @@ const Index = () => {
                   </div>
                 ))}
               </div>
-              <Link to="/register?role=photographer">
+              <Link to="/register">
                 <button className="mt-6 w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 border-2 border-orange-200 text-orange-700 hover:bg-orange-50 transition-colors">
                   <Award className="w-4 h-4" /> Daftar sebagai Fotografer
                 </button>

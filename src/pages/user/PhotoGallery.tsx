@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,19 +13,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  ArrowLeft, 
-  Download, 
-  Search, 
-  Filter, 
-  Grid3x3, 
-  List, 
-  Camera, 
-  Eye, 
-  Heart, 
+import {
+  ArrowLeft,
+  Download,
+  Search,
+  Filter,
+  Grid3x3,
+  List,
+  Camera,
+  Eye,
+  Heart,
   ShoppingBag,
   Sparkles,
-  TrendingUp
+  CheckCircle2,
+  Loader2,
+  Zap,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { aiService } from "@/services/api/ai.service";
@@ -38,7 +40,85 @@ import { PhotoLightbox } from "@/components/PhotoLightbox";
 import { PhotoPurchaseModal } from "@/components/PhotoPurchaseModal";
 import { toast as sonnerToast } from "sonner";
 import { buyerEscrowService } from "@/services/api/buyer.escrow.service";
-type TabType = 'temuan' | 'favorite' | 'koleksi';
+
+type TabType = "temuan" | "favorite" | "koleksi";
+
+// ─── Auto-match banner ────────────────────────────────────────────────────────
+
+type MatchState = "idle" | "loading" | "done" | "empty";
+
+const AutoMatchBanner = ({
+  state,
+  count,
+  source,
+}: {
+  state: MatchState;
+  count: number;
+  source: string;
+}) => {
+  if (state === "idle") return null;
+
+  if (state === "loading") {
+    return (
+      <div className="mb-5 rounded-2xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-sky-50 px-5 py-4 flex items-center gap-3">
+        <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+          <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+        </div>
+        <div>
+          <p className="font-semibold text-blue-800 text-sm">
+            {source === "register"
+              ? "Mencari semua foto Anda dari event yang tersedia..."
+              : "Memuat foto-foto Anda..."}
+          </p>
+          <p className="text-xs text-blue-600 mt-0.5">
+            Teknologi AI kami sedang mencocokkan wajah Anda
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (state === "done" && count > 0) {
+    return (
+      <div className="mb-5 rounded-2xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 px-5 py-4 flex items-center gap-3">
+        <div className="h-9 w-9 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+        </div>
+        <div className="flex-1">
+          <p className="font-semibold text-emerald-800 text-sm">
+            Ditemukan {count} foto yang cocok dengan wajah Anda! 🎉
+          </p>
+          <p className="text-xs text-emerald-600 mt-0.5">
+            Foto-foto ini diambil dari semua event yang ada di platform
+          </p>
+        </div>
+        <Sparkles className="h-5 w-5 text-emerald-400 shrink-0" />
+      </div>
+    );
+  }
+
+  if (state === "empty" || (state === "done" && count === 0)) {
+    return (
+      <div className="mb-5 rounded-2xl border-2 border-amber-200 bg-amber-50 px-5 py-4 flex items-center gap-3">
+        <div className="h-9 w-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+          <Camera className="h-5 w-5 text-amber-600" />
+        </div>
+        <div>
+          <p className="font-semibold text-amber-800 text-sm">
+            Belum ada foto yang cocok ditemukan
+          </p>
+          <p className="text-xs text-amber-600 mt-0.5">
+            Foto Anda akan muncul di sini saat fotografer mengunggah foto dari event yang Anda hadiri
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+};
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 const PhotoGallery = () => {
   const [photos, setPhotos] = useState<UserPhoto[]>([]);
@@ -48,10 +128,10 @@ const PhotoGallery = () => {
   const [isLoadingFavorites, setIsLoadingFavorites] = useState(false);
   const [isLoadingPurchased, setIsLoadingPurchased] = useState(false);
   const [error, setError] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<TabType>('temuan');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [selectedEvent, setSelectedEvent] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('newest');
+  const [activeTab, setActiveTab] = useState<TabType>("temuan");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [selectedEvent, setSelectedEvent] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("newest");
   const [searchQuery, setSearchQuery] = useState("");
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
   const [selectedPhoto, setSelectedPhoto] = useState<UserPhoto | null>(null);
@@ -60,21 +140,60 @@ const PhotoGallery = () => {
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [photoToPurchase, setPhotoToPurchase] = useState<UserPhoto | null>(null);
   const [userPointBalance, setUserPointBalance] = useState(0);
+
+  // ── Auto-match state ──
+  const [matchState, setMatchState] = useState<MatchState>("idle");
+  const [matchSource, setMatchSource] = useState<string>("");
+
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
+  // ── Detect auto-match flag on mount ──
   useEffect(() => {
-    loadData();
+    const shouldAutoMatch =
+      sessionStorage.getItem("auto_match_photos") === "true" ||
+      (location.state as any)?.autoMatch === true;
+
+    const source = sessionStorage.getItem("auto_match_source") || "manual";
+
+    if (shouldAutoMatch) {
+      // Clear flag immediately so it doesn't retrigger on refresh
+      sessionStorage.removeItem("auto_match_photos");
+      sessionStorage.removeItem("auto_match_source");
+
+      setMatchSource(source);
+      setMatchState("loading");
+      loadPhotosWithMatchFeedback();
+    } else {
+      loadData();
+    }
   }, []);
 
-  useEffect(() => {
-    // Load data based on active tab
-    if (activeTab === 'favorite' && favoritePhotos.length === 0) {
-      loadFavoritePhotos();
-    } else if (activeTab === 'koleksi' && purchasedPhotos.length === 0) {
-      loadPurchasedPhotos();
+  // ── Load with match feedback (for auto-match flow) ──
+  const loadPhotosWithMatchFeedback = async () => {
+    setIsLoading(true);
+    try {
+      const response = await userService.getMyPhotos();
+
+      if (response.success && response.data) {
+        const unmatched = response.data.filter((p) => !p.is_purchased);
+        setPhotos(response.data);
+        setError("");
+        setMatchState(unmatched.length > 0 ? "done" : "empty");
+      } else {
+        setPhotos([]);
+        setMatchState("empty");
+      }
+    } catch (err) {
+      console.error("Error loading photos:", err);
+      setError("Gagal memuat foto");
+      setPhotos([]);
+      setMatchState("empty");
+    } finally {
+      setIsLoading(false);
     }
-  }, [activeTab]);
+  };
 
   const loadData = async () => {
     setIsLoading(true);
@@ -85,10 +204,8 @@ const PhotoGallery = () => {
   const loadPhotos = async () => {
     try {
       const response = await userService.getMyPhotos();
-      
+
       if (response.success && response.data) {
-        console.log('✅ Loaded photos:', response.data.length, 'photos');
-        console.log('Sample photo:', response.data[0]); // Debug first photo
         setPhotos(response.data);
         setError("");
       } else {
@@ -96,7 +213,7 @@ const PhotoGallery = () => {
         setError("Foto tidak ditemukan. Coba pindai wajah Anda terlebih dahulu.");
       }
     } catch (err) {
-      console.error('Error loading photos:', err);
+      console.error("Error loading photos:", err);
       setError("Gagal memuat foto");
       setPhotos([]);
     }
@@ -106,16 +223,14 @@ const PhotoGallery = () => {
     try {
       setIsLoadingFavorites(true);
       const response = await userService.getFavoritePhotos();
-      
+
       if (response.success && response.data) {
-        console.log('❤️ Loaded favorite photos:', response.data.length, 'photos');
-        console.log('Sample favorite:', response.data[0]); // Debug first photo
         setFavoritePhotos(response.data);
       } else {
         setFavoritePhotos([]);
       }
     } catch (err) {
-      console.error('Error loading favorite photos:', err);
+      console.error("Error loading favorite photos:", err);
       setFavoritePhotos([]);
     } finally {
       setIsLoadingFavorites(false);
@@ -126,117 +241,98 @@ const PhotoGallery = () => {
     try {
       setIsLoadingPurchased(true);
       const response = await userService.getPurchasedPhotos();
-      
+
       if (response.success && response.data) {
-        console.log('🛍️ Loaded purchased photos:', response.data.length, 'photos');
-        console.log('Sample purchased:', response.data[0]); // Debug first photo
         setPurchasedPhotos(response.data);
       } else {
         setPurchasedPhotos([]);
       }
     } catch (err) {
-      console.error('Error loading purchased photos:', err);
+      console.error("Error loading purchased photos:", err);
       setPurchasedPhotos([]);
     } finally {
       setIsLoadingPurchased(false);
     }
   };
 
-  // ❌ COMMENTED OUT: loadUserBalance is not needed anymore (no FOTOPOIN feature)
-  // const loadUserBalance = async () => {
-  //   try {
-  //     const response = await userService.getBalance();
-  //     if (response.success && response.data) {
-  //       setUserPointBalance(response.data.balance);
-  //     }
-  //   } catch (err) {
-  //     console.error('Error loading balance:', err);
-  //     try {
-  //       const walletRes = await paymentService.getUserWallet();
-  //       if (walletRes.success && walletRes.data) {
-  //         setUserPointBalance(walletRes.data.wallet.point_balance);
-  //       }
-  //     } catch (walletErr) {
-  //       console.error('Error loading wallet:', walletErr);
-  //     }
-  //   }
-  // };
+  useEffect(() => {
+    if (activeTab === "favorite" && favoritePhotos.length === 0) {
+      loadFavoritePhotos();
+    } else if (activeTab === "koleksi" && purchasedPhotos.length === 0) {
+      loadPurchasedPhotos();
+    }
+  }, [activeTab]);
 
-  // Get current photos based on active tab
+  // ── Derived data ──
   const currentPhotos = useMemo(() => {
     switch (activeTab) {
-      case 'temuan':
-        // Filter out purchased photos from temuan
-        return photos.filter(p => !p.is_purchased);
-      case 'favorite':
+      case "temuan":
+        return photos.filter((p) => !p.is_purchased);
+      case "favorite":
         return favoritePhotos;
-      case 'koleksi':
+      case "koleksi":
         return purchasedPhotos;
       default:
         return photos;
     }
   }, [activeTab, photos, favoritePhotos, purchasedPhotos]);
 
-  // Extract unique events from current photos
   const events = useMemo(() => {
     const uniqueEvents = new Set<string>();
-    currentPhotos.forEach(photo => {
-      if (photo.event_name) {
-        uniqueEvents.add(photo.event_name);
-      }
+    currentPhotos.forEach((photo) => {
+      if (photo.event_name) uniqueEvents.add(photo.event_name);
     });
-    
     return [
-      { value: 'all', label: 'Semua Acara' },
-      ...Array.from(uniqueEvents).map(event => ({
-        value: event.toLowerCase().replace(/\s+/g, '-'),
-        label: event
-      }))
+      { value: "all", label: "Semua Acara" },
+      ...Array.from(uniqueEvents).map((event) => ({
+        value: event.toLowerCase().replace(/\s+/g, "-"),
+        label: event,
+      })),
     ];
   }, [currentPhotos]);
 
-  // Filter and sort photos
   const filteredPhotos = useMemo(() => {
     let result = [...currentPhotos];
 
-    // Filter by event
-    if (selectedEvent !== 'all') {
-      result = result.filter(photo => 
-        photo.event_name?.toLowerCase().replace(/\s+/g, '-') === selectedEvent
+    if (selectedEvent !== "all") {
+      result = result.filter(
+        (photo) =>
+          photo.event_name?.toLowerCase().replace(/\s+/g, "-") === selectedEvent
       );
     }
 
-    // Filter by search
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      result = result.filter(photo => 
-        photo.event_name?.toLowerCase().includes(query) ||
-        photo.event_location?.toLowerCase().includes(query) ||
-        photo.filename?.toLowerCase().includes(query) ||
-        photo.photographer_name?.toLowerCase().includes(query)
+      result = result.filter(
+        (photo) =>
+          photo.event_name?.toLowerCase().includes(query) ||
+          photo.event_location?.toLowerCase().includes(query) ||
+          photo.filename?.toLowerCase().includes(query) ||
+          photo.photographer_name?.toLowerCase().includes(query)
       );
     }
 
-    // Sort photos
     switch (sortBy) {
-      case 'newest':
-        result.sort((a, b) => 
-          new Date(b.event_date || 0).getTime() - new Date(a.event_date || 0).getTime()
+      case "newest":
+        result.sort(
+          (a, b) =>
+            new Date(b.event_date || 0).getTime() -
+            new Date(a.event_date || 0).getTime()
         );
         break;
-      case 'oldest':
-        result.sort((a, b) => 
-          new Date(a.event_date || 0).getTime() - new Date(b.event_date || 0).getTime()
+      case "oldest":
+        result.sort(
+          (a, b) =>
+            new Date(a.event_date || 0).getTime() -
+            new Date(b.event_date || 0).getTime()
         );
         break;
-      case 'match':
-        result.sort((a, b) => 
-          (b.similarity || 0) - (a.similarity || 0)
-        );
+      case "match":
+        result.sort((a, b) => (b.similarity || 0) - (a.similarity || 0));
         break;
-      case 'event':
-        result.sort((a, b) => 
-          (a.event_name || '').localeCompare(b.event_name || '')
+      case "event":
+        result.sort((a, b) =>
+          (a.event_name || "").localeCompare(b.event_name || "")
         );
         break;
     }
@@ -244,85 +340,73 @@ const PhotoGallery = () => {
     return result;
   }, [currentPhotos, selectedEvent, searchQuery, sortBy]);
 
-  // Handle tab change
+  // ── Handlers ──
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
-    setSelectedEvent('all');
-    setSearchQuery('');
+    setSelectedEvent("all");
+    setSearchQuery("");
   };
 
-  // Toggle favorite
   const handleToggleFavorite = async (photo: UserPhoto) => {
     try {
-      // Get the correct photo ID - prioritize event_photo_id, fallback to photo_id
       const photoId = photo.event_photo_id || photo.photo_id;
-      
       if (!photoId) {
-        console.error('No valid photo ID found:', photo);
         sonnerToast.error("ID foto tidak valid");
         return;
       }
 
-      console.log('Toggle favorite for photo:', photoId, photo);
-      
       if (photo.is_favorited) {
-        // Remove from favorites
         await userService.removeFromFavorites(photoId);
-        
-        // Update local state
-        setPhotos(prev => prev.map(p => 
-          (p.event_photo_id === photoId || p.photo_id === photoId)
-            ? { ...p, is_favorited: false }
-            : p
-        ));
-        setFavoritePhotos(prev => prev.filter(p => 
-          p.event_photo_id !== photoId && p.photo_id !== photoId
-        ));
-        
+        setPhotos((prev) =>
+          prev.map((p) =>
+            p.event_photo_id === photoId || p.photo_id === photoId
+              ? { ...p, is_favorited: false }
+              : p
+          )
+        );
+        setFavoritePhotos((prev) =>
+          prev.filter(
+            (p) => p.event_photo_id !== photoId && p.photo_id !== photoId
+          )
+        );
         sonnerToast.success("Foto dihapus dari favorit");
       } else {
-        // Add to favorites
         await userService.addToFavorites(photoId);
-        
-        // Update local state
-        setPhotos(prev => prev.map(p => 
-          (p.event_photo_id === photoId || p.photo_id === photoId)
-            ? { ...p, is_favorited: true }
-            : p
-        ));
-        
+        setPhotos((prev) =>
+          prev.map((p) =>
+            p.event_photo_id === photoId || p.photo_id === photoId
+              ? { ...p, is_favorited: true }
+              : p
+          )
+        );
         sonnerToast.success("Foto ditambahkan ke favorit");
-        
-        // Reload favorites if on favorite tab
-        if (activeTab === 'favorite') {
-          loadFavoritePhotos();
-        }
+        if (activeTab === "favorite") loadFavoritePhotos();
       }
     } catch (err) {
-      console.error('Error toggling favorite:', err);
       sonnerToast.error("Gagal mengubah status favorit");
     }
   };
 
-  // Download photo
   const handleDownloadPhoto = async (photoId: string) => {
     try {
       const photo = [...photos, ...favoritePhotos, ...purchasedPhotos].find(
-        p => p.event_photo_id === photoId || p.photo_id === photoId
+        (p) => p.event_photo_id === photoId || p.photo_id === photoId
       );
-      
+
       if (!photo) {
-        toast({
-          title: "Error",
-          description: "Foto tidak ditemukan",
-          variant: "destructive",
-        });
+        toast({ title: "Error", description: "Foto tidak ditemukan", variant: "destructive" });
         return;
       }
 
-      const cta = photo.cta || (photo.is_purchased ? 'DOWNLOAD' : (photo.is_for_sale === false ? 'FREE_DOWNLOAD' : 'BUY'));
-      
-      if (cta === 'BUY') {
+      const cta =
+        photo.cta ||
+        (photo.is_purchased
+          ? "DOWNLOAD"
+          : photo.is_for_sale === false
+          ? "FREE_DOWNLOAD"
+          : "BUY");
+
+      if (cta === "BUY") {
         toast({
           title: "Foto belum dibeli",
           description: "Silakan beli foto terlebih dahulu untuk mengunduh.",
@@ -332,26 +416,21 @@ const PhotoGallery = () => {
         return;
       }
 
-      setDownloadingIds(prev => new Set(prev).add(photoId));
-      
+      setDownloadingIds((prev) => new Set(prev).add(photoId));
+
       const filename = photo.filename || `foto-${photoId}.jpg`;
-      
+
       try {
         const blob = await userService.downloadPhotoBlob(photo.event_photo_id);
-        
         const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = url;
         link.download = filename;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
-        
-        toast({
-          title: "Download berhasil! 🎉",
-          description: `${filename} telah diunduh`,
-        });
+        toast({ title: "Download berhasil! 🎉", description: `${filename} telah diunduh` });
       } catch (downloadErr: any) {
         if (downloadErr.response?.status === 403) {
           toast({
@@ -362,35 +441,27 @@ const PhotoGallery = () => {
           handleBuyPhoto(photo);
           return;
         }
-        
-        const downloadUrl = photo.download_url || photo.preview_url || aiService.getDownloadUrl(photo.photo_id);
+        const downloadUrl =
+          photo.download_url ||
+          photo.preview_url ||
+          aiService.getDownloadUrl(photo.photo_id);
         const response = await fetch(downloadUrl);
-        if (!response.ok) throw new Error('Download gagal');
-        
+        if (!response.ok) throw new Error("Download gagal");
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = url;
         link.download = filename;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
-        
-        toast({
-          title: "Download berhasil! 🎉",
-          description: `${filename} telah diunduh`,
-        });
+        toast({ title: "Download berhasil! 🎉", description: `${filename} telah diunduh` });
       }
     } catch (err) {
-      console.error('Download error:', err);
-      toast({
-        title: "Download gagal",
-        description: "Gagal mengunduh foto. Silakan coba lagi.",
-        variant: "destructive",
-      });
+      toast({ title: "Download gagal", description: "Gagal mengunduh foto.", variant: "destructive" });
     } finally {
-      setDownloadingIds(prev => {
+      setDownloadingIds((prev) => {
         const newSet = new Set(prev);
         newSet.delete(photoId);
         return newSet;
@@ -399,14 +470,10 @@ const PhotoGallery = () => {
   };
 
   const handleDownloadAll = async () => {
-    toast({
-      title: "Mempersiapkan unduhan",
-      description: `Mengunduh ${filteredPhotos.length} foto...`,
-    });
-    
+    toast({ title: "Mempersiapkan unduhan", description: `Mengunduh ${filteredPhotos.length} foto...` });
     for (const photo of filteredPhotos) {
       await handleDownloadPhoto(photo.photo_id);
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 300));
     }
   };
 
@@ -425,118 +492,88 @@ const PhotoGallery = () => {
     setIsLightboxOpen(true);
   };
 
-  const handleLightboxClose = () => {
-    setIsLightboxOpen(false);
-  };
-
   const handleBuyPhoto = (photo: UserPhoto) => {
     setPhotoToPurchase(photo);
     setIsPurchaseModalOpen(true);
   };
 
-const handlePurchaseSuccess = async (downloadUrl?: string) => {
-  if (photoToPurchase) {
-    // Update photos
-    setPhotos(prev => prev.map(p => 
-      p.event_photo_id === photoToPurchase.event_photo_id 
-        ? { ...p, is_purchased: true, cta: 'DOWNLOAD' as const, download_url: downloadUrl }
-        : p
-    ));
-    
-    // Update favorites if favorited
-    setFavoritePhotos(prev => prev.map(p => 
-      p.event_photo_id === photoToPurchase.event_photo_id 
-        ? { ...p, is_purchased: true, cta: 'DOWNLOAD' as const, download_url: downloadUrl }
-        : p
-    ));
-    
-    // Reload purchased photos with escrow status
-    try {
-      const escrowResponse = await buyerEscrowService.getMyPurchases();
-      if (escrowResponse.success && escrowResponse.data) {
-        console.log('📦 Escrow purchases loaded:', escrowResponse.data);
-        
-        // Map BuyerPurchase to UserPhoto format
-        const purchasesWithEscrow: UserPhoto[] = escrowResponse.data.map(purchase => {
-          const canDownload = purchase.escrow.can_download;
-          
-          return {
-            // Core photo fields
-            photo_id: purchase.photo.id,
-            event_photo_id: purchase.photo.id,
-            filename: purchase.photo.filename,
-            
-            // Event fields
-            event_id: purchase.transaction_id,
-            event_name: purchase.photo.event_name,
-            event_date: purchase.purchased_at,
-            event_location: null,
-            
-            // URLs
-            preview_url: purchase.photo.preview_url || '',
-            download_url: purchase.photo.download_url || '',
-            thumbnail_url: purchase.photo.preview_url || '',
-            
-            // Purchase status
-            is_purchased: true,
-            is_favorited: false,
-            is_for_sale: false,
-            
-            // Price (from payment info)
-            price: purchase.payment.amount,
-            price_cash: purchase.payment.amount,
-            price_points: null,
-            price_in_points: null,
-            
-            // CTA - Use VIEW if can't download yet, DOWNLOAD if ready
-            cta: canDownload ? 'DOWNLOAD' : 'VIEW',
-            
-            // Photographer info
-            photographer_name: purchase.photographer.name,
-            photographer_id: purchase.photographer.id,
-            
-            // Escrow specific fields
-            escrow_status: purchase.escrow.status,
-            escrow_transaction_id: purchase.transaction_id,
-            escrow_can_confirm: purchase.escrow.can_confirm,
-            escrow_can_download: purchase.escrow.can_download,
-            escrow_deadline: purchase.escrow.deadline,
-            escrow_hours_remaining: purchase.escrow.hours_remaining,
-            escrow_revision_count: purchase.escrow.revision_count,
-            escrow_max_revisions: purchase.escrow.max_revisions,
-            escrow_status_message: purchase.escrow.status_message,
-            
-            // Delivery info
-            delivery_version: purchase.delivery?.version || null,
-            delivery_uploaded_at: purchase.delivery?.uploaded_at || null,
-            
-            // Other optional fields
-            similarity: null,
-            uploaded_at: purchase.purchased_at,
-          } as UserPhoto;
-        });
-        
-        setPurchasedPhotos(purchasesWithEscrow);
-      } else {
-        // Fallback to regular purchased photos if escrow fails
+  const handlePurchaseSuccess = async (downloadUrl?: string) => {
+    if (photoToPurchase) {
+      setPhotos((prev) =>
+        prev.map((p) =>
+          p.event_photo_id === photoToPurchase.event_photo_id
+            ? { ...p, is_purchased: true, cta: "DOWNLOAD" as const, download_url: downloadUrl }
+            : p
+        )
+      );
+      setFavoritePhotos((prev) =>
+        prev.map((p) =>
+          p.event_photo_id === photoToPurchase.event_photo_id
+            ? { ...p, is_purchased: true, cta: "DOWNLOAD" as const, download_url: downloadUrl }
+            : p
+        )
+      );
+
+      try {
+        const escrowResponse = await buyerEscrowService.getMyPurchases();
+        if (escrowResponse.success && escrowResponse.data) {
+          const purchasesWithEscrow: UserPhoto[] = escrowResponse.data.map((purchase) => {
+            const canDownload = purchase.escrow.can_download;
+            return {
+              photo_id: purchase.photo.id,
+              event_photo_id: purchase.photo.id,
+              filename: purchase.photo.filename,
+              event_id: purchase.transaction_id,
+              event_name: purchase.photo.event_name,
+              event_date: purchase.purchased_at,
+              event_location: null,
+              preview_url: purchase.photo.preview_url || "",
+              download_url: purchase.photo.download_url || "",
+              thumbnail_url: purchase.photo.preview_url || "",
+              is_purchased: true,
+              is_favorited: false,
+              is_for_sale: false,
+              price: purchase.payment.amount,
+              price_cash: purchase.payment.amount,
+              price_points: null,
+              price_in_points: null,
+              cta: canDownload ? "DOWNLOAD" : "VIEW",
+              photographer_name: purchase.photographer.name,
+              photographer_id: purchase.photographer.id,
+              escrow_status: purchase.escrow.status,
+              escrow_transaction_id: purchase.transaction_id,
+              escrow_can_confirm: purchase.escrow.can_confirm,
+              escrow_can_download: purchase.escrow.can_download,
+              escrow_deadline: purchase.escrow.deadline,
+              escrow_hours_remaining: purchase.escrow.hours_remaining,
+              escrow_revision_count: purchase.escrow.revision_count,
+              escrow_max_revisions: purchase.escrow.max_revisions,
+              escrow_status_message: purchase.escrow.status_message,
+              delivery_version: purchase.delivery?.version || null,
+              delivery_uploaded_at: purchase.delivery?.uploaded_at || null,
+              similarity: null,
+              uploaded_at: purchase.purchased_at,
+            } as UserPhoto;
+          });
+          setPurchasedPhotos(purchasesWithEscrow);
+        } else {
+          loadPurchasedPhotos();
+        }
+      } catch {
         loadPurchasedPhotos();
       }
-    } catch (escrowErr) {
-      console.error('Error loading escrow purchases:', escrowErr);
-      // Fallback to regular purchased photos
-      loadPurchasedPhotos();
     }
-  }
-  
-  setIsPurchaseModalOpen(false);
-  setPhotoToPurchase(null);
-  
-  sonnerToast.success("Foto berhasil dibeli! Anda sekarang bisa mengunduh foto ini.");
-};
-  
+
+    setIsPurchaseModalOpen(false);
+    setPhotoToPurchase(null);
+    sonnerToast.success("Foto berhasil dibeli! Anda sekarang bisa mengunduh foto ini.");
+  };
+
   const handleNext = () => {
     if (!selectedPhoto) return;
-    const currentIndex = filteredPhotos.findIndex(p => p.photo_id === selectedPhoto.photo_id);
+    const currentIndex = filteredPhotos.findIndex(
+      (p) => p.photo_id === selectedPhoto.photo_id
+    );
     if (currentIndex < filteredPhotos.length - 1) {
       setSelectedPhoto(filteredPhotos[currentIndex + 1]);
     }
@@ -544,56 +581,63 @@ const handlePurchaseSuccess = async (downloadUrl?: string) => {
 
   const handlePrevious = () => {
     if (!selectedPhoto) return;
-    const currentIndex = filteredPhotos.findIndex(p => p.photo_id === selectedPhoto.photo_id);
+    const currentIndex = filteredPhotos.findIndex(
+      (p) => p.photo_id === selectedPhoto.photo_id
+    );
     if (currentIndex > 0) {
       setSelectedPhoto(filteredPhotos[currentIndex - 1]);
     }
   };
 
-  
-
-  const selectedPhotoIndex = selectedPhoto 
-    ? filteredPhotos.findIndex(p => p.event_photo_id === selectedPhoto.event_photo_id)
+  const selectedPhotoIndex = selectedPhoto
+    ? filteredPhotos.findIndex(
+        (p) => p.event_photo_id === selectedPhoto.event_photo_id
+      )
     : -1;
 
-  // Tab configuration
+  // Tab config
   const tabs = [
     {
-      id: 'temuan' as TabType,
-      label: 'Temuan',
+      id: "temuan" as TabType,
+      label: "Temuan",
       icon: Eye,
-      count: photos.filter(p => !p.is_purchased).length,
-      color: 'from-blue-500 to-blue-600',
-      bgColor: 'bg-blue-500',
-      description: 'Foto yang cocok dengan wajah Anda'
+      count: photos.filter((p) => !p.is_purchased).length,
+      color: "from-blue-500 to-blue-600",
+      bgColor: "bg-blue-500",
     },
     {
-      id: 'favorite' as TabType,
-      label: 'Favorit',
+      id: "favorite" as TabType,
+      label: "Favorit",
       icon: Heart,
       count: favoritePhotos.length,
-      color: 'from-pink-500 to-red-500',
-      bgColor: 'bg-pink-500',
-      description: 'Foto yang Anda sukai'
+      color: "from-pink-500 to-red-500",
+      bgColor: "bg-pink-500",
     },
     {
-      id: 'koleksi' as TabType,
-      label: 'Koleksi',
+      id: "koleksi" as TabType,
+      label: "Koleksi",
       icon: ShoppingBag,
       count: purchasedPhotos.length,
-      color: 'from-lime-400 to-green-500',
-      bgColor: 'bg-lime-400',
-      description: 'Foto yang sudah Anda beli'
-    }
+      color: "from-lime-400 to-green-500",
+      bgColor: "bg-lime-400",
+    },
   ];
 
-  // Loading state
+  const currentTabLoading =
+    (activeTab === "favorite" && isLoadingFavorites) ||
+    (activeTab === "koleksi" && isLoadingPurchased);
+
+  // ── Loading state ──
   if (isLoading) {
     return (
       <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 to-blue-50">
         <Header />
         <main className="flex-1 py-8">
           <div className="container max-w-7xl">
+            {/* Loading banner for auto-match flow */}
+            {matchState === "loading" && (
+              <AutoMatchBanner state="loading" count={0} source={matchSource} />
+            )}
             <Skeleton className="h-8 w-64 mb-4" />
             <Skeleton className="h-12 w-full mb-6" />
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -613,34 +657,48 @@ const handlePurchaseSuccess = async (downloadUrl?: string) => {
     );
   }
 
-  // Empty state for no photos at all
-  if (!isLoading && photos.length === 0 && favoritePhotos.length === 0 && purchasedPhotos.length === 0) {
+  // ── Empty state ──
+  if (
+    !isLoading &&
+    photos.length === 0 &&
+    favoritePhotos.length === 0 &&
+    purchasedPhotos.length === 0
+  ) {
     return (
       <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 to-blue-50">
         <Header />
         <main className="flex-1 py-8">
           <div className="container max-w-7xl">
-            <Link 
-              to="/user/dashboard" 
+            <Link
+              to="/user/dashboard"
               className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-all"
             >
               <ArrowLeft className="h-4 w-4" />
               Kembali ke Dashboard
             </Link>
-            
+
+            {/* Auto-match empty result banner */}
+            {(matchState === "done" || matchState === "empty") && (
+              <AutoMatchBanner state="empty" count={0} source={matchSource} />
+            )}
+
             <Card className="border-2 border-blue-200 shadow-xl bg-white/80 backdrop-blur-sm">
               <div className="p-12 text-center">
                 <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-blue-500 to-yellow-500 rounded-full flex items-center justify-center">
                   <Camera className="h-10 w-10 text-white" />
                 </div>
                 <h2 className="text-3xl font-bold mb-3 bg-gradient-to-r from-blue-600 to-yellow-600 bg-clip-text text-transparent">
-                  Mulai Petualangan Foto Anda
+                  {matchState === "empty"
+                    ? "Belum Ada Foto Ditemukan"
+                    : "Mulai Petualangan Foto Anda"}
                 </h2>
                 <p className="text-muted-foreground mb-8 text-lg max-w-md mx-auto">
-                  {error || "Temukan foto-foto Anda dengan teknologi pengenalan wajah AI. Pindai wajah Anda untuk memulai!"}
+                  {matchState === "empty"
+                    ? "Foto Anda akan otomatis muncul di sini ketika fotografer mengunggah dari event yang Anda hadiri."
+                    : error || "Temukan foto-foto Anda dengan teknologi pengenalan wajah AI."}
                 </p>
-                <Button 
-                  onClick={() => navigate('/user/scan-face')}
+                <Button
+                  onClick={() => navigate("/user/scan-face")}
                   size="lg"
                   className="bg-gradient-to-r from-blue-600 to-yellow-600 hover:from-blue-700 hover:to-yellow-700 shadow-lg"
                 >
@@ -656,51 +714,56 @@ const handlePurchaseSuccess = async (downloadUrl?: string) => {
     );
   }
 
-  const currentTabLoading = 
-    (activeTab === 'favorite' && isLoadingFavorites) ||
-    (activeTab === 'koleksi' && isLoadingPurchased);
-
+  // ── Main render ──
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 to-blue-50">
       <Header />
-      
+
       <main className="flex-1 py-6">
         <div className="container max-w-7xl">
-          {/* Header - More Compact & Modern */}
+          {/* Header */}
           <div className="mb-6">
-            <Link 
-              to="/user/dashboard" 
+            <Link
+              to="/user/dashboard"
               className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-3 transition-all group"
             >
               <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
               Kembali ke Dashboard
             </Link>
-            
+
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
               <div>
                 <h1 className="text-3xl md:text-4xl font-black mb-1 bg-blue-900 bg-clip-text text-transparent">
-                  Ambil Foto {activeTab === 'temuan' ? 'Temuan' : activeTab === 'favorite' ? 'Favorit' : 'Koleksi'}
+                  Ambil Foto{" "}
+                  {activeTab === "temuan"
+                    ? "Temuan"
+                    : activeTab === "favorite"
+                    ? "Favorit"
+                    : "Koleksi"}
                 </h1>
                 <p className="text-muted-foreground">
                   {filteredPhotos.length === 0
                     ? "Tidak ada foto di tab ini"
-                    : `${filteredPhotos.length} foto ditemukan`
-                  }
+                    : `${filteredPhotos.length} foto ditemukan`}
                 </p>
               </div>
-              
+
               <div className="flex flex-wrap gap-2">
                 <Link to="/user/scan-face">
-                  <Button variant="outline" size="sm" className="border-2 hover:border-blue-400 hover:bg-blue-50 rounded-xl">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-2 hover:border-blue-400 hover:bg-blue-50 rounded-xl"
+                  >
                     <Camera className="mr-2 h-4 w-4" />
                     Pindai Lagi
                   </Button>
                 </Link>
-                {filteredPhotos.length > 0 && activeTab === 'koleksi' && (
-                  <Button 
+                {filteredPhotos.length > 0 && activeTab === "koleksi" && (
+                  <Button
                     onClick={handleDownloadAll}
                     size="sm"
-                    className="bg-amber-500 hover:from-blue-700 hover:to-yellow-600 rounded-xl shadow-lg"
+                    className="bg-amber-500 hover:bg-amber-600 rounded-xl shadow-lg"
                   >
                     <Download className="mr-2 h-4 w-4" />
                     Download ({filteredPhotos.length})
@@ -710,48 +773,63 @@ const handlePurchaseSuccess = async (downloadUrl?: string) => {
             </div>
           </div>
 
-          {/* Tabs - Compact Pill Style */}
+          {/* ✅ Auto-match result banner */}
+          {activeTab === "temuan" && (
+            <AutoMatchBanner
+              state={matchState}
+              count={photos.filter((p) => !p.is_purchased).length}
+              source={matchSource}
+            />
+          )}
+
+          {/* Tabs */}
           <div className="mb-5">
             <div className="inline-flex gap-1.5 p-1.5 bg-white/70 backdrop-blur-xl rounded-2xl border border-gray-200/50 shadow-lg">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
-                
+
                 return (
                   <button
                     key={tab.id}
                     onClick={() => handleTabChange(tab.id)}
                     className={`relative group transition-all duration-200 ${
-                      isActive ? '' : 'hover:scale-[1.02]'
+                      isActive ? "" : "hover:scale-[1.02]"
                     }`}
                   >
-                    <div className={`relative px-4 py-2.5 rounded-xl transition-all duration-200 ${
-                      isActive 
-                        ? `bg-gradient-to-br ${tab.color} shadow-md` 
-                        : 'bg-transparent hover:bg-gray-50'
-                    }`}>
+                    <div
+                      className={`relative px-4 py-2.5 rounded-xl transition-all duration-200 ${
+                        isActive
+                          ? `bg-gradient-to-br ${tab.color} shadow-md`
+                          : "bg-transparent hover:bg-gray-50"
+                      }`}
+                    >
                       <div className="flex items-center gap-2">
-                        <div className={`p-1 rounded-lg ${
-                          isActive 
-                            ? 'bg-white/20' 
-                            : 'bg-gray-100'
-                        } transition-all`}>
-                          <Icon className={`h-3.5 w-3.5 ${
-                            isActive ? 'text-white' : 'text-gray-600'
-                          }`} />
+                        <div
+                          className={`p-1 rounded-lg ${
+                            isActive ? "bg-white/20" : "bg-gray-100"
+                          } transition-all`}
+                        >
+                          <Icon
+                            className={`h-3.5 w-3.5 ${
+                              isActive ? "text-white" : "text-gray-600"
+                            }`}
+                          />
                         </div>
-                        
-                        <span className={`text-sm font-bold whitespace-nowrap ${
-                          isActive ? 'text-white' : 'text-gray-700'
-                        }`}>
+                        <span
+                          className={`text-sm font-bold whitespace-nowrap ${
+                            isActive ? "text-white" : "text-gray-700"
+                          }`}
+                        >
                           {tab.label}
                         </span>
-                        
-                        <div className={`px-2 py-0.5 rounded-full text-xs font-bold min-w-[24px] text-center ${
-                          isActive 
-                            ? 'bg-white/30 text-white' 
-                            : 'bg-gray-200 text-gray-600'
-                        }`}>
+                        <div
+                          className={`px-2 py-0.5 rounded-full text-xs font-bold min-w-[24px] text-center ${
+                            isActive
+                              ? "bg-white/30 text-white"
+                              : "bg-gray-200 text-gray-600"
+                          }`}
+                        >
                           {tab.count}
                         </div>
                       </div>
@@ -762,23 +840,21 @@ const handlePurchaseSuccess = async (downloadUrl?: string) => {
             </div>
           </div>
 
-          {/* Filter & Controls - More Modern */}
+          {/* Filter & Controls */}
           {filteredPhotos.length > 0 && (
             <Card className="mb-5 border-2 border-gray-100 shadow-md bg-white/70 backdrop-blur-sm rounded-2xl overflow-hidden">
               <div className="p-3">
                 <div className="flex flex-col md:flex-row gap-2">
-                  {/* Search */}
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Cari foto..." 
+                    <Input
+                      placeholder="Cari foto..."
                       className="pl-9 border-2 focus:border-blue-400 rounded-xl bg-white"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
-                  
-                  {/* Event Filter */}
+
                   <Select value={selectedEvent} onValueChange={setSelectedEvent}>
                     <SelectTrigger className="w-full md:w-[180px] border-2 rounded-xl bg-white">
                       <Filter className="mr-2 h-4 w-4" />
@@ -792,8 +868,7 @@ const handlePurchaseSuccess = async (downloadUrl?: string) => {
                       ))}
                     </SelectContent>
                   </Select>
-                  
-                  {/* Sort */}
+
                   <Select value={sortBy} onValueChange={setSortBy}>
                     <SelectTrigger className="w-full md:w-[160px] border-2 rounded-xl bg-white">
                       <SelectValue placeholder="Urutkan" />
@@ -801,25 +876,26 @@ const handlePurchaseSuccess = async (downloadUrl?: string) => {
                     <SelectContent>
                       <SelectItem value="newest">Terbaru</SelectItem>
                       <SelectItem value="oldest">Terlama</SelectItem>
-                      {activeTab === 'temuan' && <SelectItem value="match">Terbaik</SelectItem>}
+                      {activeTab === "temuan" && (
+                        <SelectItem value="match">Kecocokan Terbaik</SelectItem>
+                      )}
                       <SelectItem value="event">Acara</SelectItem>
                     </SelectContent>
                   </Select>
-                  
-                  {/* View Mode Toggle */}
+
                   <div className="flex gap-1 border-2 border-gray-200 rounded-xl p-1 bg-white">
                     <Button
-                      variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                      variant={viewMode === "grid" ? "secondary" : "ghost"}
                       size="sm"
-                      onClick={() => setViewMode('grid')}
+                      onClick={() => setViewMode("grid")}
                       className="h-8 w-8 p-0 rounded-lg"
                     >
                       <Grid3x3 className="h-4 w-4" />
                     </Button>
                     <Button
-                      variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                      variant={viewMode === "list" ? "secondary" : "ghost"}
                       size="sm"
-                      onClick={() => setViewMode('list')}
+                      onClick={() => setViewMode("list")}
                       className="h-8 w-8 p-0 rounded-lg"
                     >
                       <List className="h-4 w-4" />
@@ -844,7 +920,7 @@ const handlePurchaseSuccess = async (downloadUrl?: string) => {
             </div>
           ) : filteredPhotos.length === 0 ? (
             <Card className="border-2 border-gray-200 shadow-xl p-12 text-center bg-white/80 backdrop-blur-sm rounded-2xl">
-              {activeTab === 'temuan' && (
+              {activeTab === "temuan" && (
                 <>
                   <div className="relative w-20 h-20 mx-auto mb-4">
                     <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-yellow-400 rounded-full animate-pulse" />
@@ -860,7 +936,7 @@ const handlePurchaseSuccess = async (downloadUrl?: string) => {
                   </p>
                 </>
               )}
-              {activeTab === 'favorite' && (
+              {activeTab === "favorite" && (
                 <>
                   <Heart className="h-16 w-16 text-pink-400 mx-auto mb-4" />
                   <h3 className="text-2xl font-black mb-2">Belum Ada Foto Favorit</h3>
@@ -869,7 +945,7 @@ const handlePurchaseSuccess = async (downloadUrl?: string) => {
                   </p>
                 </>
               )}
-              {activeTab === 'koleksi' && (
+              {activeTab === "koleksi" && (
                 <>
                   <ShoppingBag className="h-16 w-16 text-lime-400 mx-auto mb-4" />
                   <h3 className="text-2xl font-black mb-2">Koleksi Masih Kosong</h3>
@@ -878,21 +954,19 @@ const handlePurchaseSuccess = async (downloadUrl?: string) => {
                   </p>
                 </>
               )}
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
-                  setSelectedEvent('all');
-                  setSearchQuery('');
-                  if (activeTab !== 'temuan') {
-                    handleTabChange('temuan');
-                  }
+                  setSelectedEvent("all");
+                  setSearchQuery("");
+                  if (activeTab !== "temuan") handleTabChange("temuan");
                 }}
                 className="border-2 rounded-xl"
               >
-                {activeTab === 'temuan' ? 'Hapus Filter' : 'Lihat Temuan'}
+                {activeTab === "temuan" ? "Hapus Filter" : "Lihat Temuan"}
               </Button>
             </Card>
-          ) : viewMode === 'grid' ? (
+          ) : viewMode === "grid" ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {filteredPhotos.map((photo) => (
                 <PhotoCard
@@ -923,39 +997,50 @@ const handlePurchaseSuccess = async (downloadUrl?: string) => {
           )}
         </div>
       </main>
-      
+
       <Footer />
 
-      {/* Photo Detail Modal */}
       <PhotoDetailModal
         photo={selectedPhoto as any}
         isOpen={isModalOpen}
         onClose={handleModalClose}
-        onDownload={() => selectedPhoto && handleDownloadPhoto(selectedPhoto.event_photo_id)}
+        onDownload={() =>
+          selectedPhoto && handleDownloadPhoto(selectedPhoto.event_photo_id)
+        }
         onBuy={() => selectedPhoto && handleBuyPhoto(selectedPhoto)}
-        onToggleFavorite={() => selectedPhoto && handleToggleFavorite(selectedPhoto)}
+        onToggleFavorite={() =>
+          selectedPhoto && handleToggleFavorite(selectedPhoto)
+        }
         onView={handleViewFullscreen}
         onNext={handleNext}
         onPrevious={handlePrevious}
-        isDownloading={selectedPhoto ? downloadingIds.has(selectedPhoto.event_photo_id) : false}
+        isDownloading={
+          selectedPhoto
+            ? downloadingIds.has(selectedPhoto.event_photo_id)
+            : false
+        }
         hasNext={selectedPhotoIndex < filteredPhotos.length - 1}
         hasPrevious={selectedPhotoIndex > 0}
       />
 
-      {/* Photo Lightbox */}
       <PhotoLightbox
         photo={selectedPhoto as any}
         isOpen={isLightboxOpen}
-        onClose={handleLightboxClose}
-        onDownload={() => selectedPhoto && handleDownloadPhoto(selectedPhoto.event_photo_id)}
+        onClose={() => setIsLightboxOpen(false)}
+        onDownload={() =>
+          selectedPhoto && handleDownloadPhoto(selectedPhoto.event_photo_id)
+        }
         onNext={handleNext}
         onPrevious={handlePrevious}
-        isDownloading={selectedPhoto ? downloadingIds.has(selectedPhoto.event_photo_id) : false}
+        isDownloading={
+          selectedPhoto
+            ? downloadingIds.has(selectedPhoto.event_photo_id)
+            : false
+        }
         hasNext={selectedPhotoIndex < filteredPhotos.length - 1}
         hasPrevious={selectedPhotoIndex > 0}
       />
 
-      {/* Purchase Modal */}
       {photoToPurchase && (
         <PhotoPurchaseModal
           isOpen={isPurchaseModalOpen}
@@ -965,10 +1050,14 @@ const handlePurchaseSuccess = async (downloadUrl?: string) => {
           }}
           photo={{
             id: photoToPurchase.event_photo_id,
-            filename: photoToPurchase.filename || 'Foto',
-            event_name: photoToPurchase.event_name || 'Acara',
-            price_cash: photoToPurchase.price_cash || photoToPurchase.price || 30000,
-            price_points: photoToPurchase.price_points || photoToPurchase.price_in_points || 6,
+            filename: photoToPurchase.filename || "Foto",
+            event_name: photoToPurchase.event_name || "Acara",
+            price_cash:
+              photoToPurchase.price_cash || photoToPurchase.price || 30000,
+            price_points:
+              photoToPurchase.price_points ||
+              photoToPurchase.price_in_points ||
+              6,
           }}
           userPointBalance={userPointBalance}
           onPurchaseSuccess={handlePurchaseSuccess}
