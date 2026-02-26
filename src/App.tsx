@@ -56,7 +56,7 @@ import DeveloperUsage from "./pages/developer/Usage";
 import DeveloperCheckout from "./pages/developer/Checkout";
 import DeveloperPlayground from "./pages/developer/Playground";
 import DeveloperLogin from "./pages/DeveloperLogin"; // ✅ already imported
-import ChatList from "./pages/user/Chatlist";
+import ChatList from "./pages/user/ChatList";
 import ChatRoom from "./pages/user/ChatRoom";
 import PhotographerChatList from "./pages/photographer/ChatList";
 import PhotographerChatRoom from "./pages/photographer/ChatRoom";
