@@ -56,7 +56,13 @@ import DeveloperUsage from "./pages/developer/Usage";
 import DeveloperCheckout from "./pages/developer/Checkout";
 import DeveloperPlayground from "./pages/developer/Playground";
 import DeveloperLogin from "./pages/DeveloperLogin"; // ✅ already imported
-
+import ChatList from "./pages/user/Chatlist";
+import ChatRoom from "./pages/user/ChatRoom";
+import PhotographerChatList from "./pages/photographer/ChatList";
+import PhotographerChatRoom from "./pages/photographer/ChatRoom";
+import PhotographerSearch from "./pages/user/PhotographerSearch";
+import UserComplaints from "./pages/user/Complaints";
+import AdminChatManagement from "./pages/admin/ChatManagement";
 // ❌ DEPRECATED ROUTES - Replaced by Escrow System
 // import HiResQueue from "./pages/photographer/HiResQueue";
 // import UserHiResPhotos from "./pages/user/HiResPhotos";
@@ -77,6 +83,7 @@ import PhotographerUpgradeRequest from "./pages/user/PhotographerUpgradeRequest"
 import PhotographerUpgradeStatus from "./pages/user/PhotographerUpgradeStatus";
 import AdminPhotographerRequests from "./pages/admin/AdminPhotographerRequest";
 import PaymentResult from "./pages/developer/Result";
+import AdminChatRoom from "./pages/admin/ChatRoom";
 
 const queryClient = new QueryClient();
 
@@ -230,6 +237,38 @@ const App = () => (
               } 
             />
 
+             <Route 
+              path="/user/chat" 
+              element={
+                <ProtectedRoute>
+                  <ChatList />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/user/chat/:chatId" 
+              element={
+                <ProtectedRoute>
+                  <ChatRoom />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/user/photographers" 
+              element={
+                <ProtectedRoute>
+                  <PhotographerSearch />
+                </ProtectedRoute>
+              } 
+            />
+            <Route
+              path="/user/complaints"
+              element={
+                <ProtectedRoute>
+                  <UserComplaints />
+                </ProtectedRoute>
+              }
+            />  
             {/* Photographer Upgrade Feature */}
             <Route 
               path="/user/upgrade-to-photographer" 
@@ -315,7 +354,22 @@ const App = () => (
                 </PhotographerRoute>
               } 
             />
-            
+            <Route 
+              path="/photographer/chat" 
+              element={
+                <PhotographerRoute>
+                  <PhotographerChatList />
+                </PhotographerRoute>
+              } 
+            />
+            <Route 
+              path="/photographer/chat/:chatId" 
+              element={
+                <PhotographerRoute>
+                  <PhotographerChatRoom />
+                </PhotographerRoute>
+              } 
+            />
             {/* ✅ NEW ESCROW ROUTE */}
             <Route 
               path="/photographer/pending-orders" 
@@ -384,6 +438,22 @@ const App = () => (
               element={
                 <AdminRoute>
                   <AdminRevenue />
+                </AdminRoute>
+              } 
+            />
+             <Route 
+              path="/admin/chat-management" 
+              element={
+                <AdminRoute>
+                  <AdminChatManagement />
+                </AdminRoute>
+              } 
+            />
+           <Route 
+              path="/admin/chat/:chatId" 
+              element={
+                <AdminRoute>
+                  <AdminChatRoom />
                 </AdminRoute>
               } 
             />

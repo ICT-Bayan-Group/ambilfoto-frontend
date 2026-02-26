@@ -26,7 +26,8 @@ import {
   UserPlus,
   MapPin,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  MessageCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -382,6 +383,12 @@ const PhotographerDashboard = () => {
                   Antrian Photo Hi-Res 
                 </Button>
               </Link>
+              <Link to="/photographer/chat" className="block">
+              <Button variant="outline" className="w-full justify-start gap-3 text-rose-600 border-rose-500/30 hover:bg-rose-50">
+                <MessageCircle className="h-4 w-4" />
+                Pesan Keluhan
+              </Button>
+            </Link>
               
               {/* Show upgrade option only for regular users */}
               {user?.role === 'user' && (

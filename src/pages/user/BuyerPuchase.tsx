@@ -1,11 +1,12 @@
 // src/pages/BuyerPurchases.tsx
 
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom'; // ✅ tambah useNavigate
 import { buyerEscrowService, BuyerPurchase, buyerEscrowHelpers } from '@/services/api/buyer.escrow.service';
+import { chatService } from '@/services/api/chat.service'; // ✅ tambah import
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -13,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Download, Clock, CheckCircle, AlertTriangle, RefreshCw,
-  ArrowLeft, Package, Eye, XCircle, RotateCcw
+  ArrowLeft, Package, Eye, RotateCcw, MessageCircle // ✅ tambah MessageCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -22,6 +23,7 @@ import PurchaseDetailModal from '@/components/PurchaseDetailModal';
 import ConfirmDeliveryModal from '@/components/ConfilmDeliveryModal';
 
 const BuyerPurchases = () => {
+  const navigate = useNavigate(); // ✅ tambah
   const [purchases, setPurchases] = useState<BuyerPurchase[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
@@ -29,6 +31,7 @@ const BuyerPurchases = () => {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [chattingId, setChattingId] = useState<string | null>(null); // ✅ loading state chat
   
   useEffect(() => {
     fetchPurchases();
@@ -57,23 +60,43 @@ const BuyerPurchases = () => {
       toast.error('Download belum tersedia');
       return;
     }
-    
     try {
       setDownloadingId(purchase.transaction_id);
-      
-      // Download via service or direct link
       const link = document.createElement('a');
       link.href = purchase.photo.download_url;
       link.download = purchase.photo.filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
       toast.success('Download dimulai!');
     } catch (error) {
       toast.error('Download gagal');
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  // ✅ FUNGSI BARU: buat/ambil chat room lalu redirect ke sana
+  const handleChatWithPhotographer = async (purchase: BuyerPurchase) => {
+    try {
+      setChattingId(purchase.transaction_id);
+
+      // createOrGetDirectChat akan return chat yang sudah ada
+      // atau membuat chat baru jika belum ada
+      const chat = await chatService.createOrGetDirectChat(
+        purchase.photographer.id, // photographer profile id
+        purchase.photo.id         // photo id sebagai konteks
+        // ❌ jangan kirim order_id — FK di tabel chats merujuk ke
+        //    payment_transactions.id, bukan order_id string
+      );
+
+      // Redirect ke /user/chat/:chatId
+      navigate(`/user/chat/${chat.id}`);
+    } catch (error) {
+      console.error('handleChatWithPhotographer error:', error);
+      toast.error('Gagal membuka chat dengan fotografer');
+    } finally {
+      setChattingId(null);
     }
   };
   
@@ -157,14 +180,10 @@ const BuyerPurchases = () => {
   
   const filteredPurchases = purchases.filter(p => {
     switch (activeTab) {
-      case 'HELD':
-        return p.escrow.status === 'HELD';
-      case 'WAITING_CONFIRMATION':
-        return p.escrow.status === 'WAITING_CONFIRMATION';
-      case 'RELEASED':
-        return p.escrow.status === 'RELEASED';
-      default:
-        return true;
+      case 'HELD': return p.escrow.status === 'HELD';
+      case 'WAITING_CONFIRMATION': return p.escrow.status === 'WAITING_CONFIRMATION';
+      case 'RELEASED': return p.escrow.status === 'RELEASED';
+      default: return true;
     }
   });
   
@@ -351,7 +370,6 @@ const BuyerPurchases = () => {
                           <div className="mt-3 p-3 bg-muted rounded-lg">
                             <p className="text-sm">{purchase.escrow.status_message}</p>
                             
-                            {/* Deadline info */}
                             {purchase.escrow.deadline && purchase.escrow.hours_remaining !== null && (
                               <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                                 <Clock className="h-3 w-3" />
@@ -364,7 +382,6 @@ const BuyerPurchases = () => {
                               </div>
                             )}
 
-                            {/* Revision info */}
                             {purchase.escrow.revision_count > 0 && (
                               <div className="mt-2 flex items-center gap-2 text-xs text-orange-600">
                                 <RotateCcw className="h-3 w-3" />
@@ -374,7 +391,6 @@ const BuyerPurchases = () => {
                               </div>
                             )}
 
-                            {/* Delivery info */}
                             {purchase.delivery && (
                               <div className="mt-2 text-xs text-muted-foreground">
                                 📦 Versi {purchase.delivery.version} diupload pada{' '}
@@ -385,7 +401,6 @@ const BuyerPurchases = () => {
                             )}
                           </div>
 
-                          {/* Urgency Alert */}
                           {getUrgencyAlert(purchase)}
 
                           {/* Actions */}
@@ -398,6 +413,27 @@ const BuyerPurchases = () => {
                             >
                               <Eye className="mr-2 h-4 w-4" />
                               Lihat Detail
+                            </Button>
+
+                            {/* ✅ TOMBOL CHAT FOTOGRAFER */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleChatWithPhotographer(purchase)}
+                              disabled={chattingId === purchase.transaction_id}
+                              className="border-blue-500/50 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                            >
+                              {chattingId === purchase.transaction_id ? (
+                                <>
+                                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                  Membuka Chat...
+                                </>
+                              ) : (
+                                <>
+                                  <MessageCircle className="mr-2 h-4 w-4" />
+                                  Chat Fotografer
+                                </>
+                              )}
                             </Button>
 
                             {/* Confirm Quality */}

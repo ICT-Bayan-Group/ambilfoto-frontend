@@ -690,7 +690,7 @@ const Index = () => {
           <div className="grid md:grid-cols-3 gap-6">
             {[
               { title:"Pencari Foto", price:"Gratis", sub:"untuk pencarian & browse", border:"border-blue-200", badge:"bg-blue-50 text-blue-700", btn:"btn-primary text-white", btnText:"Mulai Gratis", link:"/register", perks:["Face recognition AI","Browse 500K+ foto","Notifikasi foto baru","Bayar per foto (Rp 15K–50K)","Download kualitas HD"] },
-              { title:"Fotografer", price:"Rp 0", sub:"daftar & upload gratis", border:"border-orange-300", badge:"bg-orange-500 text-white", btn:"bg-orange-500 hover:bg-orange-600 text-white", btnText:"Daftar Fotografer", link:"/register?role=photographer", highlight:true, perks:["Upload unlimited foto","Auto-tagging AI gratis","Komisi 70% per penjualan","Dashboard analitik","Cashout fleksibel"] },
+              { title:"Fotografer", price:"Rp 0", sub:"daftar & upload gratis", border:"border-orange-300", badge:"bg-orange-500 text-white", btn:"bg-orange-500 hover:bg-orange-600 text-white", btnText:"Daftar Fotografer", link:"/register", highlight:true, perks:["Upload unlimited foto","Auto-tagging AI gratis","Komisi 70% per penjualan","Dashboard analitik","Cashout fleksibel"] },
               { title:"Developer API", price:"Dari Rp 249K", sub:"per bulan", border:"border-slate-200", badge:"bg-slate-100 text-slate-700", btn:"border-2 border-slate-200 text-slate-700 hover:bg-slate-50", btnText:"Lihat Paket API", link:"/pricing", perks:["REST API akses penuh","Dev & Prod API keys","Usage analytics","SLA 99.9% uptime","SDK & dokumentasi"] },
             ].map((plan,i) => (
               <div key={i} className={`relative bg-white rounded-3xl border-2 ${plan.border} p-8 shadow-sm ${plan.highlight?"shadow-orange-100 ring-2 ring-orange-200":""} hover:shadow-md transition-shadow flex flex-col`}>
@@ -748,7 +748,7 @@ const Index = () => {
                 ))}
               </div>
               <div className="api-el flex gap-3">
-                <Link to="/developer/login"><button className="btn-primary inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-bold text-sm">Lihat Paket API <ArrowRight className="w-4 h-4" /></button></Link>
+                <Link to="/pricing"><button className="btn-primary inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-bold text-sm">Lihat Paket API <ArrowRight className="w-4 h-4" /></button></Link>
                 <Link to="/docs"><button className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-slate-300 font-semibold text-sm hover:bg-white/10 transition-colors"><Code2 className="w-4 h-4" /> Dokumentasi</button></Link>
               </div>
             </div>
@@ -816,11 +816,11 @@ const Index = () => {
             style={{ background:"linear-gradient(135deg,#1d4ed8 0%,#1e40af 60%,#1d4ed8 100%)" }}>
             <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage:"radial-gradient(circle,white 1px,transparent 1px)", backgroundSize:"32px 32px" }} />
             <div className="absolute -top-16 -left-16 w-48 h-48 rounded-full bg-white/10 blur-2xl pointer-events-none" />
-            <div className="absolute -bottom-16 -right-16 w-64 h-64 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+             <div className="absolute -bottom-16 -right-16 w-64 h-64 rounded-full bg-white/10 blur-2xl pointer-events-none" />
             <div className="relative">
-              <div className="cta-el inline-flex items-center gap-2 text-xs font-semibold text-blue-100 bg-white/10 rounded-full px-4 py-1.5 mb-6">
+              {/* <div className="cta-el inline-flex items-center gap-2 text-xs font-semibold text-blue-100 bg-white/10 rounded-full px-4 py-1.5 mb-6">
                 🎉 Bergabung dengan 50.000+ pengguna
-              </div>
+              </div>*/}
               <h2 className="cta-el playfair text-4xl md:text-5xl font-black text-white mb-4 leading-tight">
                 Siap Menemukan<br />Momenmu?
               </h2>
@@ -833,7 +833,7 @@ const Index = () => {
                     <Camera className="w-4 h-4" /> Coba Gratis Sekarang
                   </button>
                 </Link>
-                <Link to="/register?role=photographer">
+                <Link to="/register">
                   <button className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-white/10 border border-white/20 text-white font-bold text-sm hover:bg-white/20 transition-all hover:-translate-y-0.5">
                     <Award className="w-4 h-4" /> Jadi Fotografer
                   </button>

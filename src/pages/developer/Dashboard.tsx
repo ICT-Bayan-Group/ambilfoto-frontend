@@ -1,13 +1,3 @@
-/**
- * DeveloperDashboard.tsx
- *
- * Perubahan:
- *  - Improved API Hit usage card dengan visual progress ring + stats
- *  - Support channel labels: email_wa → "Email & WhatsApp", call_center → "Call Center", dll.
- *  - API Keys section dengan pagination per 5 data
- *  - Normalise api_hits → uploads dari backend response baru
- */
-
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { DeveloperLayout } from "@/components/developer/DeveloperLayout";
