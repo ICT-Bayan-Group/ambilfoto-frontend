@@ -489,9 +489,9 @@ const DeveloperPricing = () => {
             <div className="absolute -top-14 -left-14 w-44 h-44 rounded-full bg-white/10 blur-2xl" />
             <div className="absolute -bottom-14 -right-14 w-56 h-56 rounded-full bg-amber-300/10 blur-2xl" />
             <div className="relative">
-              <span className="pill bg-white/10 text-blue-100 border border-white/20 mb-5 inline-flex">
+             {/* <span className="pill bg-white/10 text-blue-100 border border-white/20 mb-5 inline-flex">
                 🚀 Sudah 500+ developer aktif
-              </span>
+              </span>*/}
               <h2 className="fw8 text-4xl text-white mt-3 mb-3 leading-tight">Sudah Punya Akun Developer?</h2>
               <p className="text-blue-100 text-sm mb-8 max-w-md mx-auto leading-relaxed">
                 Masuk ke dashboard untuk kelola API keys, monitor quota, dan lihat riwayat penggunaan secara real-time.

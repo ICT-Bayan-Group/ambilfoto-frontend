@@ -5,7 +5,7 @@ import {
   Server, Database, AlertCircle, CheckCircle, RefreshCw,
   TrendingUp, Calendar, Eye, Wallet, Banknote, Settings, CreditCard, ArrowRight,
   Coins, ShoppingCart, Percent, Briefcase, UserCheck, BarChart3, FileText, 
-  Clock
+  Clock, MessageCircle
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -496,7 +496,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Quick Links */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-7">
           <Link to="/admin/users">
             <Card className="hover:bg-accent cursor-pointer transition-colors">
               <CardContent className="flex flex-col items-center justify-center py-6">
@@ -545,6 +545,14 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
           </Link>
+          <Link to="/admin/chat-management">
+          <Card className="hover:bg-accent cursor-pointer transition-colors">
+            <CardContent className="flex flex-col items-center justify-center py-6">
+              <MessageCircle className="h-8 w-8 mb-2 text-primary" />
+              <span className="text-sm font-medium">Pesan Keluhan</span>
+            </CardContent>
+          </Card>
+        </Link>
         </div>
 
         {/* Recent Activity */}
