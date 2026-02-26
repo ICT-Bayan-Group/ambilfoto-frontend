@@ -132,6 +132,7 @@ export interface WalletHistoryItem {
 }
 
 export interface PurchasedPhoto {
+  transaction_id: string;
   id: string;
   photo_id: string;
   filename: string;
