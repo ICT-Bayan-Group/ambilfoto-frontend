@@ -66,16 +66,19 @@ import AdminChatManagement from "./pages/admin/ChatManagement";
 // ❌ DEPRECATED ROUTES - Replaced by Escrow System
 // import HiResQueue from "./pages/photographer/HiResQueue";
 // import UserHiResPhotos from "./pages/user/HiResPhotos";
-
+import StandaloneUpload from "@/pages/photographer/UploadFoto";
+import UserEventsListPage from "./pages/user/Event";
+import UserEventPage from "./pages/user/EventDetail";
 // ✅ NEW ESCROW ROUTES
 import BuyerPurchases from "./pages/user/BuyerPuchase";
 import PhotographerPendingOrders from "./pages/photographer/PhotographerPendingOrders";
-
+import PublicEventDetail from "./pages/photographer/PublicEventDetail";
 import UserFotoMap from "./pages/user/FotoMap";
 import GlobalEventsMap from "./pages/user/GlobalEventMap";
 import AdminDropboxImport from "./pages/admin/DropboxImport";
 import PhotographerGlobalEventsMap from "./pages/photographer/GlobalEventsMap";
 import PhotographerEventPublicView from "./pages/photographer/PhotographerEventPublicView";
+import DiscoverEvents from "./pages/photographer/DiscoverEvents";
 import ForgotPassword from "./pages/ForgorPassword";
 import ResetPassword from "./pages/ResetPassword";
 import AdminPhotographerStatistics from "./pages/admin/AdminPhotographerStatistics";
@@ -218,6 +221,22 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route
+              path="/user/events"
+              element={
+                <ProtectedRoute>
+                  <UserEventsListPage />
+                </ProtectedRoute>
+              }
+            />  
+            <Route
+              path="/user/events/:eventName"
+              element={
+                <ProtectedRoute>
+                  <UserEventPage />
+                </ProtectedRoute>
+              }
+            />
 
             {/* User FotoMap Routes */}
             <Route 
@@ -305,6 +324,30 @@ const App = () => (
                   <PhotoSales />
                 </PhotographerRoute>
               } 
+            />
+            <Route
+              path="/photographer/upload"
+              element={
+                <PhotographerRoute>
+                  <StandaloneUpload />
+                </PhotographerRoute>
+              }
+            />
+            <Route
+              path="/photographer/events/discover"
+              element={
+                <PhotographerRoute>
+                  <DiscoverEvents />
+                </PhotographerRoute>
+              }
+            />
+            <Route
+              path="/photographer/events/public/:eventId"
+              element={
+                <PhotographerRoute>
+                  <PublicEventDetail />
+                </PhotographerRoute>
+              }
             />
             <Route 
               path="/photographer/events" 

@@ -9,7 +9,6 @@ const photographerApi = axios.create({
   },
 });
 
-// Add token to requests
 photographerApi.interceptors.request.use((config) => {
   const token = localStorage.getItem('auth_token');
   if (token) {
@@ -18,7 +17,6 @@ photographerApi.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle auth errors
 photographerApi.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -30,6 +28,8 @@ photographerApi.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// ============ INTERFACES ============
 
 export interface Event {
   id: string;
@@ -49,6 +49,11 @@ export interface Event {
   matched_users_count?: number;
   created_at: string;
   updated_at?: string;
+
+  // PRD: Collaborative event fields
+  is_collaborative?: boolean;
+  max_collaborators?: number | null;
+  collaborator_count?: number;
 }
 
 export interface EventPhoto {
@@ -61,10 +66,18 @@ export interface EventPhoto {
   matched_users?: number;
   is_deleted: boolean;
   price?: number;
+  price_cash?: number;
   price_in_points?: number;
+  is_for_sale?: boolean;
   created_at: string;
-  event_latitude: number | null;
-  event_longitude: number | null;
+
+  // PRD: Collaborator upload tracking
+  uploaded_by_photographer_id?: string;
+  status?: 'READY' | 'PENDING' | 'DELETED';
+
+  // Uploader info (dari JOIN di backend)
+  uploader_name?: string;
+  uploader_business_name?: string;
 }
 
 export interface CreateEventData {
@@ -79,6 +92,10 @@ export interface CreateEventData {
   price_per_photo?: number;
   event_latitude: number | null;
   event_longitude: number | null;
+
+  // PRD: Collaborative event
+  is_collaborative?: boolean;
+  max_collaborators?: number | null;
 }
 
 export interface UpdateEventData {
@@ -94,6 +111,10 @@ export interface UpdateEventData {
   status?: 'active' | 'completed' | 'archived';
   event_latitude?: number | null;
   event_longitude?: number | null;
+
+  // PRD: Collaborative event
+  is_collaborative?: boolean;
+  max_collaborators?: number | null;
 }
 
 export interface PhotographerProfile {
@@ -186,20 +207,52 @@ export interface EventDetail {
   };
 }
 
+export interface PublicEventBrowse {
+  id: string;
+  event_name: string;
+  event_type?: string;
+  event_date: string;
+  location?: string;
+  description?: string;
+  is_public: boolean;
+  is_collaborative: boolean;
+  max_collaborators: number | null;
+  photographer_name: string;
+  business_name?: string;
+  photo_count: number;
+  collaborator_count: number;
+  slots_remaining: number | null;
+}
+
+export interface PublicEventDetail extends PublicEventBrowse {
+  event_latitude?: number | null;
+  event_longitude?: number | null;
+  watermark_enabled: boolean;
+  price_per_photo: number;
+  my_role: 'owner' | 'collaborator' | null;
+  my_status: 'pending' | 'approved' | 'rejected' | null;
+  can_join: boolean;
+  can_upload: boolean;
+}
+
 export interface PublicEventPhoto {
   id: string;
   filename: string;
   preview_url: string;
   download_url: string;
   price_points: number;
+  price_cash: number;
   is_for_sale: boolean;
   faces_count: number;
   matched_users: number;
   created_at: string;
   has_location: boolean;
+  // Uploader info
+  uploaded_by_photographer_id?: string;
+  uploader_name?: string;
+  uploader_business_name?: string;
 }
 
-// 🆕 Location Interfaces
 export interface Province {
   id: string;
   name: string;
@@ -231,8 +284,79 @@ export interface ProfileCompletion {
   };
 }
 
+// PRD: Standalone Photo Interfaces
+export interface StandalonePhotoLocation {
+  lat: number;
+  lng: number;
+  placeName?: string;
+}
+
+export type StandalonePricingMode = 'PER_PHOTO' | 'GROUP';
+export type StandaloneVisibility = 'PUBLIC' | 'PRIVATE';
+export type StandaloneCategory = 'PERSONAL' | 'COMMERCIAL';
+
+export interface UploadStandalonePhotoData {
+  face_image: string;
+  filename: string;
+  location: StandalonePhotoLocation;
+  pricingMode?: StandalonePricingMode;
+  groupPrice?: number;
+  price_cash?: number;
+  price_points?: number;
+  visibility?: StandaloneVisibility;
+  category?: StandaloneCategory;
+  extract_gps?: boolean;
+}
+
+export interface StandalonePhoto {
+  photo_id: string;
+  ai_photo_id: string;
+  filename: string;
+  photographer_id: string;
+  business_name?: string;
+  photographer_name: string;
+  latitude: number;
+  longitude: number;
+  place_name?: string;
+  pricing_mode: StandalonePricingMode;
+  price_cash: number;
+  price_points: number;
+  group_price?: number;
+  visibility: StandaloneVisibility;
+  category: StandaloneCategory;
+  faces_count: number;
+  status: 'READY' | 'PENDING' | 'DELETED';
+  created_at: string;
+  preview_url: string;
+  download_url?: string | null;
+  matched_users?: number;
+  total_purchases?: number;
+  total_revenue?: number;
+}
+
+export interface StandalonePhotoUploadResponse {
+  photo_id: string;
+  ai_photo_id: string;
+  faces_detected: number;
+  location: {
+    lat: number;
+    lng: number;
+    place_name?: string;
+    source: 'manual' | 'exif';
+  };
+  pricing: {
+    mode: StandalonePricingMode;
+    price_cash: number;
+    price_points: number;
+  };
+  dropbox_uploaded: boolean;
+}
+
+// ============ SERVICE ============
+
 export const photographerService = {
-  // Profile
+  // ── Profile ──────────────────────────────────────────────────
+
   async getProfile(): Promise<{ success: boolean; data?: PhotographerProfile; error?: string }> {
     const response = await photographerApi.get('/photographer/profile');
     return response.data;
@@ -249,7 +373,47 @@ export const photographerService = {
     return response.data;
   },
 
-  // 🆕 Location Methods
+  async browsePublicEvents(params?: {
+    search?: string;
+    type?: 'all' | 'collaborative' | 'public';
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    success: boolean;
+    data?: PublicEventBrowse[];
+    pagination?: { total: number; page: number; limit: number; total_pages: number };
+    error?: string;
+  }> {
+    const response = await photographerApi.get('/photographer/events/discover', { params });
+    return response.data;
+  },
+
+  async getPublicEventDetail(eventId: string): Promise<{
+    success: boolean;
+    data?: PublicEventDetail;
+    error?: string;
+  }> {
+    const response = await photographerApi.get(`/photographer/events/public/${eventId}`);
+    return response.data;
+  },
+
+  async joinEvent(eventId: string): Promise<{
+    success: boolean;
+    message?: string;
+    data?: {
+      member_id: string;
+      status: 'pending' | 'approved';
+      event_name: string;
+    };
+    error?: string;
+    error_code?: string;
+  }> {
+    const response = await photographerApi.post(`/events/${eventId}/join`);
+    return response.data;
+  },
+
+  // ── Location ─────────────────────────────────────────────────
+
   async getProvinces(): Promise<{ success: boolean; data?: Province[]; error?: string }> {
     const response = await photographerApi.get('/photographer/locations/provinces');
     return response.data;
@@ -270,25 +434,32 @@ export const photographerService = {
 
   async checkProfileCompletion(): Promise<{ success: boolean; data?: ProfileCompletion; error?: string }> {
     const response = await photographerApi.get('/photographer/profile/check-completion', {
-      headers: {
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
-      },
-      params: {
-        _t: new Date().getTime()
-      }
+      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+      params: { _t: new Date().getTime() },
     });
     return response.data;
   },
 
-  // Statistics
+  // ── Statistics ───────────────────────────────────────────────
+
   async getStatistics(): Promise<{ success: boolean; data?: PhotographerStats; error?: string }> {
     const response = await photographerApi.get('/photographer/statistics');
     return response.data;
   },
 
-  // Events
-  async createEvent(data: CreateEventData): Promise<{ success: boolean; data?: { event_id: string; event_name: string; event_date: string }; error?: string }> {
+  // ── Events ───────────────────────────────────────────────────
+
+  async createEvent(data: CreateEventData): Promise<{
+    success: boolean;
+    data?: {
+      event_id: string;
+      event_name: string;
+      event_date: string;
+      is_collaborative: boolean;
+      max_collaborators: number | null;
+    };
+    error?: string;
+  }> {
     const response = await photographerApi.post('/photographer/events', data);
     return response.data;
   },
@@ -298,12 +469,23 @@ export const photographerService = {
     return response.data;
   },
 
-  async getEventDetails(eventId: string): Promise<{ success: boolean; data?: { event: Event; photos: EventPhoto[] }; error?: string }> {
+  async getEventDetails(eventId: string): Promise<{
+    success: boolean;
+    data?: {
+      event: Event;
+      photos: EventPhoto[];
+      current_photographer_id?: string; // ID photographer yang sedang login
+    };
+    error?: string;
+  }> {
     const response = await photographerApi.get(`/photographer/events/${eventId}`);
     return response.data;
   },
 
-  async updateEvent(eventId: string, data: UpdateEventData): Promise<{ success: boolean; message?: string; error?: string }> {
+  async updateEvent(
+    eventId: string,
+    data: UpdateEventData,
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
     const response = await photographerApi.put(`/photographer/events/${eventId}`, data);
     return response.data;
   },
@@ -314,63 +496,121 @@ export const photographerService = {
   },
 
   async getEventBySlug(eventSlug: string): Promise<{
-    data: {
-      event: EventDetail;
-    };
+    data: { event: EventDetail };
   }> {
     const response = await photographerApi.get(`/photographer/events/slug/${eventSlug}`);
     return response.data;
   },
 
   async getEventPhotos(eventId: string): Promise<{
-    data: {
-      photos: PublicEventPhoto[];
-    };
+    data: { photos: PublicEventPhoto[] };
   }> {
     const response = await photographerApi.get(`/photographer/events/${eventId}/photos/public`);
     return response.data;
   },
 
-  // Photos
-  async uploadPhoto(eventId: string, data: UploadPhotoData): Promise<{ 
-    success: boolean; 
-    data?: { 
-      photo_id: string; 
-      ai_photo_id: string; 
+  // ── Event Photos ─────────────────────────────────────────────
+
+  async uploadPhoto(
+    eventId: string,
+    data: UploadPhotoData,
+  ): Promise<{
+    success: boolean;
+    data?: {
+      photo_id: string;
+      ai_photo_id: string;
       faces_detected: number;
       dropbox_uploaded: boolean;
-    }; 
-    error?: string 
+    };
+    error?: string;
+    error_code?: string;
   }> {
     const response = await photographerApi.post(`/photographer/events/${eventId}/photos`, data);
     return response.data;
   },
 
-  async deletePhoto(eventId: string, photoId: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  async deletePhoto(
+    eventId: string,
+    photoId: string,
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
     const response = await photographerApi.delete(`/photographer/events/${eventId}/photos/${photoId}`);
     return response.data;
   },
 
-  async updatePhotoPricing(eventId: string, photoId: string, data: {
-    price_cash: number;
-    price_points: number;
-    is_for_sale: boolean;
-  }): Promise<{ success: boolean; message?: string; error?: string }> {
-    const response = await photographerApi.put(`/photographer/events/${eventId}/photos/${photoId}/pricing`, data);
+  async updatePhotoPricing(
+    eventId: string,
+    photoId: string,
+    data: { price_cash: number; price_points: number; is_for_sale: boolean },
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
+    const response = await photographerApi.put(
+      `/photographer/events/${eventId}/photos/${photoId}/pricing`,
+      data,
+    );
     return response.data;
   },
 
-  async updateBulkPricing(eventId: string, data: {
-    price_cash: number;
-    price_points: number;
-    is_for_sale: boolean;
-  }): Promise<{ success: boolean; message?: string; error?: string }> {
-    const response = await photographerApi.put(`/photographer/events/${eventId}/photos/bulk-pricing`, data);
+  async updateBulkPricing(
+    eventId: string,
+    data: { price_cash: number; price_points: number; is_for_sale: boolean },
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
+    const response = await photographerApi.put(
+      `/photographer/events/${eventId}/photos/bulk-pricing`,
+      data,
+    );
     return response.data;
   },
 
   async getPhotoSales(): Promise<{ success: boolean; data?: PhotoSalesData; error?: string }> {
     const response = await photographerApi.get('/photographer/photo-sales');
+    return response.data;
+  },
+
+  // ── Standalone Photos ─────────────────────────────────────────
+
+  async uploadStandalonePhoto(data: UploadStandalonePhotoData): Promise<{
+    success: boolean;
+    data?: StandalonePhotoUploadResponse;
+    error?: string;
+    error_code?: string;
+  }> {
+    const response = await photographerApi.post('/photos/upload', data);
+    return response.data;
+  },
+
+  async getMyStandalonePhotos(params?: {
+    page?: number;
+    limit?: number;
+    visibility?: StandaloneVisibility;
+    category?: StandaloneCategory;
+  }): Promise<{
+    success: boolean;
+    data?: StandalonePhoto[];
+    pagination?: { total: number; page: number; limit: number; total_pages: number };
+    error?: string;
+  }> {
+    const response = await photographerApi.get('/photos/my', { params });
+    return response.data;
+  },
+
+  async updateStandalonePhoto(
+    photoId: string,
+    data: {
+      price_cash?: number;
+      price_points?: number;
+      pricing_mode?: StandalonePricingMode;
+      group_price?: number;
+      visibility?: StandaloneVisibility;
+      category?: StandaloneCategory;
+    },
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
+    const response = await photographerApi.put(`/photos/${photoId}`, data);
+    return response.data;
+  },
+
+  async deleteStandalonePhoto(
+    photoId: string,
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
+    const response = await photographerApi.delete(`/photos/${photoId}`);
     return response.data;
   },
 };

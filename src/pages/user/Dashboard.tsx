@@ -27,6 +27,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 import { id } from "date-fns/locale";
+import { formatRupiah } from "@/utils/currency";
 
 const UserDashboard = () => {
   const { user } = useAuth();
@@ -38,7 +39,6 @@ const UserDashboard = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'recent' | 'events' | 'purchases'>('overview');
   const [upgradeStatus, setUpgradeStatus] = useState<UpgradeStatus | null>(null);
 
-  // ✅ STATE BARU
   const [recentPurchases, setRecentPurchases] = useState<BuyerPurchase[]>([]);
   const [isPurchasesLoading, setIsPurchasesLoading] = useState(false);
   const [chattingId, setChattingId] = useState<string | null>(null);
@@ -63,9 +63,7 @@ const UserDashboard = () => {
     try {
       const response = await userService.getMyPhotos();
       if (response.success && response.data) setPhotos(response.data);
-    } catch (err) {
-      setPhotos([]);
-    }
+    } catch { setPhotos([]); }
   };
 
   const loadUpgradeStatus = async () => {
@@ -75,7 +73,6 @@ const UserDashboard = () => {
     } catch {}
   };
 
-  // ✅ LOAD RECENT PURCHASES (3 terbaru)
   const loadRecentPurchases = async () => {
     try {
       setIsPurchasesLoading(true);
@@ -85,7 +82,6 @@ const UserDashboard = () => {
     finally { setIsPurchasesLoading(false); }
   };
 
-  // ✅ LOAD UNREAD CHATS COUNT
   const loadUnreadChats = async () => {
     try {
       const chats = await chatService.getMyChats();
@@ -94,7 +90,6 @@ const UserDashboard = () => {
     } catch {}
   };
 
-  // ✅ CHAT DENGAN FOTOGRAFER DARI PURCHASE
   const handleChatWithPhotographer = async (purchase: BuyerPurchase) => {
     try {
       setChattingId(purchase.transaction_id);
@@ -115,21 +110,24 @@ const UserDashboard = () => {
       name: string; photos: UserPhoto[];
       location: string; date: string;
       purchased: number; totalValue: number;
+      event_id: string;
     }> = new Map();
     photos.forEach(photo => {
-      const eventName = photo.event_name || 'Event Tidak Diketahui';
-      const existing = events.get(eventName);
+      const key = photo.event_id || photo.event_name || "unknown";
+      const existing = events.get(key);
       if (existing) {
         existing.photos.push(photo);
         if (photo.is_purchased) existing.purchased += 1;
         existing.totalValue += photo.price_cash || 0;
       } else {
-        events.set(eventName, {
-          name: eventName, photos: [photo],
+        events.set(key, {
+          name: photo.event_name || 'Event Tidak Diketahui',
+          photos: [photo],
           location: photo.event_location || 'Lokasi Tidak Diketahui',
           date: photo.event_date || '',
           purchased: photo.is_purchased ? 1 : 0,
-          totalValue: photo.price_cash || 0
+          totalValue: photo.price_cash || 0,
+          event_id: photo.event_id || key,
         });
       }
     });
@@ -164,7 +162,6 @@ const UserDashboard = () => {
     return [...photos].sort((a, b) => (b.similarity || 0) - (a.similarity || 0)).slice(0, 6);
   }, [photos]);
 
-  // Status badge untuk purchase
   const getPurchaseStatusBadge = (status: string) => {
     const map: Record<string, { label: string; className: string }> = {
       'HELD':                { label: 'Menunggu Upload',  className: 'bg-blue-100 text-blue-700' },
@@ -178,7 +175,6 @@ const UserDashboard = () => {
     return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${s.className}`}>{s.label}</span>;
   };
 
-  // Hitung berapa purchase yang butuh konfirmasi
   const needsConfirmCount = recentPurchases.filter(p => p.escrow.status === 'WAITING_CONFIRMATION').length;
 
   const quickActions = [
@@ -207,11 +203,20 @@ const UserDashboard = () => {
       badge: null,
     },
     {
+      icon: Calendar,
+      label: "Event Saya",
+      description: `${stats.events} event`,
+      // ✅ Navigasi ke halaman event baru
+      href: "/user/events",
+      color: "bg-green-50 text-green-600 hover:bg-green-100 border-green-200",
+      badge: stats.events > 0 ? null : null,
+    },
+    {
       icon: MessageCircle,
       label: "Pesan",
       description: "Chat dengan fotografer",
       href: "/user/chat",
-      color: "bg-green-50 text-green-600 hover:bg-green-100 border-green-200",
+      color: "bg-orange-50 text-orange-600 hover:bg-orange-100 border-orange-200",
       badge: unreadChats > 0 ? unreadChats : null,
     },
   ];
@@ -237,7 +242,6 @@ const UserDashboard = () => {
                   }
                 </p>
               </div>
-              {/* ✅ NOTIF BADGE CHAT */}
               <div className="hidden md:flex gap-2 items-center">
                 {unreadChats > 0 && (
                   <Link to="/user/chat">
@@ -259,7 +263,6 @@ const UserDashboard = () => {
               </div>
             </div>
 
-            {/* Progress bar */}
             {stats.totalPhotos > 0 && (
               <Card className="border-2 border-blue-100 shadow-sm bg-gradient-to-r from-blue-50 to-yellow-50">
                 <CardContent className="pt-6">
@@ -335,8 +338,8 @@ const UserDashboard = () => {
             </Card>
           </div>
 
-          {/* ── Quick Actions (4 tiles) ── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+          {/* ── Quick Actions (5 tiles) ── */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-8">
             {quickActions.map((action, index) => (
               <Link key={index} to={action.href}>
                 <Card className={`border-2 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 cursor-pointer group relative ${action.color}`}>
@@ -383,7 +386,11 @@ const UserDashboard = () => {
                   </CardContent>
                 </Card>
 
-                <Card className="border-2 border-yellow-100 shadow-sm hover:shadow-md transition-shadow bg-yellow-50/30">
+                {/* ✅ Stat event sekarang bisa diklik */}
+                <Card
+                  className="border-2 border-yellow-100 shadow-sm hover:shadow-md transition-shadow bg-yellow-50/30 cursor-pointer"
+                  onClick={() => navigate("/user/events")}
+                >
                   <CardContent className="pt-6">
                     <div className="flex items-center gap-3 mb-2">
                       <div className="p-2 rounded-lg bg-yellow-100"><Calendar className="h-5 w-5 text-yellow-700" /></div>
@@ -391,6 +398,7 @@ const UserDashboard = () => {
                         <p className="text-3xl font-bold text-gray-800">{stats.events}</p>
                         <p className="text-sm text-gray-600">Event</p>
                       </div>
+                      <ChevronRight className="h-4 w-4 text-yellow-600" />
                     </div>
                     <p className="text-xs text-gray-600">
                       {topEvents.length > 0 && `Terbaru: ${topEvents[0].name.substring(0, 20)}...`}
@@ -414,7 +422,7 @@ const UserDashboard = () => {
             )}
           </div>
 
-          {/* ✅ UPGRADE KE FOTOGRAFER CTA — tampil kalau belum request */}
+          {/* ── Upgrade CTA ── */}
           {!upgradeStatus?.has_request && (
             <div className="mb-8">
               <Card className="border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors bg-gray-50 hover:bg-blue-50/30 group">
@@ -448,7 +456,8 @@ const UserDashboard = () => {
               { id: 'purchases',  label: 'Pembelian Saya',  icon: ShoppingBag,
                 badge: needsConfirmCount > 0 ? needsConfirmCount : null },
               { id: 'recent',     label: 'Foto Terbaru',    icon: Clock },
-              { id: 'events',     label: 'Event',           icon: Calendar },
+              { id: 'events',     label: 'Event',           icon: Calendar,
+                badge: stats.events > 0 ? stats.events : null },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -462,7 +471,7 @@ const UserDashboard = () => {
                 <tab.icon className="h-4 w-4" />
                 {tab.label}
                 {(tab as any).badge && (
-                  <span className="ml-1 h-5 w-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  <span className="ml-1 h-5 w-5 rounded-full bg-blue-500 text-white text-[10px] font-bold flex items-center justify-center">
                     {(tab as any).badge}
                   </span>
                 )}
@@ -493,7 +502,6 @@ const UserDashboard = () => {
                 </CardContent>
               </Card>
 
-              {/* Foto kecocokan terbaik */}
               {favoritePhotos.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-4">
@@ -531,7 +539,7 @@ const UserDashboard = () => {
                 </div>
               )}
 
-              {/* ✅ RECENT PURCHASES PREVIEW di Overview */}
+              {/* Recent Purchases Preview */}
               {recentPurchases.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-4">
@@ -550,18 +558,15 @@ const UserDashboard = () => {
                       <Card key={purchase.transaction_id} className="border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all">
                         <CardContent className="p-4">
                           <div className="flex items-center gap-4">
-                            {/* Thumbnail */}
                             <div className="w-14 h-14 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
                               {purchase.photo.preview_url ? (
-                                <img src={purchase.photo.preview_url} alt={purchase.photo.filename}
-                                  className="w-full h-full object-cover" />
+                                <img src={purchase.photo.preview_url} alt={purchase.photo.filename} className="w-full h-full object-cover" />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center">
                                   <Package className="h-6 w-6 text-gray-400" />
                                 </div>
                               )}
                             </div>
-                            {/* Info */}
                             <div className="flex-1 min-w-0">
                               <p className="font-semibold text-sm truncate">{purchase.photo.filename}</p>
                               <p className="text-xs text-gray-500 truncate">{purchase.photo.event_name}</p>
@@ -570,24 +575,20 @@ const UserDashboard = () => {
                                 <span className="text-xs text-gray-500">• {purchase.photographer.name}</span>
                               </div>
                             </div>
-                            {/* Actions */}
                             <div className="flex items-center gap-2 flex-shrink-0">
                               <span className="font-bold text-sm text-gray-800">{purchase.payment.amount_formatted}</span>
-                              {/* Tombol chat fotografer */}
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-blue-500 hover:bg-blue-50"
                                 onClick={() => handleChatWithPhotographer(purchase)}
                                 disabled={chattingId === purchase.transaction_id}
-                                title={`Chat dengan ${purchase.photographer.name}`}
                               >
                                 {chattingId === purchase.transaction_id
                                   ? <RefreshCw className="h-4 w-4 animate-spin" />
                                   : <MessageCircle className="h-4 w-4" />
                                 }
                               </Button>
-                              {/* Download jika tersedia */}
                               {purchase.escrow.can_download && (
                                 <Button
                                   variant="ghost"
@@ -601,20 +602,18 @@ const UserDashboard = () => {
                                       a.click();
                                     }
                                   }}
-                                  title="Download Hi-Res"
                                 >
                                   <Download className="h-4 w-4" />
                                 </Button>
                               )}
                             </div>
                           </div>
-                          {/* Alert konfirmasi */}
                           {purchase.escrow.status === 'WAITING_CONFIRMATION' && (
                             <div className="mt-3 flex items-center justify-between bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
                               <div className="flex items-center gap-2 text-yellow-700 text-xs">
                                 <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
                                 <span>
-                                  Foto sudah diupload — konfirmasi dalam{' '}
+                                  Konfirmasi dalam{' '}
                                   <strong>{buyerEscrowHelpers.formatTimeRemaining(purchase.escrow.hours_remaining)}</strong>
                                 </span>
                               </div>
@@ -631,10 +630,57 @@ const UserDashboard = () => {
                   </div>
                 </div>
               )}
+
+              {/* ✅ Top Events di Overview — dengan link ke /user/events */}
+              {topEvents.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-yellow-600" />
+                      <h2 className="text-2xl font-semibold text-gray-800">Event Terbaru</h2>
+                    </div>
+                    <Link to="/user/events">
+                      <Button variant="ghost" size="sm" className="gap-1 text-blue-600 hover:bg-blue-50">
+                        Lihat Semua<ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {topEvents.map((event, i) => (
+                      <Card
+                        key={i}
+                        className="border-2 border-gray-200 hover:border-yellow-300 hover:shadow-md transition-all cursor-pointer"
+                        onClick={() => navigate(`/user/events/${event.name.toLowerCase().replace(/\s+/g, "-")}`)}
+                      >
+                        <div className="relative h-28 overflow-hidden rounded-t-xl bg-gradient-to-br from-yellow-50 to-blue-50">
+                          {event.photos[0] && (
+                            <img
+                              src={event.photos[0].preview_url || aiService.getPreviewUrl(event.photos[0].photo_id)}
+                              alt={event.name}
+                              className="absolute inset-0 w-full h-full object-cover opacity-70"
+                            />
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                          <div className="absolute bottom-2 left-3 right-3">
+                            <p className="text-white font-semibold text-sm truncate">{event.name}</p>
+                          </div>
+                        </div>
+                        <CardContent className="py-3 px-4">
+                          <div className="flex items-center justify-between text-xs text-gray-600">
+                            <span>{event.photos.length} foto</span>
+                            <span className="text-green-600">{event.purchased} dimiliki</span>
+                            <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* ✅ Tab: Pembelian Saya */}
+          {/* ── Tab: Pembelian Saya ── */}
           {activeTab === 'purchases' && (
             <div>
               <div className="flex items-center justify-between mb-6">
@@ -645,7 +691,6 @@ const UserDashboard = () => {
                   </Button>
                 </Link>
               </div>
-
               {isPurchasesLoading ? (
                 <div className="space-y-4">
                   {[1,2,3].map(i => <Skeleton key={i} className="h-24" />)}
@@ -667,18 +712,15 @@ const UserDashboard = () => {
                     <Card key={purchase.transaction_id} className="border-2 border-gray-200 hover:border-blue-300 hover:shadow-md transition-all">
                       <CardContent className="p-5">
                         <div className="flex flex-col md:flex-row gap-4">
-                          {/* Thumbnail */}
                           <div className="w-full md:w-24 h-20 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
                             {purchase.photo.preview_url ? (
-                              <img src={purchase.photo.preview_url} alt={purchase.photo.filename}
-                                className="w-full h-full object-cover" />
+                              <img src={purchase.photo.preview_url} alt={purchase.photo.filename} className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
                                 <Package className="h-8 w-8 text-gray-400" />
                               </div>
                             )}
                           </div>
-                          {/* Info */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                               <div>
@@ -692,8 +734,6 @@ const UserDashboard = () => {
                               </div>
                             </div>
                             <p className="text-xs text-gray-500 mt-2">{purchase.escrow.status_message}</p>
-
-                            {/* Actions */}
                             <div className="flex flex-wrap gap-2 mt-3">
                               <Button
                                 variant="outline"
@@ -729,22 +769,12 @@ const UserDashboard = () => {
                                   <Download className="h-3.5 w-3.5" />Download Hi-Res
                                 </Button>
                               )}
-                              {purchase.escrow.status === 'WAITING_CONFIRMATION' && (
-                                <div className="w-full mt-1 flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
-                                  <Clock className="h-3.5 w-3.5 text-yellow-600 flex-shrink-0" />
-                                  <span className="text-xs text-yellow-700">
-                                    Sisa waktu konfirmasi:{' '}
-                                    <strong>{buyerEscrowHelpers.formatTimeRemaining(purchase.escrow.hours_remaining)}</strong>
-                                  </span>
-                                </div>
-                              )}
                             </div>
                           </div>
                         </div>
                       </CardContent>
                     </Card>
                   ))}
-
                   <div className="text-center pt-2">
                     <Link to="/user/purchases">
                       <Button variant="outline" className="gap-2 border-blue-200 text-blue-600 hover:bg-blue-50">
@@ -795,20 +825,11 @@ const UserDashboard = () => {
                             </div>
                           ) : (
                             <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                              Rp {(photo.price_cash || 30000).toLocaleString('id-ID')}
+                              {formatRupiah(photo.price_cash || 30000)}
                             </div>
                           )}
                           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3">
-                            <p className="text-xs text-white font-semibold truncate">{photo.event_name || 'Event Tidak Diketahui'}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Clock className="h-3 w-3 text-white/80" />
-                              <p className="text-xs text-white/80">
-                                {photo.event_date 
-                                  ? new Date(photo.event_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
-                                  : 'Tanggal tidak tersedia'
-                                }
-                              </p>
-                            </div>
+                            <p className="text-xs text-white font-semibold truncate">{photo.event_name || 'Event'}</p>
                           </div>
                         </div>
                       </Card>
@@ -830,25 +851,37 @@ const UserDashboard = () => {
             </div>
           )}
 
-          {/* ── Tab: Event ── */}
+          {/* ✅ Tab: Events — Redirect ke /user/events dengan preview */}
           {activeTab === 'events' && (
             <div>
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-semibold text-gray-800">Event Anda ({eventStats.length})</h2>
+                <h2 className="text-2xl font-semibold text-gray-800">Event Saya ({eventStats.length})</h2>
+                <Link to="/user/events">
+                  <Button className="gap-2 bg-blue-600 hover:bg-blue-700">
+                    <Calendar className="h-4 w-4" />Lihat Semua Event
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
               </div>
+
               {isLoading ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {Array.from({ length: 6 }).map((_, i) => (
+                  {Array.from({ length: 3 }).map((_, i) => (
                     <Card key={i} className="border-2 border-gray-200 shadow-sm">
-                      <CardContent className="pt-6"><Skeleton className="h-32 w-full" /></CardContent>
+                      <Skeleton className="h-28 w-full" />
+                      <CardContent className="pt-4"><Skeleton className="h-16 w-full" /></CardContent>
                     </Card>
                   ))}
                 </div>
               ) : eventStats.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {eventStats.map((event, index) => (
-                    <Link key={index} to="/user/photos">
-                      <Card className="border-2 border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 group overflow-hidden">
+                <>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
+                    {eventStats.slice(0, 6).map((event, index) => (
+                      <Card
+                        key={index}
+                        className="border-2 border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 group overflow-hidden cursor-pointer"
+                        onClick={() => navigate(`/user/events/${event.name.toLowerCase().replace(/\s+/g, "-")}`)}
+                      >
                         <div className="h-32 bg-gradient-to-br from-blue-100 to-yellow-100 relative overflow-hidden">
                           {event.photos[0] && (
                             <img
@@ -877,25 +910,32 @@ const UserDashboard = () => {
                               <p className="text-xs text-gray-600">Dibeli</p>
                             </div>
                           </div>
-                          <div className="mt-3 pt-3 border-t border-gray-200">
-                            <div className="flex items-center justify-between text-xs">
-                              <div className="flex items-center gap-1 text-gray-600">
-                                <Calendar className="h-3 w-3" />
-                                {event.date 
-                                  ? new Date(event.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
-                                  : 'Tanggal tidak tersedia'
-                                }
-                              </div>
-                              <span className="text-blue-600 font-medium flex items-center gap-1">
-                                Lihat Foto<ChevronRight className="h-3 w-3" />
-                              </span>
+                          <div className="mt-3 pt-3 border-t border-gray-200 flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-1 text-gray-600">
+                              <Calendar className="h-3 w-3" />
+                              {event.date 
+                                ? new Date(event.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+                                : '-'}
                             </div>
+                            <span className="text-blue-600 font-medium flex items-center gap-1">
+                              Lihat Foto<ChevronRight className="h-3 w-3" />
+                            </span>
                           </div>
                         </CardContent>
                       </Card>
-                    </Link>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+
+                  {eventStats.length > 6 && (
+                    <div className="text-center">
+                      <Link to="/user/events">
+                        <Button variant="outline" className="gap-2 border-blue-200 text-blue-600 hover:bg-blue-50">
+                          Lihat {eventStats.length - 6} Event Lainnya<ArrowRight className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                </>
               ) : (
                 <Card className="border-2 border-gray-200 shadow-sm p-12 text-center bg-gray-50">
                   <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />

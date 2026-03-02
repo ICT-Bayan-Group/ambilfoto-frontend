@@ -11,7 +11,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { photographerService, Event } from "@/services/api/photographer.service";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Calendar, Loader2, MapPin, Locate, Save, AlertCircle } from "lucide-react";
+import { ArrowLeft, Calendar, Loader2, MapPin, Locate, Save, AlertCircle, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const EditEvent = () => {
@@ -34,6 +34,8 @@ const EditEvent = () => {
     access_code: "",
     watermark_enabled: true,
     price_per_photo: 0,
+    is_collaborative: false,                   // 🆕
+    max_collaborators: null as number | null,  // 🆕
     status: "active" as "active" | "completed" | "archived",
     event_latitude: null as number | null,
     event_longitude: null as number | null,
@@ -68,6 +70,8 @@ const EditEvent = () => {
           status: eventData.status,
           event_latitude: (eventData as any).event_latitude || null,
           event_longitude: (eventData as any).event_longitude || null,
+           is_collaborative: (eventData as any).is_collaborative || false,          // 🆕
+          max_collaborators: (eventData as any).max_collaborators || null,
         });
       }
     } catch (error) {
@@ -165,6 +169,8 @@ const EditEvent = () => {
         status: formData.status,
         event_latitude: formData.event_latitude,
         event_longitude: formData.event_longitude,
+        is_collaborative: formData.is_collaborative,            // 🆕
+        max_collaborators: formData.max_collaborators || null,  // 🆕
       };
 
       const response = await photographerService.updateEvent(eventId!, updateData);
@@ -425,6 +431,48 @@ const EditEvent = () => {
                   />
                 </div>
               </div>
+              <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Event Kolaboratif
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Izinkan fotografer lain bergabung dan upload foto ke event ini
+                  </p>
+                </div>
+                <Switch
+                  checked={formData.is_collaborative}
+                  onCheckedChange={(checked) => {
+                    handleChange('is_collaborative', checked);
+                    if (!checked) handleChange('max_collaborators', null);
+                  }}
+                />
+              </div>
+
+              {formData.is_collaborative && (
+                <div className="space-y-1 pt-2 border-t">
+                  <Label htmlFor="max_collaborators" className="text-sm">
+                    Maks. Kolaborator (opsional)
+                  </Label>
+                  <Input
+                    id="max_collaborators"
+                    type="number"
+                    min={1}
+                    max={50}
+                    placeholder="Kosongkan = tidak terbatas"
+                    value={formData.max_collaborators || ''}
+                    onChange={(e) =>
+                      handleChange('max_collaborators', parseInt(e.target.value) || null)
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Berapa maksimal fotografer yang bisa bergabung ke event ini
+                  </p>
+                </div>
+              )}
+            </div>
 
               {/* Settings */}
               <div className="space-y-4 pt-4 border-t">

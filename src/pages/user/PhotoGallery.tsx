@@ -27,7 +27,6 @@ import {
   Sparkles,
   CheckCircle2,
   Loader2,
-  Zap,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { aiService } from "@/services/api/ai.service";
@@ -42,10 +41,9 @@ import { toast as sonnerToast } from "sonner";
 import { buyerEscrowService } from "@/services/api/buyer.escrow.service";
 
 type TabType = "temuan" | "favorite" | "koleksi";
+type MatchState = "idle" | "loading" | "done" | "empty";
 
 // ─── Auto-match banner ────────────────────────────────────────────────────────
-
-type MatchState = "idle" | "loading" | "done" | "empty";
 
 const AutoMatchBanner = ({
   state,
@@ -97,25 +95,21 @@ const AutoMatchBanner = ({
     );
   }
 
-  if (state === "empty" || (state === "done" && count === 0)) {
-    return (
-      <div className="mb-5 rounded-2xl border-2 border-amber-200 bg-amber-50 px-5 py-4 flex items-center gap-3">
-        <div className="h-9 w-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
-          <Camera className="h-5 w-5 text-amber-600" />
-        </div>
-        <div>
-          <p className="font-semibold text-amber-800 text-sm">
-            Belum ada foto yang cocok ditemukan
-          </p>
-          <p className="text-xs text-amber-600 mt-0.5">
-            Foto Anda akan muncul di sini saat fotografer mengunggah foto dari event yang Anda hadiri
-          </p>
-        </div>
+  return (
+    <div className="mb-5 rounded-2xl border-2 border-amber-200 bg-amber-50 px-5 py-4 flex items-center gap-3">
+      <div className="h-9 w-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+        <Camera className="h-5 w-5 text-amber-600" />
       </div>
-    );
-  }
-
-  return null;
+      <div>
+        <p className="font-semibold text-amber-800 text-sm">
+          Belum ada foto yang cocok ditemukan
+        </p>
+        <p className="text-xs text-amber-600 mt-0.5">
+          Foto Anda akan muncul di sini saat fotografer mengunggah foto dari event yang Anda hadiri
+        </p>
+      </div>
+    </div>
+  );
 };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -141,7 +135,6 @@ const PhotoGallery = () => {
   const [photoToPurchase, setPhotoToPurchase] = useState<UserPhoto | null>(null);
   const [userPointBalance, setUserPointBalance] = useState(0);
 
-  // ── Auto-match state ──
   const [matchState, setMatchState] = useState<MatchState>("idle");
   const [matchSource, setMatchSource] = useState<string>("");
 
@@ -154,14 +147,11 @@ const PhotoGallery = () => {
     const shouldAutoMatch =
       sessionStorage.getItem("auto_match_photos") === "true" ||
       (location.state as any)?.autoMatch === true;
-
     const source = sessionStorage.getItem("auto_match_source") || "manual";
 
     if (shouldAutoMatch) {
-      // Clear flag immediately so it doesn't retrigger on refresh
       sessionStorage.removeItem("auto_match_photos");
       sessionStorage.removeItem("auto_match_source");
-
       setMatchSource(source);
       setMatchState("loading");
       loadPhotosWithMatchFeedback();
@@ -170,43 +160,38 @@ const PhotoGallery = () => {
     }
   }, []);
 
-  // ── Load with match feedback (for auto-match flow) ──
-  const loadPhotosWithMatchFeedback = async () => {
-    setIsLoading(true);
-    try {
-      const response = await userService.getMyPhotos();
+  // ── Helper: normalise setiap foto agar field event_photo_id & photo_id selalu ada ──
+  const normalisePhoto = (photo: UserPhoto): UserPhoto => ({
+    ...photo,
+    // Untuk standalone: photo_id = id dari tabel photos, event_photo_id = sama
+    event_photo_id: photo.event_photo_id || photo.photo_id,
+    photo_id: photo.photo_id || photo.event_photo_id,
+    type: photo.type || 'event',
+  });
 
-      if (response.success && response.data) {
-        const unmatched = response.data.filter((p) => !p.is_purchased);
-        setPhotos(response.data);
-        setError("");
-        setMatchState(unmatched.length > 0 ? "done" : "empty");
-      } else {
-        setPhotos([]);
-        setMatchState("empty");
-      }
-    } catch (err) {
-      console.error("Error loading photos:", err);
-      setError("Gagal memuat foto");
-      setPhotos([]);
-      setMatchState("empty");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadData = async () => {
-    setIsLoading(true);
-    await loadPhotos();
-    setIsLoading(false);
-  };
-
+  // ── Load photos: gabungkan event + standalone ──
+  // Backend:
+  //   Event    → GET /api/user/my-photos         → UserController.getMyMatchedPhotos
+  //   Standalone → GET /api/user/my-standalone-photos → UserController.getMyMatchedStandalonePhotos
   const loadPhotos = async () => {
     try {
-      const response = await userService.getMyPhotos();
+      const [eventRes, standaloneRes] = await Promise.all([
+        userService.getMyPhotos(),
+        userService.getMyStandalonePhotos(),
+      ]);
 
-      if (response.success && response.data) {
-        setPhotos(response.data);
+      const eventPhotos: UserPhoto[] = (eventRes.success && eventRes.data)
+        ? eventRes.data.map(normalisePhoto)
+        : [];
+
+      const standalonePhotos: UserPhoto[] = (standaloneRes.success && standaloneRes.data)
+        ? standaloneRes.data.map(normalisePhoto)
+        : [];
+
+      const merged = [...eventPhotos, ...standalonePhotos];
+
+      if (merged.length > 0) {
+        setPhotos(merged);
         setError("");
       } else {
         setPhotos([]);
@@ -219,16 +204,55 @@ const PhotoGallery = () => {
     }
   };
 
+  const loadData = async () => {
+    setIsLoading(true);
+    await loadPhotos();
+    setIsLoading(false);
+  };
+
+  const loadPhotosWithMatchFeedback = async () => {
+    setIsLoading(true);
+    try {
+      const [eventRes, standaloneRes] = await Promise.all([
+        userService.getMyPhotos(),
+        userService.getMyStandalonePhotos(),
+      ]);
+
+      const eventPhotos: UserPhoto[] = (eventRes.success && eventRes.data)
+        ? eventRes.data.map(normalisePhoto)
+        : [];
+
+      const standalonePhotos: UserPhoto[] = (standaloneRes.success && standaloneRes.data)
+        ? standaloneRes.data.map(normalisePhoto)
+        : [];
+
+      const merged = [...eventPhotos, ...standalonePhotos];
+      const unmatched = merged.filter((p) => !p.is_purchased);
+
+      setPhotos(merged);
+      setError("");
+      setMatchState(unmatched.length > 0 ? "done" : "empty");
+    } catch (err) {
+      console.error("Error loading photos:", err);
+      setError("Gagal memuat foto");
+      setPhotos([]);
+      setMatchState("empty");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ── Load favorites: hanya event photo (backend belum expose standalone favorites gabungan) ──
+  // Backend: GET /api/user/favorites → UserController.getFavoritePhotos
   const loadFavoritePhotos = async () => {
     try {
       setIsLoadingFavorites(true);
       const response = await userService.getFavoritePhotos();
-
-      if (response.success && response.data) {
-        setFavoritePhotos(response.data);
-      } else {
-        setFavoritePhotos([]);
-      }
+      setFavoritePhotos(
+        response.success && response.data
+          ? response.data.map(normalisePhoto)
+          : []
+      );
     } catch (err) {
       console.error("Error loading favorite photos:", err);
       setFavoritePhotos([]);
@@ -237,16 +261,16 @@ const PhotoGallery = () => {
     }
   };
 
+  // ── Load purchased: Backend: GET /api/user/purchased ──
   const loadPurchasedPhotos = async () => {
     try {
       setIsLoadingPurchased(true);
       const response = await userService.getPurchasedPhotos();
-
-      if (response.success && response.data) {
-        setPurchasedPhotos(response.data);
-      } else {
-        setPurchasedPhotos([]);
-      }
+      setPurchasedPhotos(
+        response.success && response.data
+          ? response.data.map(normalisePhoto)
+          : []
+      );
     } catch (err) {
       console.error("Error loading purchased photos:", err);
       setPurchasedPhotos([]);
@@ -308,7 +332,8 @@ const PhotoGallery = () => {
           photo.event_name?.toLowerCase().includes(query) ||
           photo.event_location?.toLowerCase().includes(query) ||
           photo.filename?.toLowerCase().includes(query) ||
-          photo.photographer_name?.toLowerCase().includes(query)
+          photo.photographer_name?.toLowerCase().includes(query) ||
+          photo.place_name?.toLowerCase().includes(query)
       );
     }
 
@@ -316,15 +341,15 @@ const PhotoGallery = () => {
       case "newest":
         result.sort(
           (a, b) =>
-            new Date(b.event_date || 0).getTime() -
-            new Date(a.event_date || 0).getTime()
+            new Date(b.event_date || b.match_date || 0).getTime() -
+            new Date(a.event_date || a.match_date || 0).getTime()
         );
         break;
       case "oldest":
         result.sort(
           (a, b) =>
-            new Date(a.event_date || 0).getTime() -
-            new Date(b.event_date || 0).getTime()
+            new Date(a.event_date || a.match_date || 0).getTime() -
+            new Date(b.event_date || b.match_date || 0).getTime()
         );
         break;
       case "match":
@@ -332,7 +357,9 @@ const PhotoGallery = () => {
         break;
       case "event":
         result.sort((a, b) =>
-          (a.event_name || "").localeCompare(b.event_name || "")
+          (a.event_name || a.place_name || "").localeCompare(
+            b.event_name || b.place_name || ""
+          )
         );
         break;
     }
@@ -347,6 +374,9 @@ const PhotoGallery = () => {
     setSearchQuery("");
   };
 
+  // ── Toggle Favorite ──
+  // Event photo  → POST/DELETE /api/user/photos/:photoId/favorite
+  // Standalone   → POST/DELETE /api/user/standalone-photos/:photoId/favorite
   const handleToggleFavorite = async (photo: UserPhoto) => {
     try {
       const photoId = photo.event_photo_id || photo.photo_id;
@@ -355,15 +385,22 @@ const PhotoGallery = () => {
         return;
       }
 
+      const isStandalone = photo.type === 'standalone';
+
       if (photo.is_favorited) {
-        await userService.removeFromFavorites(photoId);
-        setPhotos((prev) =>
+        if (isStandalone) {
+          await userService.removeStandaloneFromFavorites(photoId);
+        } else {
+          await userService.removeFromFavorites(photoId);
+        }
+        // Update state lokal
+        const updateFn = (prev: UserPhoto[]) =>
           prev.map((p) =>
-            p.event_photo_id === photoId || p.photo_id === photoId
+            (p.event_photo_id === photoId || p.photo_id === photoId)
               ? { ...p, is_favorited: false }
               : p
-          )
-        );
+          );
+        setPhotos(updateFn);
         setFavoritePhotos((prev) =>
           prev.filter(
             (p) => p.event_photo_id !== photoId && p.photo_id !== photoId
@@ -371,14 +408,18 @@ const PhotoGallery = () => {
         );
         sonnerToast.success("Foto dihapus dari favorit");
       } else {
-        await userService.addToFavorites(photoId);
-        setPhotos((prev) =>
+        if (isStandalone) {
+          await userService.addStandaloneToFavorites(photoId);
+        } else {
+          await userService.addToFavorites(photoId);
+        }
+        const updateFn = (prev: UserPhoto[]) =>
           prev.map((p) =>
-            p.event_photo_id === photoId || p.photo_id === photoId
+            (p.event_photo_id === photoId || p.photo_id === photoId)
               ? { ...p, is_favorited: true }
               : p
-          )
-        );
+          );
+        setPhotos(updateFn);
         sonnerToast.success("Foto ditambahkan ke favorit");
         if (activeTab === "favorite") loadFavoritePhotos();
       }
@@ -387,6 +428,9 @@ const PhotoGallery = () => {
     }
   };
 
+  // ── Download Photo ──
+  // Event photo     → GET /api/user/photos/:photoId/download  (downloadPhotoBlob)
+  // Standalone foto → GET /api/photos/:photoId/download       (downloadStandalonePhotoBlob)
   const handleDownloadPhoto = async (photoId: string) => {
     try {
       const photo = [...photos, ...favoritePhotos, ...purchasedPhotos].find(
@@ -419,9 +463,21 @@ const PhotoGallery = () => {
       setDownloadingIds((prev) => new Set(prev).add(photoId));
 
       const filename = photo.filename || `foto-${photoId}.jpg`;
+      const isStandalone = photo.type === 'standalone';
+      // Untuk standalone: gunakan photo.photo_id (id dari tabel photos)
+      // Untuk event: gunakan photo.event_photo_id
+      const downloadId = isStandalone ? photo.photo_id : photo.event_photo_id;
 
       try {
-        const blob = await userService.downloadPhotoBlob(photo.event_photo_id);
+        let blob: Blob;
+        if (isStandalone) {
+          // Backend: GET /api/photos/:photoId/download (photo.routes.js)
+          blob = await userService.downloadStandalonePhotoBlob(downloadId);
+        } else {
+          // Backend: GET /api/user/photos/:photoId/download (user.routes.js)
+          blob = await userService.downloadPhotoBlob(downloadId);
+        }
+
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
@@ -441,22 +497,24 @@ const PhotoGallery = () => {
           handleBuyPhoto(photo);
           return;
         }
-        const downloadUrl =
-          photo.download_url ||
-          photo.preview_url ||
-          aiService.getDownloadUrl(photo.photo_id);
-        const response = await fetch(downloadUrl);
-        if (!response.ok) throw new Error("Download gagal");
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        toast({ title: "Download berhasil! 🎉", description: `${filename} telah diunduh` });
+        // Fallback ke URL langsung
+        const fallbackUrl = photo.download_url || photo.preview_url;
+        if (fallbackUrl) {
+          const response = await fetch(fallbackUrl);
+          if (!response.ok) throw new Error("Download gagal");
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+          toast({ title: "Download berhasil! 🎉", description: `${filename} telah diunduh` });
+        } else {
+          throw downloadErr;
+        }
       }
     } catch (err) {
       toast({ title: "Download gagal", description: "Gagal mengunduh foto.", variant: "destructive" });
@@ -497,23 +555,20 @@ const PhotoGallery = () => {
     setIsPurchaseModalOpen(true);
   };
 
+  // ── Purchase Success ──
   const handlePurchaseSuccess = async (downloadUrl?: string) => {
     if (photoToPurchase) {
-      setPhotos((prev) =>
+      const purchasedId = photoToPurchase.event_photo_id;
+      const updateFn = (prev: UserPhoto[]) =>
         prev.map((p) =>
-          p.event_photo_id === photoToPurchase.event_photo_id
+          p.event_photo_id === purchasedId
             ? { ...p, is_purchased: true, cta: "DOWNLOAD" as const, download_url: downloadUrl }
             : p
-        )
-      );
-      setFavoritePhotos((prev) =>
-        prev.map((p) =>
-          p.event_photo_id === photoToPurchase.event_photo_id
-            ? { ...p, is_purchased: true, cta: "DOWNLOAD" as const, download_url: downloadUrl }
-            : p
-        )
-      );
+        );
+      setPhotos(updateFn);
+      setFavoritePhotos(updateFn);
 
+      // Reload koleksi
       try {
         const escrowResponse = await buyerEscrowService.getMyPurchases();
         if (escrowResponse.success && escrowResponse.data) {
@@ -553,6 +608,7 @@ const PhotoGallery = () => {
               delivery_uploaded_at: purchase.delivery?.uploaded_at || null,
               similarity: null,
               uploaded_at: purchase.purchased_at,
+              type: 'event',
             } as UserPhoto;
           });
           setPurchasedPhotos(purchasesWithEscrow);
@@ -595,7 +651,7 @@ const PhotoGallery = () => {
       )
     : -1;
 
-  // Tab config
+  // ── Tab config ──
   const tabs = [
     {
       id: "temuan" as TabType,
@@ -603,7 +659,6 @@ const PhotoGallery = () => {
       icon: Eye,
       count: photos.filter((p) => !p.is_purchased).length,
       color: "from-blue-500 to-blue-600",
-      bgColor: "bg-blue-500",
     },
     {
       id: "favorite" as TabType,
@@ -611,7 +666,6 @@ const PhotoGallery = () => {
       icon: Heart,
       count: favoritePhotos.length,
       color: "from-pink-500 to-red-500",
-      bgColor: "bg-pink-500",
     },
     {
       id: "koleksi" as TabType,
@@ -619,7 +673,6 @@ const PhotoGallery = () => {
       icon: ShoppingBag,
       count: purchasedPhotos.length,
       color: "from-lime-400 to-green-500",
-      bgColor: "bg-lime-400",
     },
   ];
 
@@ -627,14 +680,13 @@ const PhotoGallery = () => {
     (activeTab === "favorite" && isLoadingFavorites) ||
     (activeTab === "koleksi" && isLoadingPurchased);
 
-  // ── Loading state ──
+  // ── Loading ──
   if (isLoading) {
     return (
       <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 to-blue-50">
         <Header />
         <main className="flex-1 py-8">
           <div className="container max-w-7xl">
-            {/* Loading banner for auto-match flow */}
             {matchState === "loading" && (
               <AutoMatchBanner state="loading" count={0} source={matchSource} />
             )}
@@ -676,12 +728,9 @@ const PhotoGallery = () => {
               <ArrowLeft className="h-4 w-4" />
               Kembali ke Dashboard
             </Link>
-
-            {/* Auto-match empty result banner */}
             {(matchState === "done" || matchState === "empty") && (
               <AutoMatchBanner state="empty" count={0} source={matchSource} />
             )}
-
             <Card className="border-2 border-blue-200 shadow-xl bg-white/80 backdrop-blur-sm">
               <div className="p-12 text-center">
                 <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-blue-500 to-yellow-500 rounded-full flex items-center justify-center">
@@ -730,7 +779,6 @@ const PhotoGallery = () => {
               <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
               Kembali ke Dashboard
             </Link>
-
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
               <div>
                 <h1 className="text-3xl md:text-4xl font-black mb-1 bg-blue-900 bg-clip-text text-transparent">
@@ -747,24 +795,15 @@ const PhotoGallery = () => {
                     : `${filteredPhotos.length} foto ditemukan`}
                 </p>
               </div>
-
               <div className="flex flex-wrap gap-2">
                 <Link to="/user/scan-face">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-2 hover:border-blue-400 hover:bg-blue-50 rounded-xl"
-                  >
+                  <Button variant="outline" size="sm" className="border-2 hover:border-blue-400 hover:bg-blue-50 rounded-xl">
                     <Camera className="mr-2 h-4 w-4" />
                     Pindai Lagi
                   </Button>
                 </Link>
                 {filteredPhotos.length > 0 && activeTab === "koleksi" && (
-                  <Button
-                    onClick={handleDownloadAll}
-                    size="sm"
-                    className="bg-amber-500 hover:bg-amber-600 rounded-xl shadow-lg"
-                  >
+                  <Button onClick={handleDownloadAll} size="sm" className="bg-amber-500 hover:bg-amber-600 rounded-xl shadow-lg">
                     <Download className="mr-2 h-4 w-4" />
                     Download ({filteredPhotos.length})
                   </Button>
@@ -773,7 +812,7 @@ const PhotoGallery = () => {
             </div>
           </div>
 
-          {/* ✅ Auto-match result banner */}
+          {/* Auto-match result banner */}
           {activeTab === "temuan" && (
             <AutoMatchBanner
               state={matchState}
@@ -788,14 +827,11 @@ const PhotoGallery = () => {
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
-
                 return (
                   <button
                     key={tab.id}
                     onClick={() => handleTabChange(tab.id)}
-                    className={`relative group transition-all duration-200 ${
-                      isActive ? "" : "hover:scale-[1.02]"
-                    }`}
+                    className={`relative group transition-all duration-200 ${isActive ? "" : "hover:scale-[1.02]"}`}
                   >
                     <div
                       className={`relative px-4 py-2.5 rounded-xl transition-all duration-200 ${
@@ -805,29 +841,15 @@ const PhotoGallery = () => {
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <div
-                          className={`p-1 rounded-lg ${
-                            isActive ? "bg-white/20" : "bg-gray-100"
-                          } transition-all`}
-                        >
-                          <Icon
-                            className={`h-3.5 w-3.5 ${
-                              isActive ? "text-white" : "text-gray-600"
-                            }`}
-                          />
+                        <div className={`p-1 rounded-lg ${isActive ? "bg-white/20" : "bg-gray-100"} transition-all`}>
+                          <Icon className={`h-3.5 w-3.5 ${isActive ? "text-white" : "text-gray-600"}`} />
                         </div>
-                        <span
-                          className={`text-sm font-bold whitespace-nowrap ${
-                            isActive ? "text-white" : "text-gray-700"
-                          }`}
-                        >
+                        <span className={`text-sm font-bold whitespace-nowrap ${isActive ? "text-white" : "text-gray-700"}`}>
                           {tab.label}
                         </span>
                         <div
                           className={`px-2 py-0.5 rounded-full text-xs font-bold min-w-[24px] text-center ${
-                            isActive
-                              ? "bg-white/30 text-white"
-                              : "bg-gray-200 text-gray-600"
+                            isActive ? "bg-white/30 text-white" : "bg-gray-200 text-gray-600"
                           }`}
                         >
                           {tab.count}
@@ -848,13 +870,12 @@ const PhotoGallery = () => {
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Cari foto..."
+                      placeholder="Cari foto, event, atau lokasi..."
                       className="pl-9 border-2 focus:border-blue-400 rounded-xl bg-white"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
-
                   <Select value={selectedEvent} onValueChange={setSelectedEvent}>
                     <SelectTrigger className="w-full md:w-[180px] border-2 rounded-xl bg-white">
                       <Filter className="mr-2 h-4 w-4" />
@@ -868,7 +889,6 @@ const PhotoGallery = () => {
                       ))}
                     </SelectContent>
                   </Select>
-
                   <Select value={sortBy} onValueChange={setSortBy}>
                     <SelectTrigger className="w-full md:w-[160px] border-2 rounded-xl bg-white">
                       <SelectValue placeholder="Urutkan" />
@@ -879,10 +899,9 @@ const PhotoGallery = () => {
                       {activeTab === "temuan" && (
                         <SelectItem value="match">Kecocokan Terbaik</SelectItem>
                       )}
-                      <SelectItem value="event">Acara</SelectItem>
+                      <SelectItem value="event">Acara / Lokasi</SelectItem>
                     </SelectContent>
                   </Select>
-
                   <div className="flex gap-1 border-2 border-gray-200 rounded-xl p-1 bg-white">
                     <Button
                       variant={viewMode === "grid" ? "secondary" : "ghost"}
@@ -1051,13 +1070,15 @@ const PhotoGallery = () => {
           photo={{
             id: photoToPurchase.event_photo_id,
             filename: photoToPurchase.filename || "Foto",
-            event_name: photoToPurchase.event_name || "Acara",
+            event_name: photoToPurchase.event_name || photoToPurchase.place_name || "Foto",
             price_cash:
               photoToPurchase.price_cash || photoToPurchase.price || 30000,
             price_points:
               photoToPurchase.price_points ||
               photoToPurchase.price_in_points ||
               6,
+            // Kirim type agar modal bisa pilih endpoint yang benar
+            type: photoToPurchase.type,
           }}
           userPointBalance={userPointBalance}
           onPurchaseSuccess={handlePurchaseSuccess}

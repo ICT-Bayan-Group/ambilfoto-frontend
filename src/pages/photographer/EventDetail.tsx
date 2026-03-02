@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { photographerService, Event, EventPhoto } from "@/services/api/photographer.service";
@@ -105,7 +104,6 @@ const EventDetail = () => {
 
     setUploadingPhotos((prev) => [...prev, ...newPhotos]);
     
-    // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -130,7 +128,6 @@ const EventDetail = () => {
       const photo = uploadingPhotos[i];
       if (photo.status !== 'pending') continue;
 
-      // Update status to uploading
       setUploadingPhotos((prev) =>
         prev.map((p) =>
           p.id === photo.id ? { ...p, status: 'uploading' as const, progress: 10 } : p
@@ -138,17 +135,14 @@ const EventDetail = () => {
       );
 
       try {
-        // Convert file to base64
         const base64 = await fileToBase64(photo.file);
         
-        // Update progress
         setUploadingPhotos((prev) =>
           prev.map((p) =>
             p.id === photo.id ? { ...p, progress: 50 } : p
           )
         );
 
-        // Upload to API
         const response = await photographerService.uploadPhoto(eventId, {
           face_image: base64,
           filename: photo.file.name,
@@ -183,9 +177,8 @@ const EventDetail = () => {
     }
 
     setIsUploading(false);
-    fetchEventDetails(); // Refresh photos list
+    fetchEventDetails();
 
-    // Show summary toast
     const successful = uploadingPhotos.filter((p) => p.status === 'success').length;
     const failed = uploadingPhotos.filter((p) => p.status === 'error').length;
 
@@ -245,14 +238,16 @@ const EventDetail = () => {
 
   const handleEditPrice = (photo: EventPhoto) => {
     setEditingPhotoId(photo.id);
-    setEditingPrice(String(photo.price || event?.price_per_photo || 0));
+    // FIX: prioritaskan price_cash, fallback ke price lama
+    const current = Number(photo.price_cash ?? photo.price ?? event?.price_per_photo ?? 0);
+    setEditingPrice(current === 0 ? "" : String(current));
   };
 
   const handleSavePrice = async (photoId: string) => {
     if (!eventId) return;
     
     const price = parseInt(editingPrice) || 0;
-    const pricePoints = Math.ceil(price / 5000); // Convert to points (1 point = Rp 5.000)
+    const pricePoints = Math.ceil(price / 5000);
     
     try {
       setIsSavingPrice(true);
@@ -263,9 +258,12 @@ const EventDetail = () => {
       });
       
       if (response.success) {
+        // FIX: update price_cash di local state
         setPhotos((prev) =>
           prev.map((p) =>
-            p.id === photoId ? { ...p, price, price_in_points: pricePoints } : p
+            p.id === photoId
+              ? { ...p, price_cash: price, price: price, price_in_points: pricePoints, is_for_sale: price > 0 }
+              : p
           )
         );
         toast({
@@ -544,7 +542,8 @@ const EventDetail = () => {
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {photos.map((photo) => {
-                  const photoPrice = photo.price ?? event?.price_per_photo ?? 0;
+                  // FIX: prioritaskan price_cash dari API
+                  const photoPrice = Number(photo.price_cash ?? photo.price ?? event?.price_per_photo ?? 0);
                   const isEditing = editingPhotoId === photo.id;
                   
                   return (
@@ -579,6 +578,7 @@ const EventDetail = () => {
                                   className="h-8 text-sm"
                                   min={0}
                                   step={1000}
+                                  autoFocus
                                 />
                               </div>
                               <Button
