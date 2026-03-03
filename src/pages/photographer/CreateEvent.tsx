@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,380 +10,581 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { photographerService } from "@/services/api/photographer.service";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Calendar, Loader2, MapPin, Locate } from "lucide-react";
+import {
+  ArrowLeft, Calendar, Loader2, MapPin, Locate, Users,
+  ImageIcon, Info, Globe, Lock, Sparkles, Camera,
+  ChevronRight, CheckCircle, Map as MapIcon, X,
+} from "lucide-react";
+
+// Leaflet loaded from CDN
+declare global {
+  interface Window { L: any; }
+}
+
+type Step = 1 | 2 | 3;
+
+const STEPS = [
+  { num: 1 as Step, label: "Info Dasar",   icon: Calendar },
+  { num: 2 as Step, label: "Lokasi & Peta", icon: MapPin },
+  { num: 3 as Step, label: "Pengaturan",   icon: Users },
+];
+
+const EVENT_TYPES = [
+  { value: "wedding",    label: "💍 Wedding" },
+  { value: "birthday",   label: "🎂 Ulang Tahun" },
+  { value: "corporate",  label: "🏢 Korporat" },
+  { value: "graduation", label: "🎓 Wisuda" },
+  { value: "concert",    label: "🎵 Konser" },
+  { value: "sports",     label: "⚽ Olahraga" },
+  { value: "other",      label: "✨ Lainnya" },
+];
 
 const CreateEvent = () => {
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const mapRef    = useRef<HTMLDivElement>(null);
+  const leafletMap = useRef<any>(null);
+  const markerRef  = useRef<any>(null);
+
+  const [step,       setStep]       = useState<Step>(1);
+  const [isLoading,  setIsLoading]  = useState(false);
   const [isLocating, setIsLocating] = useState(false);
-  
-  const [formData, setFormData] = useState({
-    event_name: "",
-    event_type: "",
-    event_date: "",
-    location: "",
-    description: "",
-    is_public: true,
-    access_code: "",
+  const [mapReady,   setMapReady]   = useState(false);
+
+  const [form, setForm] = useState({
+    event_name:        "",
+    event_type:        "",
+    event_date:        "",
+    location:          "",
+    description:       "",
+    is_public:         true,
+    access_code:       "",
     watermark_enabled: true,
-    price_per_photo: 0,
-    // NEW: Event GPS coordinates
-    event_latitude: null as number | null,
-    event_longitude: null as number | null,
+    is_collaborative:  true,         // default ON — platform kolaboratif
+    max_collaborators: null as number | null,
+    event_latitude:    null as number | null,
+    event_longitude:   null as number | null,
   });
 
-  const handleChange = (field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+  const set = (field: string, value: any) =>
+    setForm(prev => ({ ...prev, [field]: value }));
 
-  // NEW: Get current location
-  const handleGetCurrentLocation = () => {
+  // ── Load Leaflet dari CDN ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (window.L) { setMapReady(true); return; }
+    if (document.getElementById("leaflet-css")) return;
+
+    const css = document.createElement("link");
+    css.id    = "leaflet-css";
+    css.rel   = "stylesheet";
+    css.href  = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";
+    document.head.appendChild(css);
+
+    const script    = document.createElement("script");
+    script.src      = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
+    script.onload   = () => setMapReady(true);
+    document.head.appendChild(script);
+  }, []);
+
+  // ── Init peta saat masuk step 2 ────────────────────────────────────────────
+  useEffect(() => {
+    if (step !== 2 || !mapReady || !mapRef.current || leafletMap.current) return;
+
+    const L   = window.L;
+    const lat = form.event_latitude  ?? -2.5489;
+    const lng = form.event_longitude ?? 118.0149;
+    const zoom = form.event_latitude ? 14 : 5;
+
+    const map = L.map(mapRef.current, { center: [lat, lng], zoom, zoomControl: true });
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors",
+      maxZoom: 19,
+    }).addTo(map);
+
+    const makeIcon = () => L.divIcon({
+      html: `<div style="
+        width:36px;height:36px;
+        background:linear-gradient(135deg,#3b82f6,#1d4ed8);
+        border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+        border:3px solid white;box-shadow:0 4px 15px rgba(59,130,246,0.5);
+        display:flex;align-items:center;justify-content:center;">
+        <span style="transform:rotate(45deg);font-size:14px;">📸</span>
+      </div>`,
+      className: "", iconSize: [36, 36], iconAnchor: [18, 36],
+    });
+
+    const addMarker = (lt: number, ln: number) => {
+      if (markerRef.current) markerRef.current.setLatLng([lt, ln]);
+      else {
+        markerRef.current = L.marker([lt, ln], { icon: makeIcon(), draggable: true }).addTo(map);
+        markerRef.current.on("dragend", (e: any) => {
+          const p = e.target.getLatLng();
+          set("event_latitude",  parseFloat(p.lat.toFixed(6)));
+          set("event_longitude", parseFloat(p.lng.toFixed(6)));
+        });
+      }
+    };
+
+    if (form.event_latitude && form.event_longitude)
+      addMarker(form.event_latitude, form.event_longitude);
+
+    map.on("click", (e: any) => {
+      const { lat: lt, lng: ln } = e.latlng;
+      set("event_latitude",  parseFloat(lt.toFixed(6)));
+      set("event_longitude", parseFloat(ln.toFixed(6)));
+      addMarker(lt, ln);
+    });
+
+    leafletMap.current = map;
+    setTimeout(() => map.invalidateSize(), 300);
+  }, [step, mapReady]);
+
+  // ── Hapus map saat unmount ─────────────────────────────────────────────────
+  useEffect(() => () => {
+    if (leafletMap.current) { leafletMap.current.remove(); leafletMap.current = null; markerRef.current = null; }
+  }, []);
+
+  // ── GPS deteksi otomatis ───────────────────────────────────────────────────
+  const handleGPS = () => {
     if (!navigator.geolocation) {
-      toast({
-        title: "Error",
-        description: "Geolocation tidak didukung di browser ini",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Geolocation tidak didukung", variant: "destructive" });
       return;
     }
-
     setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        handleChange('event_latitude', latitude);
-        handleChange('event_longitude', longitude);
-        
-        toast({
-          title: "Lokasi Terdeteksi!",
-          description: `Lat: ${latitude.toFixed(6)}, Lng: ${longitude.toFixed(6)}`,
-        });
+      (pos) => {
+        const lt = parseFloat(pos.coords.latitude.toFixed(6));
+        const ln = parseFloat(pos.coords.longitude.toFixed(6));
+        set("event_latitude", lt);
+        set("event_longitude", ln);
+
+        if (leafletMap.current) {
+          leafletMap.current.setView([lt, ln], 15, { animate: true });
+          if (markerRef.current) markerRef.current.setLatLng([lt, ln]);
+          else {
+            const L = window.L;
+            markerRef.current = L.marker([lt, ln], {
+              icon: L.divIcon({
+                html: `<div style="width:36px;height:36px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid white;box-shadow:0 4px 15px rgba(59,130,246,.5);display:flex;align-items:center;justify-content:center;"><span style="transform:rotate(45deg);font-size:14px;">📸</span></div>`,
+                className: "", iconSize: [36, 36], iconAnchor: [18, 36],
+              }),
+              draggable: true,
+            }).addTo(leafletMap.current);
+            markerRef.current.on("dragend", (e: any) => {
+              const p = e.target.getLatLng();
+              set("event_latitude",  parseFloat(p.lat.toFixed(6)));
+              set("event_longitude", parseFloat(p.lng.toFixed(6)));
+            });
+          }
+        }
+        toast({ title: "📍 Lokasi terdeteksi!", description: `${lt.toFixed(4)}, ${ln.toFixed(4)}` });
         setIsLocating(false);
       },
-      (error) => {
-        console.error('Geolocation error:', error);
-        toast({
-          title: "Error",
-          description: "Gagal mendapatkan lokasi. Pastikan izin lokasi diaktifkan.",
-          variant: "destructive",
-        });
+      () => {
+        toast({ title: "Gagal mendapatkan lokasi", variant: "destructive" });
         setIsLocating(false);
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.event_name || !formData.event_date) {
-      toast({
-        title: "Error",
-        description: "Event name and date are required",
-        variant: "destructive",
-      });
-      return;
+  const clearLocation = () => {
+    set("event_latitude", null);
+    set("event_longitude", null);
+    if (markerRef.current && leafletMap.current) {
+      leafletMap.current.removeLayer(markerRef.current);
+      markerRef.current = null;
     }
+  };
 
+  const canProceed = () => {
+    if (step === 1) return form.event_name.trim() !== "" && form.event_date !== "";
+    return true;
+  };
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
+  const handleSubmit = async () => {
+    if (!form.event_name || !form.event_date) return;
     setIsLoading(true);
-
     try {
-      const response = await photographerService.createEvent({
-        event_name: formData.event_name,
-        event_type: formData.event_type || undefined,
-        event_date: formData.event_date,
-        location: formData.location || undefined,
-        description: formData.description || undefined,
-        is_public: formData.is_public,
-        access_code: formData.access_code || undefined,
-        watermark_enabled: formData.watermark_enabled,
-        price_per_photo: formData.price_per_photo,
-        event_latitude: formData.event_latitude || undefined,
-        event_longitude: formData.event_longitude || undefined,
+      const res = await photographerService.createEvent({
+        event_name:        form.event_name,
+        event_type:        form.event_type || undefined,
+        event_date:        form.event_date,
+        location:          form.location   || undefined,
+        description:       form.description || undefined,
+        is_public:         form.is_public,
+        access_code:       form.access_code || undefined,
+        watermark_enabled: form.watermark_enabled,
+        price_per_photo:   0,
+        is_collaborative:  form.is_collaborative,
+        max_collaborators: form.max_collaborators || null,
+        event_latitude:    form.event_latitude,
+        event_longitude:   form.event_longitude,
       });
 
-      if (response.success && response.data) {
+      if (res.success && res.data) {
         toast({
-          title: "Success!",
-          description: formData.event_latitude && formData.event_longitude
-            ? "Event created with location mapping!"
-            : "Event created successfully",
+          title: "🎉 Event Berhasil Dibuat!",
+          description: form.is_collaborative
+            ? "Event kolaboratif siap — fotografer lain bisa langsung bergabung."
+            : "Event berhasil dibuat.",
         });
-        navigate(`/photographer/events/${response.data.event_id}`);
+        navigate(`/photographer/events/${res.data.event_id}`);
       } else {
-        throw new Error(response.error || 'Failed to create event');
+        throw new Error(res.error || "Gagal membuat event");
       }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create event",
-        variant: "destructive",
-      });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <main className="container mx-auto px-4 py-8 max-w-2xl">
-        <Button
-          variant="ghost"
-          onClick={() => navigate('/photographer/events')}
-          className="mb-6"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Events
+
+        {/* Back */}
+        <Button variant="ghost" onClick={() => navigate("/photographer/events")} className="mb-6 -ml-2">
+          <ArrowLeft className="h-4 w-4 mr-2" />Kembali ke Events
         </Button>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Create New Event
-            </CardTitle>
-            <CardDescription>
-              Set up a new photography event with location mapping
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Basic Info */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="event_name">Event Name *</Label>
-                  <Input
-                    id="event_name"
-                    placeholder="e.g., Wedding of John & Jane"
-                    value={formData.event_name}
-                    onChange={(e) => handleChange('event_name', e.target.value)}
-                    required
-                  />
-                </div>
+        {/* Page Title */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-primary/10">
+              <Camera className="h-5 w-5 text-primary" />
+            </div>
+            Buat Event Baru
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1.5">
+            Platform kolaboratif murni — setiap fotografer menentukan harga fotonya sendiri.
+          </p>
+        </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="event_type">Event Type</Label>
-                    <Select
-                      value={formData.event_type}
-                      onValueChange={(value) => handleChange('event_type', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="wedding">Wedding</SelectItem>
-                        <SelectItem value="birthday">Birthday</SelectItem>
-                        <SelectItem value="corporate">Corporate</SelectItem>
-                        <SelectItem value="graduation">Graduation</SelectItem>
-                        <SelectItem value="concert">Concert</SelectItem>
-                        <SelectItem value="sports">Sports</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="event_date">Event Date *</Label>
-                    <Input
-                      id="event_date"
-                      type="date"
-                      value={formData.event_date}
-                      onChange={(e) => handleChange('event_date', e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="location">Location Name</Label>
-                  <Input
-                    id="location"
-                    placeholder="e.g., Grand Ballroom, Jakarta"
-                    value={formData.location}
-                    onChange={(e) => handleChange('location', e.target.value)}
-                  />
-                </div>
-
-                {/* NEW: GPS Coordinates Section */}
-                <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4" />
-                        Event GPS Location (Optional)
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Set koordinat untuk menampilkan lokasi event di FotoMap
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleGetCurrentLocation}
-                      disabled={isLocating}
-                    >
-                      {isLocating ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Locate className="h-4 w-4 mr-2" />
-                      )}
-                      {isLocating ? 'Detecting...' : 'Use Current Location'}
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label htmlFor="event_latitude" className="text-xs">Latitude</Label>
-                      <Input
-                        id="event_latitude"
-                        type="number"
-                        step="0.000001"
-                        placeholder="-6.200000"
-                        value={formData.event_latitude || ''}
-                        onChange={(e) => handleChange('event_latitude', parseFloat(e.target.value) || null)}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="event_longitude" className="text-xs">Longitude</Label>
-                      <Input
-                        id="event_longitude"
-                        type="number"
-                        step="0.000001"
-                        placeholder="106.816666"
-                        value={formData.event_longitude || ''}
-                        onChange={(e) => handleChange('event_longitude', parseFloat(e.target.value) || null)}
-                      />
-                    </div>
-                  </div>
-
-                  {formData.event_latitude && formData.event_longitude && (
-                    <div className="flex items-center gap-2 text-xs text-green-600">
-                      <MapPin className="h-3 w-3" />
-                      <span>
-                        Event location will appear on FotoMap: {formData.event_latitude.toFixed(6)}, {formData.event_longitude.toFixed(6)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Brief description of the event..."
-                    value={formData.description}
-                    onChange={(e) => handleChange('description', e.target.value)}
-                    rows={3}
-                  />
-                </div>
-              </div>
-
-              {/* Settings */}
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="font-medium">Event Settings</h3>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="is_public">Public Event</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Anyone can search and find photos from this event
-                    </p>
-                  </div>
-                  <Switch
-                    id="is_public"
-                    checked={formData.is_public}
-                    onCheckedChange={(checked) => handleChange('is_public', checked)}
-                  />
-                </div>
-
-                {!formData.is_public && (
-                  <div className="space-y-2">
-                    <Label htmlFor="access_code">Access Code</Label>
-                    <Input
-                      id="access_code"
-                      placeholder="Enter access code for private event"
-                      value={formData.access_code}
-                      onChange={(e) => handleChange('access_code', e.target.value)}
-                    />
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="watermark_enabled">Enable Watermark</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Add watermark to preview photos
-                    </p>
-                  </div>
-                  <Switch
-                    id="watermark_enabled"
-                    checked={formData.watermark_enabled}
-                    onCheckedChange={(checked) => handleChange('watermark_enabled', checked)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="price_per_photo">Harga per Foto (Rp)</Label>
-                  <Input
-                    id="price_per_photo"
-                    type="number"
-                    min="0"
-                    step="1000"
-                    placeholder="0 untuk gratis"
-                    value={formData.price_per_photo}
-                    onChange={(e) => handleChange('price_per_photo', parseInt(e.target.value) || 0)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Set ke 0 untuk download gratis
-                  </p>
-                  
-                  {/* Syarat & Ketentuan FOTOPOIN */}
-                  <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-lg">
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      <strong className="text-foreground">Syarat & Ketentuan FOTOPOIN:</strong><br />
-                      Ketika foto ini diupload, foto tersebut juga akan terset harga menggunakan FOTOPOIN. 
-                      Pemasukan anda akan muncul ketika minimal 5 foto terdownload, 
-                      maka anda akan mendapat pendapatan dari FOTOPOIN.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Submit */}
-              <div className="flex gap-3 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => navigate('/photographer/events')}
-                  className="flex-1"
+        {/* ── Step Indicator ──────────────────────────────────────────────── */}
+        <div className="flex items-center gap-0 mb-8">
+          {STEPS.map((s, i) => {
+            const Icon     = s.icon;
+            const isDone   = step > s.num;
+            const isCurrent = step === s.num;
+            return (
+              <div key={s.num} className="flex items-center flex-1">
+                <button
+                  onClick={() => isDone && setStep(s.num)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-sm font-medium flex-shrink-0 ${
+                    isCurrent ? "bg-primary text-primary-foreground shadow-sm"
+                    : isDone  ? "bg-primary/10 text-primary cursor-pointer hover:bg-primary/20"
+                    :            "bg-muted text-muted-foreground cursor-default"
+                  }`}
                 >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isLoading} className="flex-1">
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    'Create Event'
-                  )}
-                </Button>
+                  {isDone ? <CheckCircle className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                  <span className="hidden sm:inline">{s.label}</span>
+                </button>
+                {i < STEPS.length - 1 && (
+                  <div className={`flex-1 h-0.5 mx-1 rounded transition-all ${step > s.num ? "bg-primary" : "bg-border"}`} />
+                )}
               </div>
-            </form>
-          </CardContent>
-        </Card>
-      </main>
+            );
+          })}
+        </div>
 
+        {/* ────────────────────── STEP 1 ────────────────────────────────── */}
+        {step === 1 && (
+          <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="space-y-2">
+              <Label htmlFor="event_name" className="text-sm font-semibold">
+                Nama Event <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="event_name" autoFocus
+                placeholder="cth: Pernikahan Budi & Ani, Wisuda FEB 2025..."
+                value={form.event_name}
+                onChange={e => set("event_name", e.target.value)}
+                className="h-11"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Tipe Event</Label>
+                <Select value={form.event_type} onValueChange={v => set("event_type", v)}>
+                  <SelectTrigger className="h-11"><SelectValue placeholder="Pilih tipe" /></SelectTrigger>
+                  <SelectContent>
+                    {EVENT_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="event_date" className="text-sm font-semibold">
+                  Tanggal <span className="text-destructive">*</span>
+                </Label>
+                <Input id="event_date" type="date" value={form.event_date}
+                  onChange={e => set("event_date", e.target.value)} className="h-11" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Nama Lokasi / Venue</Label>
+              <Input placeholder="cth: Grand Ballroom Hotel Indonesia, Jakarta"
+                value={form.location} onChange={e => set("location", e.target.value)} className="h-11" />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Deskripsi</Label>
+              <Textarea placeholder="Ceritakan sedikit tentang event ini..."
+                value={form.description} onChange={e => set("description", e.target.value)}
+                rows={3} className="resize-none" />
+            </div>
+
+            {/* Info kolaboratif */}
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-200">
+              <div className="p-1.5 bg-blue-100 rounded-full mt-0.5 flex-shrink-0">
+                <Sparkles className="h-4 w-4 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-blue-800">Platform Kolaboratif Murni</p>
+                <p className="text-xs text-blue-600 mt-0.5 leading-relaxed">
+                  Setiap fotografer yang bergabung mengatur harga fotonya sendiri saat upload.
+                  Tidak ada harga default event — fleksibel untuk semua kontributor.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ────────────────────── STEP 2 ────────────────────────────────── */}
+        {step === 2 && (
+          <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-muted/60 border text-sm text-muted-foreground">
+              <MapIcon className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary" />
+              <span>
+                <strong className="text-foreground">Klik pada peta</strong> untuk menentukan lokasi GPS event,
+                atau gunakan tombol deteksi otomatis.
+                Lokasi ini akan tampil di <strong className="text-foreground">FotoMap</strong>.
+                Marker bisa digeser setelah dipasang.
+              </span>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button type="button" variant="outline" size="sm" onClick={handleGPS}
+                disabled={isLocating} className="gap-1.5">
+                {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Locate className="h-4 w-4" />}
+                {isLocating ? "Mendeteksi..." : "Gunakan Lokasi Saya"}
+              </Button>
+              {form.event_latitude && form.event_longitude && (
+                <Button type="button" variant="ghost" size="sm" onClick={clearLocation}
+                  className="gap-1.5 text-destructive hover:text-destructive">
+                  <X className="h-4 w-4" />Hapus Lokasi
+                </Button>
+              )}
+            </div>
+
+            {/* Map Container */}
+            <div className="rounded-2xl overflow-hidden border shadow-sm relative bg-muted">
+              {!mapReady && (
+                <div className="absolute inset-0 flex items-center justify-center z-10 bg-muted">
+                  <div className="text-center space-y-2">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                    <p className="text-sm text-muted-foreground">Memuat peta...</p>
+                  </div>
+                </div>
+              )}
+              <div ref={mapRef} style={{ height: "360px", width: "100%" }} />
+            </div>
+
+            {/* Koordinat manual */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Latitude (manual)</Label>
+                <Input type="number" step="0.000001" placeholder="-6.200000"
+                  value={form.event_latitude ?? ""}
+                  onChange={e => {
+                    const v = parseFloat(e.target.value) || null;
+                    set("event_latitude", v);
+                    if (v && form.event_longitude && leafletMap.current)
+                      leafletMap.current.setView([v, form.event_longitude], 14);
+                  }}
+                  className="h-9 text-sm font-mono" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Longitude (manual)</Label>
+                <Input type="number" step="0.000001" placeholder="106.816666"
+                  value={form.event_longitude ?? ""}
+                  onChange={e => {
+                    const v = parseFloat(e.target.value) || null;
+                    set("event_longitude", v);
+                    if (form.event_latitude && v && leafletMap.current)
+                      leafletMap.current.setView([form.event_latitude, v], 14);
+                  }}
+                  className="h-9 text-sm font-mono" />
+              </div>
+            </div>
+
+            {/* Status */}
+            {form.event_latitude && form.event_longitude ? (
+              <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 px-3 py-2 rounded-lg">
+                <CheckCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                <span>
+                  Lokasi tersimpan — {form.event_latitude.toFixed(5)}, {form.event_longitude.toFixed(5)}
+                  {" · "}event akan muncul di FotoMap
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Info className="h-3.5 w-3.5 flex-shrink-0" />
+                <span>Belum ada lokasi GPS — event tidak akan muncul di FotoMap (opsional)</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ────────────────────── STEP 3 ────────────────────────────────── */}
+        {step === 3 && (
+          <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+
+            {/* Kolaboratif */}
+            <div className="space-y-3 p-4 rounded-xl border bg-muted/30">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="flex items-center gap-2 font-semibold">
+                    <Users className="h-4 w-4 text-blue-600" />Event Kolaboratif
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Fotografer lain bisa bergabung dan upload foto ke event ini
+                  </p>
+                </div>
+                <Switch checked={form.is_collaborative}
+                  onCheckedChange={v => { set("is_collaborative", v); if (!v) set("max_collaborators", null); }} />
+              </div>
+
+              {form.is_collaborative && (
+                <div className="pt-3 border-t space-y-1.5">
+                  <Label className="text-sm">Maks. Kolaborator (opsional)</Label>
+                  <Input type="number" min={1} max={100}
+                    placeholder="Kosongkan = tidak terbatas"
+                    value={form.max_collaborators ?? ""}
+                    onChange={e => set("max_collaborators", parseInt(e.target.value) || null)}
+                    className="h-9" />
+                  <p className="text-xs text-muted-foreground">Maks. fotografer yang bisa bergabung</p>
+                </div>
+              )}
+
+              {form.is_collaborative && (
+                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-blue-50 border border-blue-100">
+                  <ImageIcon className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-blue-700 leading-relaxed">
+                    <strong>Harga per foto</strong> ditentukan masing-masing oleh fotografer saat upload —
+                    setiap kontributor bebas menentukan harganya sendiri.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Visibilitas */}
+            <div className="space-y-4 p-4 rounded-xl border bg-muted/30">
+              <h3 className="font-semibold text-sm">Visibilitas Event</h3>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {form.is_public
+                    ? <Globe className="h-4 w-4 text-blue-500" />
+                    : <Lock  className="h-4 w-4 text-amber-500" />}
+                  <div>
+                    <p className="text-sm font-medium">{form.is_public ? "Event Publik" : "Event Privat"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {form.is_public
+                        ? "Siapapun bisa menemukan dan mencari foto dari event ini"
+                        : "Hanya yang punya kode akses yang bisa menemukan foto"}
+                    </p>
+                  </div>
+                </div>
+                <Switch checked={form.is_public} onCheckedChange={v => set("is_public", v)} />
+              </div>
+              {!form.is_public && (
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Kode Akses</Label>
+                  <Input placeholder="Masukkan kode akses..."
+                    value={form.access_code} onChange={e => set("access_code", e.target.value)} className="h-9" />
+                </div>
+              )}
+            </div>
+
+            {/* Watermark */}
+            <div className="flex items-center justify-between p-4 rounded-xl border bg-muted/30">
+              <div>
+                <p className="text-sm font-medium">Watermark pada Preview</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Tambahkan watermark di foto preview sebelum pembelian
+                </p>
+              </div>
+              <Switch checked={form.watermark_enabled} onCheckedChange={v => set("watermark_enabled", v)} />
+            </div>
+
+            {/* Ringkasan */}
+            <div className="p-4 rounded-xl border bg-card space-y-2.5">
+              <p className="text-sm font-semibold mb-3">Ringkasan Event</p>
+              {[
+                { label: "Nama",       value: form.event_name },
+                { label: "Tanggal",    value: form.event_date || "-" },
+                { label: "Venue",      value: form.location || "Tidak diisi" },
+                { label: "GPS",        value: form.event_latitude && form.event_longitude
+                    ? `${form.event_latitude.toFixed(4)}, ${form.event_longitude.toFixed(4)}`
+                    : "Tidak ada" },
+                { label: "Mode",       value: form.is_collaborative ? "Kolaboratif" : "Solo" },
+                { label: "Visibilitas", value: form.is_public ? "Publik" : "Privat" },
+              ].map(item => (
+                <div key={item.label} className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{item.label}</span>
+                  <span className="font-medium truncate max-w-[60%] text-right">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Navigation Buttons ──────────────────────────────────────────── */}
+        <div className="flex gap-3 mt-8">
+          {step > 1 && (
+            <Button variant="outline" onClick={() => setStep(s => (s - 1) as Step)}
+              className="flex-1" disabled={isLoading}>
+              <ArrowLeft className="h-4 w-4 mr-1.5" />Sebelumnya
+            </Button>
+          )}
+
+          {step < 3 ? (
+            <Button onClick={() => setStep(s => (s + 1) as Step)}
+              disabled={!canProceed()} className="flex-1 gap-1.5">
+              Selanjutnya<ChevronRight className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button onClick={handleSubmit}
+              disabled={isLoading || !form.event_name || !form.event_date}
+              className="flex-1 gap-2">
+              {isLoading
+                ? <><Loader2 className="h-4 w-4 animate-spin" />Membuat Event...</>
+                : <><Sparkles className="h-4 w-4" />Buat Event</>
+              }
+            </Button>
+          )}
+        </div>
+
+        {/* Skip lokasi */}
+        {step === 2 && (
+          <p className="text-center text-xs text-muted-foreground mt-3">
+            Lokasi bersifat opsional.{" "}
+            <button className="text-primary hover:underline font-medium"
+              onClick={() => setStep(3)}>
+              Lewati langkah ini →
+            </button>
+          </p>
+        )}
+
+      </main>
       <Footer />
     </div>
   );
