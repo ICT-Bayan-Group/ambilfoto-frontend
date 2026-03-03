@@ -219,8 +219,10 @@ export default function GlobalEventsMap() {
     setShowSidebar(true);
   };
 
-  const handleViewEventPhotos = (eventId: string) => {
-    navigate(`/user/fotomap/${eventId}`);
+// SESUDAH ✅
+  const handleViewEventPhotos = (event: GlobalEvent) => {
+    const slug = event.event_slug || event.event_id;
+    navigate(`/event/${slug}`);
   };
 
   if (isLoading && events.length === 0) {
@@ -508,11 +510,10 @@ export default function GlobalEventsMap() {
                         <p className="text-xs text-gray-500">Photographer</p>
                       </div>
                     </div>
-
-                    <Button 
-                      onClick={() => handleViewEventPhotos(event.event_id)}
-                      className="w-full gap-2 h-9"
-                    >
+                   <Button 
+                          onClick={() => handleViewEventPhotos(event)}
+                          className="w-full gap-2 h-9"
+                        >
                       Lihat Foto
                       <ArrowRight className="h-4 w-4" />
                     </Button>
@@ -644,7 +645,7 @@ export default function GlobalEventsMap() {
                       className="w-full mt-2 gap-1 h-7 text-xs"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleViewEventPhotos(event.event_id);
+                        handleViewEventPhotos(event);
                       }}
                     >
                       Lihat Foto
