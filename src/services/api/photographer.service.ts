@@ -332,6 +332,13 @@ export interface StandalonePhoto {
   matched_users?: number;
   total_purchases?: number;
   total_revenue?: number;
+
+  // ← Fields baru dari getMyAllPhotos
+  source: 'standalone' | 'event';
+  event_id?: string | null;
+  event_name?: string | null;
+  event_date?: string | null;
+  event_role?: 'owner' | 'collaborator' | null;
 }
 
 export interface StandalonePhotoUploadResponse {
@@ -577,19 +584,32 @@ export const photographerService = {
     return response.data;
   },
 
-  async getMyStandalonePhotos(params?: {
+    async getMyAllPhotos(params?: {
     page?: number;
     limit?: number;
+    source?: 'standalone' | 'event';
     visibility?: StandaloneVisibility;
     category?: StandaloneCategory;
+    status?: string;
   }): Promise<{
     success: boolean;
     data?: StandalonePhoto[];
     pagination?: { total: number; page: number; limit: number; total_pages: number };
+    summary?: { standalone_count: number; event_count: number };
     error?: string;
   }> {
     const response = await photographerApi.get('/photos/my', { params });
-    return response.data;
+    const res = response.data;
+
+    // Normalisasi: backend return `id`, frontend butuh `photo_id`
+    if (res.success && Array.isArray(res.data)) {
+      res.data = res.data.map((p: any) => ({
+        ...p,
+        photo_id: p.photo_id ?? p.id,
+      }));
+    }
+
+    return res;
   },
 
   async updateStandalonePhoto(
