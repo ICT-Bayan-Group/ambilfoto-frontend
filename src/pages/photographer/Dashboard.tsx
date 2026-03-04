@@ -27,7 +27,8 @@ import {
   MapPin,
   AlertCircle,
   CheckCircle,
-  MessageCircle
+  MessageCircle,
+  Images,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -61,7 +62,7 @@ const PhotographerDashboard = () => {
           photographerService.getStatistics(),
           photographerService.getMyEvents(),
           paymentService.getPhotographerWallet(),
-          photographerService.getProfile() // 🆕 Fetch profile
+          photographerService.getProfile()
         ]);
 
         if (statsRes.success && statsRes.data) {
@@ -86,7 +87,6 @@ const PhotographerDashboard = () => {
     fetchData();
   }, []);
 
-  // 🆕 Check if location is complete
   const isLocationComplete = Boolean(
     profile?.province_id && 
     profile?.province_name && 
@@ -135,7 +135,7 @@ const PhotographerDashboard = () => {
           </Link>
         </div>
 
-        {/* 🆕 Location Status Alert - Based on Profile API */}
+        {/* Location Status Alert */}
         {!isLoading && !isLocationComplete && (
           <Alert className="mb-6 border-2 border-amber-500 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md">
             <AlertCircle className="h-5 w-5 text-amber-600" />
@@ -164,7 +164,7 @@ const PhotographerDashboard = () => {
           </Alert>
         )}
 
-        {/* 🆕 Location Success Badge - Based on Profile API */}
+        {/* Location Success Badge */}
         {!isLoading && isLocationComplete && (
           <Alert className="mb-6 border-2 border-emerald-500 bg-gradient-to-r from-emerald-50 to-green-50 shadow-sm">
             <CheckCircle className="h-5 w-5 text-emerald-600" />
@@ -349,6 +349,12 @@ const PhotographerDashboard = () => {
                   Lihat Semua Acara
                 </Button>
               </Link>
+              <Link to="/photographer/my-photos" className="block">
+                <Button variant="outline" className="w-full justify-start gap-3 hover:bg-primary/5 hover:border-primary/30">
+                  <Images className="h-4 w-4" />
+                  Foto Saya
+                </Button>
+              </Link>
               <Link to="/photographer/fotomap" className="block">
                 <Button variant="outline" className="w-full justify-start gap-3 hover:bg-primary/5 hover:border-primary/30">
                   <MapPin className="h-4 w-4" />
@@ -384,11 +390,11 @@ const PhotographerDashboard = () => {
                 </Button>
               </Link>
               <Link to="/photographer/chat" className="block">
-              <Button variant="outline" className="w-full justify-start gap-3 text-rose-600 border-rose-500/30 hover:bg-rose-50">
-                <MessageCircle className="h-4 w-4" />
-                Pesan Keluhan
-              </Button>
-            </Link>
+                <Button variant="outline" className="w-full justify-start gap-3 text-rose-600 border-rose-500/30 hover:bg-rose-50">
+                  <MessageCircle className="h-4 w-4" />
+                  Pesan Keluhan
+                </Button>
+              </Link>
               
               {/* Show upgrade option only for regular users */}
               {user?.role === 'user' && (

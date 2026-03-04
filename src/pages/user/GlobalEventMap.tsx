@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -6,7 +6,6 @@ import 'leaflet/dist/leaflet.css';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { 
@@ -117,6 +116,38 @@ const userLocationMarker = L.divIcon({
   iconAnchor: [10, 10]
 });
 
+// ── FlyToMarker: fly ke marker + buka popup saat selectedEventId berubah ────
+function FlyToMarker({
+  selectedEventId,
+  markerRefs,
+  events,
+}: {
+  selectedEventId: string | null;
+  markerRefs: React.MutableRefObject<Record<string, L.Marker>>;
+  events: GlobalEvent[];
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!selectedEventId) return;
+    const event = events.find(e => e.event_id === selectedEventId);
+    if (!event) return;
+
+    // fly ke koordinat marker event
+    map.flyTo([event.latitude, event.longitude], Math.max(map.getZoom(), 14), {
+      duration: 0.8,
+    });
+
+    // buka popup setelah animasi selesai
+    setTimeout(() => {
+      const marker = markerRefs.current[selectedEventId];
+      if (marker) marker.openPopup();
+    }, 850);
+  }, [selectedEventId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return null;
+}
+
 function MapEvents({ onBoundsChange, onZoomChange }: { 
   onBoundsChange: (bounds: string) => void;
   onZoomChange: (zoom: number) => void;
@@ -174,12 +205,14 @@ export default function GlobalEventsMap() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
-  const [mapCenter, setMapCenter] = useState<[number, number]>([-1.2687, 116.8312]);
+  const [mapCenter] = useState<[number, number]>([-1.2687, 116.8312]);
+
+  // refs ke setiap instance Leaflet Marker, di-key dengan event_id
+  const markerRefs = useRef<Record<string, L.Marker>>({});
 
   const loadEventsMap = useCallback(async () => {
     try {
       setIsLoading(true);
-      console.log('🌍 Loading global events map...', { bounds, zoom });
       
       const data = await geoPhotoService.getGlobalEventsMap({
         bounds: bounds || undefined,
@@ -190,11 +223,6 @@ export default function GlobalEventsMap() {
       setEvents(data.events);
       setClusters(data.clusters || []);
       
-      if (data.bounds?.center && !bounds) {
-        setMapCenter([data.bounds.center.latitude, data.bounds.center.longitude]);
-      }
-      
-      console.log('✅ Events loaded:', data.events.length, 'events,', data.clusters?.length || 0, 'clusters');
     } catch (error: any) {
       console.error('❌ Map load error:', error);
       toast.error(error.response?.data?.error || 'Gagal memuat peta events');
@@ -213,13 +241,18 @@ export default function GlobalEventsMap() {
     e.location?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleEventClick = (event: GlobalEvent) => {
+  // Klik marker di peta langsung → tampilkan sidebar
+  const handleMarkerClick = (event: GlobalEvent) => {
     setSelectedEvent(event);
-    setMapCenter([event.latitude, event.longitude]);
     setShowSidebar(true);
   };
 
-// SESUDAH ✅
+  // Klik card di sidebar → FlyToMarker akan handle flyTo + openPopup
+  const handleSidebarCardClick = (event: GlobalEvent) => {
+    setSelectedEvent(event);
+    // FlyToMarker di dalam MapContainer akan bereaksi terhadap perubahan selectedEvent
+  };
+
   const handleViewEventPhotos = (event: GlobalEvent) => {
     const slug = event.event_slug || event.event_id;
     navigate(`/event/${slug}`);
@@ -377,6 +410,13 @@ export default function GlobalEventsMap() {
           />
           <LocateButton onLocationFound={(lat, lng) => setUserLocation({ lat, lng })} />
 
+          {/* FlyToMarker: fly + buka popup saat card sidebar diklik */}
+          <FlyToMarker
+            selectedEventId={selectedEvent?.event_id ?? null}
+            markerRefs={markerRefs}
+            events={filteredEvents}
+          />
+
           {userLocation && (
             <Marker position={[userLocation.lat, userLocation.lng]} icon={userLocationMarker}>
               <Popup className="custom-popup" maxWidth={240}>
@@ -404,7 +444,6 @@ export default function GlobalEventsMap() {
               icon={createClusterMarker(cluster.count)}
               eventHandlers={{
                 click: () => {
-                  setMapCenter([cluster.center.lat, cluster.center.lng]);
                   setZoom(Math.min(zoom + 3, 18));
                 }
               }}
@@ -447,8 +486,12 @@ export default function GlobalEventsMap() {
               key={event.event_id}
               position={[event.latitude, event.longitude]}
               icon={createEventMarker(selectedEvent?.event_id === event.event_id)}
+              ref={(ref) => {
+                // simpan ref marker agar FlyToMarker bisa openPopup
+                if (ref) markerRefs.current[event.event_id] = ref;
+              }}
               eventHandlers={{
-                click: () => handleEventClick(event)
+                click: () => handleMarkerClick(event)
               }}
             >
               <Popup className="custom-popup" maxWidth={320}>
@@ -510,10 +553,10 @@ export default function GlobalEventsMap() {
                         <p className="text-xs text-gray-500">Photographer</p>
                       </div>
                     </div>
-                   <Button 
-                          onClick={() => handleViewEventPhotos(event)}
-                          className="w-full gap-2 h-9"
-                        >
+                    <Button 
+                      onClick={() => handleViewEventPhotos(event)}
+                      className="w-full gap-2 h-9"
+                    >
                       Lihat Foto
                       <ArrowRight className="h-4 w-4" />
                     </Button>
@@ -587,6 +630,11 @@ export default function GlobalEventsMap() {
               </div>
               <p className="text-xs text-gray-500">
                 {filteredEvents.length} events ditemukan
+                {selectedEvent && (
+                  <span className="ml-2 text-blue-600 font-medium">
+                    · {selectedEvent.event_name} dipilih
+                  </span>
+                )}
               </p>
             </div>
 
@@ -598,61 +646,71 @@ export default function GlobalEventsMap() {
                   <p className="text-xs mt-1">Coba zoom out atau geser peta</p>
                 </div>
               ) : (
-                filteredEvents.map((event) => (
-                  <Card
-                    key={event.event_id}
-                    className={`p-3 cursor-pointer transition-all active:scale-98 ${
-                      selectedEvent?.event_id === event.event_id 
-                        ? 'border-blue-500 bg-blue-50 shadow-md' 
-                        : 'border-gray-200 hover:shadow-md'
-                    }`}
-                    onClick={() => handleEventClick(event)}
-                  >
-                    <div className="flex gap-3">
-                      <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
-                        {event.preview_photos && event.preview_photos[0] ? (
-                          <img 
-                            src={event.preview_photos[0]} 
-                            alt={event.event_name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Camera className="h-6 w-6 text-gray-400" />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm truncate mb-1">
-                          {event.event_name}
-                        </h3>
-                        {event.location && (
-                          <p className="text-xs text-gray-500 truncate flex items-center gap-1 mb-1">
-                            <MapPin className="h-3 w-3 flex-shrink-0" />
-                            {event.location}
-                          </p>
-                        )}
-                        <Badge variant="secondary" className="text-xs">
-                          {event.total_photos} foto
-                        </Badge>
-                      </div>
-                    </div>
-
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="w-full mt-2 gap-1 h-7 text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleViewEventPhotos(event);
-                      }}
+                filteredEvents.map((event) => {
+                  const isActive = selectedEvent?.event_id === event.event_id;
+                  return (
+                    <Card
+                      key={event.event_id}
+                      className={`p-3 cursor-pointer transition-all active:scale-98 ${
+                        isActive
+                          ? 'border-blue-500 bg-blue-50 shadow-md ring-1 ring-blue-400'
+                          : 'border-gray-200 hover:shadow-md hover:border-blue-200'
+                      }`}
+                      onClick={() => handleSidebarCardClick(event)}
                     >
-                      Lihat Foto
-                      <ArrowRight className="h-3 w-3" />
-                    </Button>
-                  </Card>
-                ))
+                      <div className="flex gap-3">
+                        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
+                          {event.preview_photos && event.preview_photos[0] ? (
+                            <img 
+                              src={event.preview_photos[0]} 
+                              alt={event.event_name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Camera className="h-6 w-6 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <h3 className={`font-semibold text-sm truncate mb-1 ${isActive ? 'text-blue-700' : ''}`}>
+                            {event.event_name}
+                          </h3>
+                          {event.location && (
+                            <p className="text-xs text-gray-500 truncate flex items-center gap-1 mb-1">
+                              <MapPin className="h-3 w-3 flex-shrink-0" />
+                              {event.location}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge variant="secondary" className="text-xs">
+                              {event.total_photos} foto
+                            </Badge>
+                            {isActive && (
+                              <Badge className="text-xs bg-blue-600 text-white">
+                                Dipilih
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <Button
+                        size="sm"
+                        variant={isActive ? "default" : "ghost"}
+                        className={`w-full mt-2 gap-1 h-7 text-xs ${isActive ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewEventPhotos(event);
+                        }}
+                      >
+                        Lihat Foto
+                        <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    </Card>
+                  );
+                })
               )}
             </div>
           </div>

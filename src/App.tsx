@@ -9,6 +9,7 @@ import DeveloperProtectedRoute from "@/components/DeveloperProtectedRoute"; // â
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import PublicPhotosPage from "./pages/PublicPhoto";
 import RegisterFace from "./pages/RegisterFace";
 import FaceLogin from "./pages/FaceLogin";
 import UserDashboard from "./pages/user/Dashboard";
@@ -26,6 +27,7 @@ import PhotographerEvents from "./pages/photographer/Events";
 import PhotographerEventDetail from "./pages/photographer/EventDetail";
 import PhotographerCreateEvent from "./pages/photographer/CreateEvent";
 import EditEvent from "./pages/photographer/EditEvent";
+import PhotographerMyPhotos from "./pages/photographer/Foto";
 import PhotographerProfile from "./pages/photographer/Profile";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminUsers from "./pages/admin/Users";
@@ -146,6 +148,7 @@ const App = () => (
             <Route path="/logout" element={<Navigate to="/login" replace />} />
             <Route path="/about" element={<About />} />
             <Route path="/features" element={<Features />} />
+            <Route path="/photos" element={<PublicPhotosPage />} />
             <Route path="/pricing" element={<DeveloperPricing />} />
             <Route path="/docs" element={<DeveloperDocs/>}/>
             <Route path="/privacy" element={<PrivacyPolicy />} />
@@ -388,6 +391,14 @@ const App = () => (
                   <PhotographerProfile />
                 </PhotographerRoute>
               } 
+            />
+            <Route
+              path="/photographer/my-photos"
+              element={
+                <PhotographerRoute>
+                  <PhotographerMyPhotos />
+                </PhotographerRoute>
+              }
             />
             <Route 
               path="/photographer/wallet" 

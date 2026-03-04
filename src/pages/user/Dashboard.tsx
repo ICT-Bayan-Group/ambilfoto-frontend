@@ -12,7 +12,7 @@ import {
   Zap, Heart, Map as MapIcon, Briefcase, CheckCircle, XCircle,
   AlertCircle, MessageCircle, Bell, Package, RefreshCw,
   ShoppingBag, Users, Newspaper, ChevronDown, Activity,
-  CameraIcon, UserCheck, Layers
+  CameraIcon, UserCheck, Layers, Loader2
 } from "lucide-react";
 import { userService, UserPhoto } from "@/services/api/user.service";
 import { paymentService, UserWallet } from "@/services/api/payment.service";
@@ -34,6 +34,10 @@ const UserDashboard = () => {
   const navigate = useNavigate();
   const [photos, setPhotos] = useState<UserPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // ✅ BARU: status AI matching background
+  const [isMatchingBackground, setIsMatchingBackground] = useState(false);
+
   const [wallet, setWallet] = useState<UserWallet | null>(null);
   const [purchasedCount, setPurchasedCount] = useState(0);
   const [activeTab, setActiveTab] = useState<'overview' | 'recent' | 'events' | 'purchases'>('overview');
@@ -51,7 +55,7 @@ const UserDashboard = () => {
   const loadData = async () => {
     setIsLoading(true);
     await Promise.all([
-      loadPhotos(),
+      loadPhotosCached(),        // ✅ Ganti: ambil cache dulu, instant
       loadUpgradeStatus(),
       loadRecentPurchases(),
       loadUnreadChats(),
@@ -59,11 +63,21 @@ const UserDashboard = () => {
     setIsLoading(false);
   };
 
-  const loadPhotos = async () => {
+  // ✅ DIGANTI: load dari cache DB dulu (tidak trigger AI matching)
+  const loadPhotosCached = async () => {
     try {
-      const response = await userService.getMyPhotos();
-      if (response.success && response.data) setPhotos(response.data);
-    } catch { setPhotos([]); }
+      const [eventRes, standaloneRes] = await Promise.all([
+        userService.getMyPhotos({ limit: 100 }),
+        userService.getMyStandalonePhotos({ limit: 100 }).catch(() => ({ success: false, data: [] })),
+      ]);
+
+      const eventPhotos: UserPhoto[] = eventRes.success && eventRes.data ? eventRes.data : [];
+      const standalonePhotos: UserPhoto[] = standaloneRes.success && standaloneRes.data ? standaloneRes.data : [];
+
+      setPhotos([...eventPhotos, ...standalonePhotos]);
+    } catch {
+      setPhotos([]);
+    }
   };
 
   const loadUpgradeStatus = async () => {
@@ -206,10 +220,9 @@ const UserDashboard = () => {
       icon: Calendar,
       label: "Event Saya",
       description: `${stats.events} event`,
-      // ✅ Navigasi ke halaman event baru
       href: "/user/events",
       color: "bg-green-50 text-green-600 hover:bg-green-100 border-green-200",
-      badge: stats.events > 0 ? null : null,
+      badge: null,
     },
     {
       icon: MessageCircle,
@@ -235,11 +248,18 @@ const UserDashboard = () => {
                 <h1 className="text-2xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-yellow-500 bg-clip-text text-transparent">
                   Selamat Datang {user?.full_name || 'Pengguna'}! 👋
                 </h1>
-                <p className="text-gray-600 text-lg">
+                <p className="text-gray-600 text-lg flex items-center gap-2">
                   {photos.length > 0 
                     ? `Anda memiliki ${stats.totalPhotos} foto dari ${stats.events} event`
                     : 'Mulai dengan pindai wajah untuk menemukan foto Anda'
                   }
+                  {/* ✅ BARU: indikator AI matching berjalan di background */}
+                  {isMatchingBackground && (
+                    <span className="inline-flex items-center gap-1 text-xs text-blue-500 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Mencarikan foto baru...
+                    </span>
+                  )}
                 </p>
               </div>
               <div className="hidden md:flex gap-2 items-center">
@@ -338,7 +358,7 @@ const UserDashboard = () => {
             </Card>
           </div>
 
-          {/* ── Quick Actions (5 tiles) ── */}
+          {/* ── Quick Actions ── */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-8">
             {quickActions.map((action, index) => (
               <Link key={index} to={action.href}>
@@ -386,7 +406,6 @@ const UserDashboard = () => {
                   </CardContent>
                 </Card>
 
-                {/* ✅ Stat event sekarang bisa diklik */}
                 <Card
                   className="border-2 border-yellow-100 shadow-sm hover:shadow-md transition-shadow bg-yellow-50/30 cursor-pointer"
                   onClick={() => navigate("/user/events")}
@@ -631,7 +650,6 @@ const UserDashboard = () => {
                 </div>
               )}
 
-              {/* ✅ Top Events di Overview — dengan link ke /user/events */}
               {topEvents.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-4">
@@ -851,7 +869,7 @@ const UserDashboard = () => {
             </div>
           )}
 
-          {/* ✅ Tab: Events — Redirect ke /user/events dengan preview */}
+          {/* ── Tab: Events ── */}
           {activeTab === 'events' && (
             <div>
               <div className="flex items-center justify-between mb-6">
@@ -925,7 +943,6 @@ const UserDashboard = () => {
                       </Card>
                     ))}
                   </div>
-
                   {eventStats.length > 6 && (
                     <div className="text-center">
                       <Link to="/user/events">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -163,6 +163,37 @@ function LocateButton({ onLocationFound }: { onLocationFound: (lat: number, lng:
   );
 }
 
+// ── FlyToMarker: fly + open popup when selectedEventId changes ──────────────
+function FlyToMarker({
+  selectedEventId,
+  markerRefs,
+  events,
+}: {
+  selectedEventId: string | null;
+  markerRefs: React.MutableRefObject<Record<string, L.Marker>>;
+  events: GlobalEvent[];
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!selectedEventId) return;
+    const event = events.find(e => e.event_id === selectedEventId);
+    if (!event) return;
+
+    map.flyTo([event.latitude, event.longitude], Math.max(map.getZoom(), 14), {
+      duration: 0.8,
+    });
+
+    // slight delay so flyTo animation starts before popup opens
+    setTimeout(() => {
+      const marker = markerRefs.current[selectedEventId];
+      if (marker) marker.openPopup();
+    }, 850);
+  }, [selectedEventId]);
+
+  return null;
+}
+
 export default function PhotographerGlobalEventsMap() {
   const navigate = useNavigate();
   
@@ -178,10 +209,12 @@ export default function PhotographerGlobalEventsMap() {
   const [showSearch, setShowSearch] = useState(false);
   const [mapCenter, setMapCenter] = useState<[number, number]>([-1.2687, 116.8312]);
 
+  // refs to each Leaflet Marker instance keyed by event_id
+  const markerRefs = useRef<Record<string, L.Marker>>({});
+
   const loadEventsMap = useCallback(async () => {
     try {
       setIsLoading(true);
-      console.log('🌍 Loading global events map...', { bounds, zoom });
       
       const data = await geoPhotoService.getGlobalEventsMap({
         bounds: bounds || undefined,
@@ -195,8 +228,6 @@ export default function PhotographerGlobalEventsMap() {
       if (data.bounds?.center && !bounds) {
         setMapCenter([data.bounds.center.latitude, data.bounds.center.longitude]);
       }
-      
-      console.log('✅ Events loaded:', data.events.length, 'events,', data.clusters?.length || 0, 'clusters');
     } catch (error: any) {
       console.error('❌ Map load error:', error);
       toast.error(error.response?.data?.error || 'Gagal memuat peta events');
@@ -215,26 +246,28 @@ export default function PhotographerGlobalEventsMap() {
     e.location?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Called when user clicks a marker on the map directly
   const handleEventClick = (event: GlobalEvent) => {
     setSelectedEvent(event);
-    setMapCenter([event.latitude, event.longitude]);
     setShowSidebar(true);
   };
 
-  // Navigate dengan slug (public view) atau eventId (photographer management)
+  // Called when user clicks a card in the sidebar
+  const handleSidebarCardClick = (event: GlobalEvent) => {
+    setSelectedEvent(event);
+    // FlyToMarker will handle flyTo + openPopup via useEffect
+  };
+
   const navigateToEvent = (event: GlobalEvent, mode: 'public' | 'map' | 'manage') => {
     if (mode === 'public') {
-      // Public view menggunakan slug
       if (event.event_slug) {
         navigate(`/event/${event.event_slug}`);
       } else {
         toast.error('Event slug tidak tersedia');
       }
     } else if (mode === 'map') {
-      // FotoMap photographer menggunakan eventId
       navigate(`/photographer/fotomap/${event.event_id}`);
     } else if (mode === 'manage') {
-      // Management photographer menggunakan eventId
       navigate(`/photographer/events/${event.event_id}`);
     }
   };
@@ -289,7 +322,7 @@ export default function PhotographerGlobalEventsMap() {
           </button>
 
           <button
-            onClick={() => navigate('/photographer/events')}
+            onClick={() => { setShowSidebar(true); }}
             className="p-2 hover:bg-blue-100 bg-blue-50 rounded-full transition-colors active:scale-95 relative"
             title="Event Saya"
           >
@@ -347,7 +380,6 @@ export default function PhotographerGlobalEventsMap() {
           </div>
         </div>
 
-        {/* Tambah Event Button */}
         <button
           onClick={() => navigate('/photographer/events/new')}
           className="bg-gradient-to-br from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white rounded-full px-4 py-3 shadow-lg border border-green-800 transition-all hover:scale-105 flex items-center gap-2"
@@ -357,7 +389,6 @@ export default function PhotographerGlobalEventsMap() {
           <span className="text-sm font-medium">Tambah Event</span>
         </button>
         
-        {/* Search Bar */}
         <div className="flex-1 max-w-md">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -378,14 +409,12 @@ export default function PhotographerGlobalEventsMap() {
           </div>
         </div>
 
-        {/* Event Counter Badge */}
         <div className="bg-white rounded-full shadow-lg border border-gray-200 px-4 py-3 flex items-center gap-2">
           <Camera className="h-4 w-4 text-gray-600" />
           <span className="font-semibold text-sm">{filteredEvents.length}</span>
           <span className="text-xs text-gray-500 hidden lg:inline">events</span>
         </div>
 
-        {/* Event Saya Button */}
         <button
           onClick={() => navigate('/photographer/events')}
           className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-4 py-3 shadow-lg border border-blue-800 transition-all hover:scale-105 flex items-center gap-2"
@@ -414,6 +443,13 @@ export default function PhotographerGlobalEventsMap() {
             onZoomChange={setZoom}
           />
           <LocateButton onLocationFound={(lat, lng) => setUserLocation({ lat, lng })} />
+
+          {/* Fly + open popup when sidebar card is clicked */}
+          <FlyToMarker
+            selectedEventId={selectedEvent?.event_id ?? null}
+            markerRefs={markerRefs}
+            events={filteredEvents}
+          />
 
           {userLocation && (
             <Marker position={[userLocation.lat, userLocation.lng]} icon={userLocationMarker}>
@@ -485,6 +521,9 @@ export default function PhotographerGlobalEventsMap() {
               key={event.event_id}
               position={[event.latitude, event.longitude]}
               icon={createEventMarker(selectedEvent?.event_id === event.event_id)}
+              ref={(ref) => {
+                if (ref) markerRefs.current[event.event_id] = ref;
+              }}
               eventHandlers={{
                 click: () => handleEventClick(event)
               }}
@@ -513,8 +552,6 @@ export default function PhotographerGlobalEventsMap() {
                           {event.location}
                         </p>
                       )}
-
-                      {/* Public URL slug */}
                       {event.event_slug && (
                         <div className="mt-2 bg-purple-50 rounded px-2 py-1">
                           <p className="text-xs text-purple-900 font-mono">
@@ -546,38 +583,29 @@ export default function PhotographerGlobalEventsMap() {
                       </div>
                     </div>
 
-                    {/* Photographer Action Buttons */}
                     <div className="flex gap-2 pt-2">
-                      {/* Public View Button */}
                       <Button
                         size="sm"
                         onClick={() => navigateToEvent(event, 'public')}
                         className="flex-1 gap-1.5 h-9 bg-purple-600 hover:bg-purple-700"
-                        title="Lihat Public View"
                       >
                         <ExternalLink className="h-3.5 w-3.5" />
                         Public
                       </Button>
-                      
-                      {/* FotoMap Button */}
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => navigateToEvent(event, 'map')}
                         className="flex-1 gap-1.5 h-9"
-                        title="Lihat Peta Foto"
                       >
                         <Eye className="h-3.5 w-3.5" />
                         Peta
                       </Button>
-                      
-                      {/* Settings Button */}
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => navigateToEvent(event, 'manage')}
                         className="flex-1 gap-1.5 h-9"
-                        title="Kelola Event"
                       >
                         <Settings className="h-3.5 w-3.5" />
                         Kelola
@@ -675,6 +703,11 @@ export default function PhotographerGlobalEventsMap() {
               </div>
               <p className="text-xs text-gray-500">
                 {filteredEvents.length} events ditemukan
+                {selectedEvent && (
+                  <span className="ml-2 text-blue-600 font-medium">
+                    · {selectedEvent.event_name} dipilih
+                  </span>
+                )}
               </p>
             </div>
 
@@ -693,75 +726,85 @@ export default function PhotographerGlobalEventsMap() {
                   </Button>
                 </div>
               ) : (
-                filteredEvents.map((event) => (
-                  <Card
-                    key={event.event_id}
-                    className={`p-3 cursor-pointer transition-all active:scale-98 ${
-                      selectedEvent?.event_id === event.event_id 
-                        ? 'border-blue-500 bg-blue-50 shadow-md' 
-                        : 'border-gray-200 hover:shadow-md'
-                    }`}
-                    onClick={() => handleEventClick(event)}
-                  >
-                    <div className="flex gap-3">
-                      <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
-                        {event.preview_photos && event.preview_photos[0] ? (
-                          <img 
-                            src={event.preview_photos[0]} 
-                            alt={event.event_name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Camera className="h-6 w-6 text-gray-400" />
+                filteredEvents.map((event) => {
+                  const isActive = selectedEvent?.event_id === event.event_id;
+                  return (
+                    <Card
+                      key={event.event_id}
+                      className={`p-3 cursor-pointer transition-all active:scale-98 ${
+                        isActive
+                          ? 'border-blue-500 bg-blue-50 shadow-md ring-1 ring-blue-400' 
+                          : 'border-gray-200 hover:shadow-md hover:border-blue-200'
+                      }`}
+                      onClick={() => handleSidebarCardClick(event)}
+                    >
+                      <div className="flex gap-3">
+                        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
+                          {event.preview_photos && event.preview_photos[0] ? (
+                            <img 
+                              src={event.preview_photos[0]} 
+                              alt={event.event_name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Camera className="h-6 w-6 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <h3 className={`font-semibold text-sm truncate mb-1 ${isActive ? 'text-blue-700' : ''}`}>
+                            {event.event_name}
+                          </h3>
+                          {event.location && (
+                            <p className="text-xs text-gray-500 truncate flex items-center gap-1 mb-1">
+                              <MapPin className="h-3 w-3 flex-shrink-0" />
+                              {event.location}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge variant="secondary" className="text-xs">
+                              {event.total_photos} foto
+                            </Badge>
+                            {isActive && (
+                              <Badge className="text-xs bg-blue-600 text-white">
+                                Dipilih
+                              </Badge>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
 
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm truncate mb-1">
-                          {event.event_name}
-                        </h3>
-                        {event.location && (
-                          <p className="text-xs text-gray-500 truncate flex items-center gap-1 mb-1">
-                            <MapPin className="h-3 w-3 flex-shrink-0" />
-                            {event.location}
-                          </p>
-                        )}
-                        <Badge variant="secondary" className="text-xs">
-                          {event.total_photos} foto
-                        </Badge>
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          size="sm"
+                          variant={isActive ? "default" : "ghost"}
+                          className={`flex-1 gap-1 h-7 text-xs ${isActive ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigateToEvent(event, 'map');
+                          }}
+                        >
+                          <Eye className="h-3 w-3" />
+                          Peta
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="flex-1 gap-1 h-7 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigateToEvent(event, 'manage');
+                          }}
+                        >
+                          <Settings className="h-3 w-3" />
+                          Kelola
+                        </Button>
                       </div>
-                    </div>
-
-                    <div className="flex gap-2 mt-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="flex-1 gap-1 h-7 text-xs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigateToEvent(event, 'map');
-                        }}
-                      >
-                        <Eye className="h-3 w-3" />
-                        Peta
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="flex-1 gap-1 h-7 text-xs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigateToEvent(event, 'manage');
-                        }}
-                      >
-                        <Settings className="h-3 w-3" />
-                        Kelola
-                      </Button>
-                    </div>
-                  </Card>
-                ))
+                    </Card>
+                  );
+                })
               )}
             </div>
           </div>
